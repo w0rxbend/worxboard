@@ -25,7 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: west.yml pins the same ZMK SHA
-        run: grep -q "revision: ${ZMK_SHA}" firmware/zmk/config/west.yml
+        run: |
+          grep -qx "      revision: ${ZMK_SHA}" firmware/zmk/config/west.yml
       - name: worxboard-layouts.dtsi regenerates with no diff
         run: |
           python3 firmware/zmk/scripts/gen_layouts.py

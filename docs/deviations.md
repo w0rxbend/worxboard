@@ -159,3 +159,68 @@ what changed, why, and who consumes it.
 - **Choice:** **C70069**, nSMD025-24V: 1206 PTC, 250 mA hold, 24 V. LCSC listed 9640 in stock on
   2026-10-29. It is a [G3] part.
 - **Consumers:** WS4 (`bom.md`), WS5 (G3).
+
+## WS3: case and plates (`case/worxboard_case.py`)
+
+### WS3-1. Outline corner radii follow the derived PCB outline (§10 change 1)
+
+- **Spec:** case outer = PCB + 3.5 mm (mitre), then the reference radii by vertex class: convex back 10,
+  front-outer 12, thumb 8, concave 6 / 14.
+- **Problem:** the five 45° PCB corner chamfers (3.2–9.5 mm legs) leave too little room for a r10
+  case corner: the cavity (outer − 3.0) would clear the PCB by only 0.05 mm at the back corners.
+- **Change:** chamfers shorter than 15 mm collapse into one sharp corner before the offset (the case
+  corner is then filleted, as on the EZ). Convex radii are reduced in 0.5 mm steps until the cavity
+  keeps 0.3 mm (`CAVITY_MIN_CLEAR`) to the PCB: the two back corners become **r8**; front-outer 12,
+  thumb 8 and concave 6 / 14 are unchanged. The model checks the clearance (`pcb_check`).
+
+### WS3-2. TRRS bump corners r5, not r6 (§10 change 1)
+
+- **Problem:** the bump's top edge is 10.1 mm long between a convex and a concave corner; two r6
+  fillets need 12 mm. **Change:** `R_BUMP = 5.0`. The model now fails if neighbouring fillets overlap.
+
+### WS3-3. Tent legs on the derived walls; shorter M3 threads at the outer and thumb legs (§10 kept list)
+
+- **Positions kept:** y 64 on the outer and inner main walls, v = 0.56 along the thumb end wall. The
+  walls come from the derived outline, so the outer boss face is at x 209.42 (photo value 210.6) and
+  the thumb leg sits on the PCB thumb edge + 3.5 mm.
+- **Problem:** the outer and thumb walls are now 3.1 mm from the key well, so the reference rule that
+  stops the M3 drill short of the well floor gives 5.5 mm (reference 7.5). The thumb pad is 1.75 mm
+  deep (T0 housing). **Change:** none to the rule; a new check requires ≥ 5.0 mm of drill depth
+  (`LEG_MIN_DRILL`, > 1.5 D engagement). Inner leg: pad clamped to 5.0 mm, drill 7.5 mm, 1.29 mm from
+  the display pocket.
+
+### WS3-4. Key well clipped to keep 2.0 mm of wall at the T0 / T3 corners (WS0-3)
+
+- **Change:** the well (cells + 0.6) is intersected with the outer outline − 2.0 mm (`WELL_MIN_WALL`),
+  so the 1.5 mm top-edge fillet cannot break into it. The model checks that every keycap (18.15 mm)
+  stays inside the clipped well.
+
+### WS3-5. Display pocket kept as specified where it meets the C6R1 well (WS0-2 note)
+
+- **Spec:** pocket = module + 0.5 (y up to 75.125), Z 8.6–16.8, cutting the spacer and plate.
+- **Note:** the C6R1 well starts at y 74.025, so the pocket opens a 1.1 mm strip of the well floor
+  (plate) next to the switch. The module itself fills it to within 0.5 mm (module edge y 74.625).
+  Clipping the pocket instead would need gate **G1** to guarantee the module underside ≥ Z 13.6 at its
+  far end; kept as specified. Window (WS0-2, y 47–73): 1.0 mm of top skin to the well, 0.8 mm thick.
+
+### WS3-6. Relief and spacer around the component zones (§10 change 7, §8.3)
+
+- **Change:** the relief pocket (ceiling 14.6) covers Z_BACK and Z_TRRS except a 1.0 mm well wall
+  (`RELIEF_WELL_SKIN`); there the headroom is the 3.5 mm under the plate. The spacer is kept 0.5 mm off
+  both zones and the display pocket.
+- **Keepouts for WS2:** the five top-part boss webs (and their R1 wall fillets) reach down to the PCB
+  top inside Z_BACK / Z_TRRS. `just fitcheck` prints them (right frame: (88.1, 33.4), (118.3, 33.4),
+  (204.0, 37.2), (204.3, 140.1), (106.6, 160.4)); top-side parts must stay off them.
+
+### WS3-7. Smaller items
+
+- `BOTTOM_FRONT_INSET` (reference photo correction) is dropped: the cavity is 0.5 mm from the PCB on
+  every side.
+- Rubber foot 3 moves from (198, 150) to (196, 148) to stay 1.5 mm inside the outline.
+- The USB-C plug recess (Z 6.2–14.2) continues 0.8 mm into the bottom part.
+- `STABILIZERS = True` (§5 plate stab cuts); the spacer has matching openings.
+- `overlay.py` draws the case over the PCB layout instead of an EZ photo (there is none to calibrate).
+- `check_fit.py` places the KiCad STEP by matching the board solid's bbox to the layout outline (Y up,
+  board bottom at Z 0), so any export origin works.
+- Render tools need trimesh / matplotlib / pillow, which are not in the `case` group (pyproject is
+  WS0's): `case.just` pins them with `uv run --with`.

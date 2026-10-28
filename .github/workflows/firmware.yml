@@ -23,7 +23,7 @@ jobs:
     name: Layout dtsi and keymap
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: west.yml pins the same ZMK SHA
         run: |
           grep -qx "      revision: ${ZMK_SHA}" firmware/zmk/config/west.yml
@@ -40,7 +40,7 @@ jobs:
     outputs:
       build_matrix: ${{ steps.fetch.outputs.build_matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: fetch
         run: echo "build_matrix=$(yq -oj -I0 build.yaml)" >> "$GITHUB_OUTPUT"
 
@@ -56,7 +56,7 @@ jobs:
     env:
       WS: /tmp/zmk-ws
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Isolated west workspace
         run: |
@@ -64,7 +64,7 @@ jobs:
           cp firmware/zmk/config/west.yml "$WS/config/west.yml"
 
       - name: Cache west modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: |
@@ -97,7 +97,7 @@ jobs:
         run: grep -v -e "^#" -e "^$" "build/fw/${{ matrix.artifact-name }}/zephyr/.config" | sort || true
 
       - name: Archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-${{ matrix.artifact-name }}
           path: build/fw/artifacts/${{ matrix.artifact-name }}.uf2
@@ -108,7 +108,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/upload-artifact/merge@v4
+      - uses: actions/upload-artifact/merge@v7
         with:
           name: worxboard-firmware
           pattern: artifact-*

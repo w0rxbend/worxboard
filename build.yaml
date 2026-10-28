@@ -1,0 +1,12 @@
+# ZMK build matrix (design.md §11.2): read by `just fw` and .github/workflows/firmware.yml.
+# Rule: a row stays here only if `just fw` compiles it locally (docs/firmware.md lists removals).
+# Core rows: the left central (host plugs into the LEFT half) and the right peripheral.
+include:
+  - { board: worxboard_left//zmk,  snippet: studio-rpc-usb-uart, cmake-args: -DCONFIG_ZMK_STUDIO=y, artifact-name: worxboard_left_central }
+  - { board: worxboard_right//zmk, artifact-name: worxboard_right_peripheral }
+  # EXPERIMENTAL role swap (untested on hardware): either half can be the host
+  - { board: worxboard_right//zmk, snippet: studio-rpc-usb-uart, cmake-args: -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y -DCONFIG_ZMK_USB=y -DCONFIG_ZMK_STUDIO=y, artifact-name: worxboard_right_central_EXPERIMENTAL }
+  - { board: worxboard_left//zmk,  cmake-args: -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n, artifact-name: worxboard_left_peripheral_EXPERIMENTAL }
+  # EXPERIMENTAL RP2350A target (design.md §13): firmware only
+  - { board: worxboard2_left/rp2350a/m33/zmk,  snippet: studio-rpc-usb-uart, cmake-args: -DCONFIG_ZMK_STUDIO=y, artifact-name: worxboard2_left_EXPERIMENTAL }
+  - { board: worxboard2_right/rp2350a/m33/zmk, artifact-name: worxboard2_right_EXPERIMENTAL }

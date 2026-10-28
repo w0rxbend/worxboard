@@ -1,0 +1,15 @@
+file_format: "1"
+id: worxboard
+name: worxboard
+type: board
+arch: arm
+url: https://github.com/w0rxbend/worxboard
+outputs:
+  - usb
+features:
+  - keys
+  - display
+  - studio
+siblings:
+  - worxboard_left
+  - worxboard_right

@@ -1,0 +1,15 @@
+boards:
+  - name: worxboard_left
+    full_name: worxboard (left half)
+    vendor: worxbend
+    socs:
+      - name: rp2040
+        variants:
+          - name: zmk
+  - name: worxboard_right
+    full_name: worxboard (right half)
+    vendor: worxbend
+    socs:
+      - name: rp2040
+        variants:
+          - name: zmk

@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: MIT
+
+if BOARD_WORXBOARD_LEFT
+
+config ZMK_KEYBOARD_NAME
+    default "worxboard"
+
+config ZMK_SPLIT_ROLE_CENTRAL
+    default y
+
+endif # BOARD_WORXBOARD_LEFT
+
+if BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT
+
+config BOARD
+    default "worxboard"
+
+config ZMK_SPLIT
+    default y
+
+# W25Q-class QSPI flash (same boot2 as the Pico); change to match the BOM part
+config RP2_FLASH_W25Q080
+    default y
+
+if ZMK_DISPLAY
+
+config LV_Z_VDB_SIZE
+    default 100
+
+config LV_DPI_DEF
+    default 161
+
+config LV_Z_BITS_PER_PIXEL
+    default 1
+
+choice LV_COLOR_DEPTH
+    default LV_COLOR_DEPTH_1
+endchoice
+
+config LS0XX_VCOM_THREAD_PRIO
+    default 11
+
+choice ZMK_DISPLAY_WORK_QUEUE
+    default ZMK_DISPLAY_WORK_QUEUE_DEDICATED
+endchoice
+
+config ZMK_DISPLAY_BLANK_ON_IDLE
+    default n
+
+endif # ZMK_DISPLAY
+
+# Caps/Num/Scroll lock state is forwarded over the wired split to the right screen (§11.6)
+config ZMK_HID_INDICATORS
+    default y
+
+config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
+    default y
+
+endif # BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT
+
+if BOARD_WORXBOARD_RIGHT
+
+# Right half: custom LVGL screen (firmware/zmk/src/worx_status_screen.c)
+choice ZMK_DISPLAY_STATUS_SCREEN
+    default ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+endchoice
+
+endif # BOARD_WORXBOARD_RIGHT

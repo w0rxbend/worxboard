@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: MIT */
+#include <zephyr/dt-bindings/pinctrl/rpi-pico-rp2040-pinctrl.h>
+
+&pinctrl {
+    /* Wired split over TRRS: GP0 = UART0 TX, GP1 = UART0 RX (cross TX/RX on the PCB) */
+    uart0_default: uart0_default {
+        group1 {
+            pinmux = <UART0_TX_P0>;
+        };
+        group2 {
+            pinmux = <UART0_RX_P1>;
+            input-enable;
+        };
+    };
+
+    /* nice!view (Sharp LS011B7DH03) on PIO1-SPI: GP2 = SCK, GP3 = MOSI (CS = GP5 as GPIO) */
+    pio1_spi_default: pio1_spi_default {
+        group1 {
+            pinmux = <PIO1_P2>, <PIO1_P3>;
+        };
+    };
+};

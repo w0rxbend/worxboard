@@ -1,0 +1,132 @@
+/* SPDX-License-Identifier: MIT */
+/dts-v1/;
+
+#include <raspberrypi/rpi_pico/rp2040.dtsi>
+#include <arm/raspberrypi/rp2040-boot-mode-retention.dtsi>
+#include <freq.h>
+
+#include "worxboard-pinctrl.dtsi"
+#include "worxboard-layouts.dtsi"
+
+/ {
+    chosen {
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+        zephyr,flash-controller = &ssi;
+        zephyr,code-partition = &code_partition;
+        zmk,kscan = &kscan0;
+        zmk,physical-layout = &worxboard_layout;
+        zephyr,display = &nice_view;
+    };
+
+    /* Matrix 6 x 7 col2row (design.md §3/§5). COLn = physical column Cn, C0 outer, on both
+     * PCBs; the right .dts reverses col-gpios so its logical order runs inner -> outer. */
+    kscan0: kscan {
+        compatible = "zmk,kscan-gpio-matrix";
+        wakeup-source;
+        diode-direction = "col2row";
+        row-gpios
+            = <&gpio0 8  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 9  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 11 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 13 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            ;
+        col-gpios
+            = <&gpio0 14 GPIO_ACTIVE_HIGH>
+            , <&gpio0 15 GPIO_ACTIVE_HIGH>
+            , <&gpio0 16 GPIO_ACTIVE_HIGH>
+            , <&gpio0 17 GPIO_ACTIVE_HIGH>
+            , <&gpio0 18 GPIO_ACTIVE_HIGH>
+            , <&gpio0 19 GPIO_ACTIVE_HIGH>
+            , <&gpio0 20 GPIO_ACTIVE_HIGH>
+            ;
+    };
+
+    wired_split {
+        compatible = "zmk,wired-split";
+        device = <&uart0>;
+    };
+};
+
+&flash0 {
+    reg = <0x10000000 DT_SIZE_M(4)>;
+
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        second_stage_bootloader: partition@0 {
+            reg = <0x00000000 0x100>;
+            read-only;
+        };
+
+        code_partition: partition@100 {
+            reg = <0x100 (DT_SIZE_M(4) - 0x100 - DT_SIZE_K(512))>;
+            read-only;
+        };
+
+        storage_partition: partition@380000 {
+            reg = <0x380000 DT_SIZE_K(512)>;
+        };
+    };
+};
+
+&uart0 {
+    status = "okay";
+    current-speed = <115200>;
+    pinctrl-0 = <&uart0_default>;
+    pinctrl-names = "default";
+};
+
+&pio1 {
+    status = "okay";
+
+    nice_view_spi: nice_view_spi {
+        compatible = "raspberrypi,pico-spi-pio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clocks = <&clocks RPI_PICO_CLKID_CLK_SYS>;
+        clock-frequency = <DT_FREQ_M(1)>;
+        pinctrl-0 = <&pio1_spi_default>;
+        pinctrl-names = "default";
+        clk-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+        mosi-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+        cs-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+
+        nice_view: ls0xx@0 {
+            compatible = "sharp,ls0xx";
+            reg = <0>;
+            spi-max-frequency = <DT_FREQ_M(1)>;
+            width = <160>;
+            height = <68>;
+            serial-vcom-inversion;
+            serial-vcom-interval = <33>;
+        };
+    };
+};
+
+&timer {
+    status = "okay";
+};
+
+&rtc {
+    clocks = <&clocks RPI_PICO_CLKID_CLK_RTC>;
+    status = "okay";
+};
+
+&vreg {
+    regulator-always-on;
+    regulator-allowed-modes = <REGULATOR_RPI_PICO_MODE_NORMAL>;
+};
+
+&gpio0 {
+    status = "okay";
+};
+
+zephyr_udc0: &usbd {
+    status = "okay";
+};

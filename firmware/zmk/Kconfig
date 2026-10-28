@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+# worxboard ZMK module options (zephyr/module.yml -> kconfig: firmware/zmk/Kconfig)
+
+config WORXBOARD_STATUS_SCREEN
+    bool "worxboard right-half status screen"
+    default y
+    depends on ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+    depends on BOARD_WORXBOARD_RIGHT || BOARD_WORXBOARD2_RIGHT
+    select LV_USE_LABEL
+    select LV_FONT_MONTSERRAT_16
+    select LV_FONT_MONTSERRAT_12
+    help
+      Logo, Caps/Num/Scroll lock row and a static "wired" label (design.md §11.6).
+      Uses no BLE or battery symbols.

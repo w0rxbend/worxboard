@@ -1,0 +1,16 @@
+# EXPERIMENTAL RP2350A target (design.md §13): firmware only, shares the worxboard layout and keymap.
+boards:
+  - name: worxboard2_left
+    vendor: worxbend
+    socs:
+      - name: rp2350a
+        variants:
+          - name: zmk
+            cpucluster: m33
+  - name: worxboard2_right
+    vendor: worxbend
+    socs:
+      - name: rp2350a
+        variants:
+          - name: zmk
+            cpucluster: m33

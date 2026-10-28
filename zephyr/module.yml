@@ -1,0 +1,6 @@
+name: zmk-keyboard-worxboard
+build:
+  cmake: firmware/zmk
+  kconfig: firmware/zmk/Kconfig
+  settings:
+    board_root: firmware/zmk

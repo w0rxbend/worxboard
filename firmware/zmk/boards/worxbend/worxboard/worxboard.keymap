@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: MIT */
+/* Board default keymap: the user keymap in firmware/zmk/config is the single source.
+ * (A build with ZMK_CONFIG=firmware/zmk/config picks that file directly for worxboard.) */
+#include "../../../config/worxboard.keymap"

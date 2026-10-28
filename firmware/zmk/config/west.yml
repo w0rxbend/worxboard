@@ -1,0 +1,13 @@
+# ZMK pinned to the commit the seed firmware was compiled and verified against (design.md §11.2).
+# CI (.github/workflows/firmware.yml) uses the same SHA for its build steps.
+manifest:
+  remotes:
+    - name: zmkfirmware
+      url-base: https://github.com/zmkfirmware
+  projects:
+    - name: zmk
+      remote: zmkfirmware
+      revision: 4dd95d7840eb3d5a3f59bb29fbf1ab054715ef85
+      import: app/west.yml
+  self:
+    path: config

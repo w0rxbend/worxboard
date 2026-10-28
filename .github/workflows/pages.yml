@@ -1,0 +1,62 @@
+# Microsite: builds _site/ (layout viewer + case STLs when the case builds) and deploys GitHub Pages.
+# Manual only: run it from the Actions tab.
+name: pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build microsite
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@v2
+
+      - name: Python environment
+        run: uv sync --all-groups
+
+      - name: Generated docs are up to date
+        run: uv run python site/gen_docs.py --check
+
+      - name: Link check (local links and anchors)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress --include-fragments --root-dir ${{ github.workspace }} README.md docs/*.md
+          fail: true
+
+      - name: Case model (optional; the site builds without it)
+        run: just model || echo "::warning::case model not built; the site shows the PCB from layout.json only"
+
+      - name: Build site
+        run: just version="${GITHUB_REF_NAME}@${GITHUB_SHA::7}" site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

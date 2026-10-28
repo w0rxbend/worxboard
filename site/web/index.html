@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>worxboard</title>
+<meta name="description" content="worxboard: an ErgoDox EZ-style split keyboard with an on-board RP2040, ZMK wired split, a memory LCD on each half and USB-C on both halves. Interactive 3D preview generated from the layout source.">
+<meta property="og:title" content="worxboard">
+<meta property="og:description" content="Open-source ErgoDox-style split keyboard: RP2040, ZMK, nice!view LCD, KiCad PCB and build123d case. Spin it in your browser.">
+<meta property="og:image" content="images/layout.svg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='7' width='26' height='18' rx='3' fill='%23ff6a1a'/><g fill='%230d0f12'><rect x='7' y='11' width='4' height='4' rx='1'/><rect x='14' y='11' width='4' height='10' rx='1'/><rect x='21' y='11' width='4' height='4' rx='1'/><rect x='7' y='17' width='4' height='4' rx='1'/><rect x='21' y='17' width='4' height='4' rx='1'/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top"><span class="brand-mark"></span>worx<span class="dim">/</span>board</a>
+  <nav>
+    <a href="#viewer">Viewer</a>
+    <a href="#features">Features</a>
+    <a href="#status">Status</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#docs">Docs</a>
+    <a class="gh" href="https://github.com/w0rxbend/worxboard">GitHub ↗</a>
+  </nav>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow mono">rev A · RP2040 · ZMK wired split · <span id="version">v—</span></p>
+    <h1>An <em>ErgoDox</em>-style split keyboard, generated from one layout file.</h1>
+    <p class="lede">The exact ErgoDox key positions and 25° thumb cluster, an on-board RP2040 per half, ZMK
+      over a TRRS cable, a memory LCD where the inner top key used to be, and USB-C on both halves. The KiCad
+      PCB, the build123d case, the ZMK physical layout and this page all come from the same
+      <a href="https://github.com/w0rxbend/worxboard/tree/main/layout">layout package</a>.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/w0rxbend/worxboard">View the repository</a>
+      <a class="btn" href="#viewer">Spin the model ↓</a>
+    </div>
+    <p class="warn">Rev A is in development and has not been built. Do not order boards until gates G1–G3 pass
+      (<a href="https://github.com/w0rxbend/worxboard/blob/main/docs/bom.md#gates">BOM gates</a>).</p>
+  </div>
+</section>
+
+<section id="viewer" class="viewer-wrap">
+  <div class="viewer" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="loader" id="loader"><div class="bar"><span id="loadbar"></span></div><p class="mono" id="loadtext">loading layout…</p></div>
+    <div class="tooltip mono" id="tooltip"></div>
+    <div class="hud mono" id="hud"></div>
+    <div class="hint mono">drag to orbit · right-drag to pan · scroll to zoom · hover a key or part</div>
+
+    <aside class="panel" id="panel">
+      <div class="group">
+        <label class="cap">Scene</label>
+        <div class="seg" id="scenes">
+          <button data-scene="pair" class="on">Pair</button>
+          <button data-scene="left">Left</button>
+          <button data-scene="right">Right</button>
+        </div>
+      </div>
+      <div class="group">
+        <label class="cap">Case finish</label>
+        <div class="swatches" id="finishes"></div>
+      </div>
+      <div class="group">
+        <label class="cap" for="explode">Explode <span class="val mono" id="explodeVal">0</span></label>
+        <input type="range" id="explode" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="group">
+        <label class="cap" for="section">Section cut <span class="val mono" id="sectionVal">off</span></label>
+        <input type="range" id="section" min="0" max="1" step="0.005" value="0">
+      </div>
+      <div class="group" id="swingGroup">
+        <label class="cap" for="swing">Leg angle <span class="val mono" id="swingVal">90°</span></label>
+        <input type="range" id="swing" min="0" max="180" step="5" value="90">
+      </div>
+      <div class="group toggles">
+        <label><input type="checkbox" id="tCaps" checked> keycaps</label>
+        <label><input type="checkbox" id="tLegends" checked> legends</label>
+        <label><input type="checkbox" id="tSwitches" checked> switches</label>
+        <label><input type="checkbox" id="tPcb" checked> PCB</label>
+        <label><input type="checkbox" id="tTop" checked> case top</label>
+        <label><input type="checkbox" id="tSpacer" checked> spacer</label>
+        <label><input type="checkbox" id="tBottom" checked> tray</label>
+        <label><input type="checkbox" id="tLegs" checked> legs</label>
+        <label><input type="checkbox" id="tEdges" checked> edges</label>
+        <label><input type="checkbox" id="tSpin"> auto-rotate</label>
+      </div>
+      <div class="group row">
+        <button class="btn small" id="resetView">Reset view</button>
+        <button class="btn small" id="snap">Screenshot</button>
+      </div>
+    </aside>
+  </div>
+  <div class="parts" id="partlist"></div>
+</section>
+
+<section class="stats">
+  <div class="stat"><span class="num mono" id="keyStat">74</span><span class="lbl">keys, 37 per half, ErgoDox stagger</span></div>
+  <div class="stat"><span class="num mono" id="sizeStat">—</span><span class="lbl">mm PCB per half</span></div>
+  <div class="stat"><span class="num mono">160 × 68</span><span class="lbl">memory LCD on each half</span></div>
+  <div class="stat"><span class="num mono">2 × RP2040</span><span class="lbl">on-board, ZMK wired split at 115 200 baud</span></div>
+</section>
+
+<section id="features" class="features">
+  <h2>What's in it</h2>
+  <div class="grid">
+    <article><h3>Exact ErgoDox layout</h3><p>Switch centres, column stagger and the six-key 25° thumb cluster come from the original ErgoDox PCB, checked to 0.002&nbsp;mm.</p></article>
+    <article><h3>A display on each half</h3><p>A Sharp memory LCD (nice!view format) replaces the top key of the inner column, behind a window in the case. Left shows ZMK status, right shows lock indicators.</p></article>
+    <article><h3>On-board RP2040</h3><p>No controller daughterboard: RP2040, 16&nbsp;MB flash and the Corne v4.1 support circuit are assembled by JLCPCB, along with every hot-swap socket.</p></article>
+    <article><h3>USB-C on both halves</h3><p>The host goes into the left half. The right USB-C powers and flashes. Schottky diodes let both be plugged in at once.</p></article>
+    <article><h3>Wired split, safely</h3><p>ZMK's wired split over a straight TRRS cable. Power sits on Ring2 behind a polyfuse; the tip carries only resistor-limited data. A solder jumper turns cable power off.</p></article>
+    <article><h3>One source of truth</h3><p>A Python layout package drives the KiCad PCB generator, the build123d case, the ZMK physical layout, the docs tables and this viewer.</p></article>
+  </div>
+</section>
+
+<section id="status" class="status-wrap">
+  <h2>Status</h2>
+  <p class="lede">Rev A is built by parallel work-streams to a <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/design.md">frozen spec</a>.</p>
+  <table class="status">
+    <thead><tr><th>Part</th><th>State</th><th>What exists</th></tr></thead>
+    <tbody>
+      <tr><td>Layout</td><td><span class="pill done">done</span></td><td>Keys, thumbs, display, jacks, holes, outline, zones and GPIO map; <span class="mono">layout.json</span> drives everything here.</td></tr>
+      <tr><td>Firmware</td><td><span class="pill wip">in progress</span></td><td>ZMK HWMv2 board, compiled as a seed; keymap, custom right screen and CI being added.</td></tr>
+      <tr><td>PCB</td><td><span class="pill wip">in progress</span></td><td>Scripted KiCad 10 pipeline: schematic, placement, Freerouting, DRC, JLC outputs.</td></tr>
+      <tr><td>Case</td><td><span class="pill wip">in progress</span></td><td>build123d port of the ErgoDox CNC case with display window, USB-C on both halves and the TRRS bump.</td></tr>
+      <tr><td>Docs and site</td><td><span class="pill done">first pass</span></td><td>Build guide, BOM, electrical notes, generated pinout and matrix, ordering, case and firmware pages.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="gallery" class="gallery">
+  <h2>Images</h2>
+  <div class="shots" id="shots"></div>
+</section>
+
+<section id="docs" class="build">
+  <h2>Documentation</h2>
+  <div class="docs" id="doclinks"></div>
+  <div class="code">
+    <div class="code-head mono">build it from source · uv + just + Docker</div>
+<pre class="mono"><span class="p">$</span> git clone https://github.com/w0rxbend/worxboard && cd worxboard
+<span class="p">$</span> just setup          <span class="c"># .venv with every Python group</span>
+<span class="p">$</span> just layout-check   <span class="c"># layout tests + no-diff check</span>
+<span class="p">$</span> just fw             <span class="c"># ZMK firmware for every build.yaml row (Docker)</span>
+<span class="p">$</span> just pcb-all        <span class="c"># both PCBs: ERC, routing, DRC, JLC files (Docker)</span>
+<span class="p">$</span> just model          <span class="c"># case STEP/STL/DXF</span>
+<span class="p">$</span> just site           <span class="c"># this page, into _site/</span></pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Code GPL-3.0-or-later; hardware CERN-OHL-S-2.0. Key and hole coordinates come from the original ErgoDox PCB by Fredrik Atmer and contributors.
+    "ErgoDox EZ" is a product of ZSA Technology Labs and "nice!view" of Nice Keyboards; this project is not affiliated with or endorsed by either.</p>
+  <p class="mono"><a href="https://github.com/w0rxbend/worxboard">github.com/w0rxbend/worxboard</a></p>
+</footer>
+
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

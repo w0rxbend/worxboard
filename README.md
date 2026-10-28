@@ -35,7 +35,7 @@ KiCad PCB, the build123d case, the ZMK physical layout, the docs tables and the 
 | Part | State |
 |---|---|
 | Layout (`layout/`) | **Done.** Keys, thumbs, display, jacks, holes, outline, zones, GPIO map; tested by `just layout-check` |
-| Firmware (`firmware/`, `zephyr/`, `build.yaml`) | **In progress.** The ZMK board compiled as a seed; keymap, custom right screen, CI being added |
+| Firmware (`firmware/`, `zephyr/`, `build.yaml`) | **In progress.** ZMK module, 3-layer keymap, generated layouts, custom right screen and the firmware workflow are in; untested on hardware |
 | PCB (`pcb/`) | **In progress.** Scripted KiCad 10 pipeline: schematic, placement, Freerouting, DRC, JLC files |
 | Case and plates (`case/`, `plates/`) | **In progress.** build123d port of the ErgoDox CNC case |
 | Docs and microsite (`docs/`, `site/`) | **First pass.** Build guide, BOM, electrical, generated pinout and matrix, viewer |

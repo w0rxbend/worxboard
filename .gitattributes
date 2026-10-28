@@ -1,0 +1,24 @@
+* text=auto eol=lf
+
+# Generated contracts: diff them, but mark as generated for review UIs
+layout/build/layout.json linguist-generated=true
+docs/images/layout.svg   linguist-generated=true
+firmware/zmk/boards/worxbend/worxboard/worxboard-layouts.dtsi linguist-generated=true
+
+# KiCad
+*.kicad_pcb text -diff linguist-generated=true
+*.kicad_sch text -diff
+*.kicad_sym text
+*.kicad_mod text
+
+# CAD
+*.step text -diff
+*.stl  binary
+*.dxf  text -diff
+
+# Binaries
+*.zip  binary
+*.uf2  binary
+*.jpg  binary
+*.png  binary
+*.pdf  binary

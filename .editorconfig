@@ -1,0 +1,31 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 110
+
+[{justfile,*.just}]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,dts,dtsi,keymap}]
+indent_style = space
+indent_size = 2
+
+[*.{c,h}]
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{kicad_pcb,kicad_sch,kicad_sym,kicad_mod,kicad_pro}]
+indent_style = unset
+indent_size = unset

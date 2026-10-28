@@ -3,30 +3,40 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.pytest_cache/
+.ruff_cache/
 
-# Node (ergogen)
+# Node (site tooling)
 node_modules/
 
-# KiCad backups / caches
+# Build outputs (layout/build/layout.json is committed: it is not under /build/)
+/build/
+/exports/
+/dist/
+/_site/
+/scratch/
+
+# KiCad backups / caches / pipeline tools
 *-backups/
 *.kicad_prl
 fp-info-cache
 _autosave-*
 *.lck
 \#auto_saved_files#
+pcb/.tools/
 
-# Firmware build
+# Production files: force-added on v*-revA hardware tags only (git add -f pcb/production/...)
+pcb/production/*
+!pcb/production/.gitkeep
+
+# Case exports
+case/exports/
+
+# ZMK / west workspace (zephyr/module.yml at the root is tracked)
 /firmware/build/
 /zmk/
-/zephyr/
 /modules/
 /.west/
-
-# Generated outputs
-/exports/
-/dist/
-/_site/
-/scratch/
 
 # OS / editor
 .DS_Store

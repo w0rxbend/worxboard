@@ -1,0 +1,6 @@
+# Pinned container images (spec §9.1, §11.2). Format: <tag> <repo digest>
+# Refresh: docker pull <tag> && docker image inspect <tag> --format '{{index .RepoDigests 0}}'
+kicad/kicad:10.0.7                 kicad/kicad@sha256:3224d1bf143185ecc1bd3a1082a36f37f0f4e59d707983a16515a845e3737fc6
+eclipse-temurin:25-jre             eclipse-temurin@sha256:78f1f183913482ef390c2722f46c3f0ce76ada341d69590e7c482ec943ee72d5
+zmkfirmware/zmk-build-arm:stable   zmkfirmware/zmk-build-arm@sha256:edb1c953438c6f720ddb79c3762f3972013b7fbbaf4fff3592fc869983e7afc5
+# kicad/kicad:10.0.7-full (STEP export only): digest recorded by WS2 when first pulled

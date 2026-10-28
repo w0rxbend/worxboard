@@ -61,3 +61,62 @@ what changed, why, and who consumes it.
   The J3 footprint is placed at the same rotation on both PCBs, not mirrored. The pin-1 end is
   provisional until gate **G1** confirms the nice!view pinout.
 - **Consumers:** WS2 (`place.py`, `design.py`).
+
+## WS1: firmware
+
+### WS1-1. CI mirrors `build-user-config.yml` instead of calling it (§11.2)
+
+- **Spec:** `firmware.yml` `uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@<sha>` with
+  `config_path: firmware/zmk/config`.
+- **Problem:** with a root `zephyr/module.yml` the reusable workflow copies the config with
+  `mkdir "<tmp>/zmk-config/<config_path>"` (no `-p`, unchanged on ZMK `main`), so a nested
+  `config_path` fails before any build.
+- **Change:** `.github/workflows/firmware.yml` runs the same steps itself: `zmkfirmware/zmk-build-arm:stable`,
+  matrix from `build.yaml` (yq), west init/update/zephyr-export, `west build -s zmk/app` with
+  `-DZMK_CONFIG=firmware/zmk/config -DZMK_EXTRA_MODULES=<repo>`, one `artifact-<name>` per row merged
+  into `worxboard-firmware`. The build step is `firmware/zmk/scripts/fw_build.py`, the same script
+  `just fw` runs, and CI asserts the checked-out ZMK revision equals the pinned SHA.
+- **Consumers:** WS5 (`release.yml` downloads the `worxboard-firmware` archive / `*.uf2`).
+
+### WS1-2. West workspace outside the repo tree; manifest `self.path: config` (§11.2)
+
+- **Spec:** `self: { path: firmware/zmk/config }` and `west init -l /work/firmware/zmk/config`.
+- **Problem:** `west init -l` makes the *parent* of the manifest directory the workspace, so zmk,
+  zephyr and ~3 GB of modules would land in `firmware/zmk/`, next to the module's own `zephyr`-named
+  paths and untracked by `.gitignore`.
+- **Change:** `just fw-west` copies `west.yml` to `build/fw-ws/config/` (git-ignored) and initialises
+  there; CI uses `/tmp/zmk-ws/config`. `self.path` is `config` to match. West update reruns only when
+  `west.yml` changes.
+
+### WS1-3. Matrix transform generated with the physical layout (§11.2, §11.4)
+
+- **Spec:** the 6×14 transform lives in the seed `worxboard.dtsi`; only the physical layout is generated.
+- **Change:** `gen_layouts.py` writes both `default_transform` and `worxboard_layout` into
+  `worxboard-layouts.dtsi` from `layout.json` `transform_order`, so the transform, the physical
+  layout and the keymap order cannot drift. `worxboard2` includes the same generated file.
+  The map is identical to the seed's.
+
+### WS1-4. HID indicators forwarded from the central (§11.2, §11.6)
+
+- **Spec:** `ZMK_SPLIT_PERIPHERAL_HID_INDICATORS default y` under `if BOARD_WORXBOARD_RIGHT` only.
+- **Problem:** the option gates the *central's* sender (`hid_indicators.c`) as well as the peripheral's
+  receiver, and depends on `ZMK_HID_INDICATORS`; right-only leaves the right lock row dark.
+- **Change:** `ZMK_HID_INDICATORS` and `ZMK_SPLIT_PERIPHERAL_HID_INDICATORS` default y on both halves.
+  The custom-screen choice stays right-only.
+
+### WS1-5. Keymap and options single-sourced in `firmware/zmk/config` (§11.1, §11.3)
+
+- The board-folder keymaps (`worxboard.keymap`, `worxboard2.keymap`) `#include` the user keymap
+  `firmware/zmk/config/worxboard.keymap`, so there is one keymap.
+- ZMK reads `<ZMK_CONFIG>/<board dir>.conf`; `worxboard2` has no `worxboard2.conf`, so its defconfigs
+  set `CONFIG_ZMK_DISPLAY=y` and `CONFIG_ZMK_POINTING=y` (mouse keys on layer 2). The board-folder
+  `worxboard.conf` files are kept as documented defaults only.
+- Layer mapping where QMK has no ZMK equivalent: `TT(1)` is a hold-tap (`&mo`/`&tog`), `HYPER`/`MEH`
+  are plain held modifier combos, `VRSN`/`EE_CLR`/RGB keys are `&trans`. LEFT/RGHT (the old inner-top
+  keys) sit on layer 1 at the inner 1.5u `HYPER`/`MEH` positions, so the layer-1 `TG` keys stay
+  transparent and still toggle back.
+
+### WS1-6. Kconfig `LV_OBJ_LABEL` does not exist at the pinned ZMK (§11.6)
+
+- ZMK's built-in screen `select`s `LV_OBJ_LABEL`, a dangling symbol at 4dd95d78. The module's
+  `WORXBOARD_STATUS_SCREEN` selects `LV_USE_LABEL` (plus Montserrat 12/16) instead.

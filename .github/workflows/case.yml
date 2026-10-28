@@ -1,0 +1,60 @@
+name: case
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    name: Case model, checks and order package (WS3)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@v2
+
+      - name: Fonts for the side mark
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
+
+      - name: Install the case group
+        run: uv sync --locked --group case
+
+      - name: just model (fails on any case check)
+        run: |
+          mkdir -p case/exports
+          just model | tee case/exports/build-report.txt
+
+      - name: Plates are up to date
+        run: git diff --exit-code -- plates/
+
+      - name: just fitcheck (PCB STEP when present, layout envelopes otherwise)
+        run: just fitcheck | tee -a case/exports/build-report.txt
+
+      - name: Renders
+        run: just renders
+
+      - name: Order package (PDF drawings)
+        run: just version="${GITHUB_REF_NAME//\//-}" order
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worxboard-case
+          path: |
+            case/exports/*.step
+            case/exports/*.stl
+            case/exports/*.dxf
+            case/exports/build-report.txt
+            case/exports/order/
+            case/renders/*.png
+            plates/*.dxf
+          if-no-files-found: error

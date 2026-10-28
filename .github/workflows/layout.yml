@@ -1,0 +1,39 @@
+name: layout
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Layout acceptance (WS0)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@v2
+
+      - name: Install the layout and dev groups
+        run: uv sync --locked
+
+      - name: just layout-check
+        run: just layout-check
+
+      - name: Upload KLE and layout exports
+        uses: actions/upload-artifact@v4
+        with:
+          name: worxboard-layout
+          path: |
+            layout/build/layout.json
+            docs/images/layout.svg
+            build/kle.json

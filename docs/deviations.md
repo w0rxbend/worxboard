@@ -120,3 +120,42 @@ what changed, why, and who consumes it.
 
 - ZMK's built-in screen `select`s `LV_OBJ_LABEL`, a dangling symbol at 4dd95d78. The module's
   `WORXBOARD_STATUS_SCREEN` selects `LV_USE_LABEL` (plus Montserrat 12/16) instead.
+
+## WS2a: schematic and electrical data (`pcb/scripts/design.py`, `gen_sch.py`, `netcmp.py`)
+
+### WS2a-1. Matrix and button reference designators (§7, §9)
+
+- **Spec:** sockets `SK_xx`, diodes `D_xx`, buttons `SW_BOOT` / `SW_RST`.
+- **Problem:** kicad-sch-api 0.5.6 (the pinned generator) only accepts references of the form
+  `[A-Z]+[0-9]*`, and KiCad annotation splits a reference at its trailing number, so `SK_C0R0` is not a
+  usable designator.
+- **Change:** key n (0-based, in `layout.keys()` order: main block, then T0–T5) is socket
+  **`SK<101+n>`** and diode **`D<101+n>`** (SK101/D101 = C0R0 … SK137/D137 = T5). Both carry a hidden
+  **`Key`** field with the layout key id, which is what `place.py` should use. The buttons are
+  **SW1** (value `BOOT`) and **SW2** (value `RESET`). `D1` stays the B5819W.
+- **Consumers:** WS2 placement (`place.py` places by the `Key` field), WS4 (`bom.md`, build guide).
+
+### WS2a-2. TRRS_DET test pad TP11 (§3, §7)
+
+- **Spec:** §3 gives GP21 (`TRRS_DET`) a test pad; §7 counts only TP1–TP7 + SWD×3 = 10 pads.
+- **Change:** an eleventh pad **TP11** on `TRRS_DET`, in the TRRS group (excluded from BOM/POS like
+  the others). SWD pads are TP8 SWCLK, TP9 SWDIO, TP10 GND.
+- **Consumers:** WS2 placement (TP11 in Z_TRRS or Z_BACK), WS4.
+
+### WS2a-3. Hot-swap footprint is drawn for a flip onto B.Cu (§9 stage 1)
+
+- **Spec:** `SW_MX_Hotswap_Kailh` with B.Cu pads at (−7.085, −2.54) / (5.842, −5.08) and socket holes at
+  (−3.81, −2.54) / (2.54, −5.08); §9 stage 7 flips B-side parts.
+- **Clarification:** the spec numbers are the coordinates **on the board**. So that JLC sees the
+  socket as a bottom-side part (POS file) the library footprint is the front-side mirror (pads on F.Cu at
+  (7.085, −2.54) / (−5.842, −5.08)). `place.py` flips it left/right (`FLIP_DIRECTION_LEFT_RIGHT`), which
+  puts the pads on B.Cu exactly at the spec coordinates (checked with pcbnew 10.0.7). Pad 1 = COL,
+  pad 2 = diode anode. `Stab_MX_2u` has its long axis along x and the `board_only` attribute (no symbol).
+- **Consumers:** WS2 placement (`place.py`).
+
+### WS2a-4. F1 part choice (§7)
+
+- **Spec:** F1 "chosen by WS2 from JLC parts".
+- **Choice:** **C70069**, nSMD025-24V: 1206 PTC, 250 mA hold, 24 V. LCSC listed 9640 in stock on
+  2026-10-29. It is a [G3] part.
+- **Consumers:** WS4 (`bom.md`), WS5 (G3).

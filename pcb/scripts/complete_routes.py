@@ -29,6 +29,7 @@ CLEARANCE = 0.2
 HOLE_CLEARANCE = 0.25
 EDGE_CLEARANCE = 0.5
 VIA_COST = 1.6               # mm of track a via is worth
+SOFT_RIP = False             # rip-up of other nets oscillates (routes churn); off by default
 SOFT_COST = 3.0              # mm of track that crossing a rippable track costs, per grid cell
 PAIR_TRIES = 3               # closest island pairs tried per round
 MAX_RIPS = 2                 # rip-ups before a net waits for the soft queue
@@ -235,10 +236,11 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
     via_bad |= ~shapely.contains_xy(edge.buffer(-(EDGE_CLEARANCE + vr)), grid.X, grid.Y)
     for it, key in index.near(win):
         if key == "hole":
+            ripable = soft_ok and it.ref is not None and it.net != net
             if it.net != net:
                 for l in LAYERS:
-                    grid.mark(index.dilated(it, key, HOLE_CLEARANCE + half + quant), blocked[l])
-            grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant), via_bad)
+                    grid.mark(index.dilated(it, key, HOLE_CLEARANCE + half + quant), (soft if ripable else blocked)[l])
+            grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant), via_soft if ripable else via_bad)
         elif it.net != net and not it.pour:
             ripable = soft_ok and it.ref is not None
             grid.mark(index.dilated(it, key, CLEARANCE + half + quant), (soft if ripable else blocked)[key])
@@ -468,7 +470,7 @@ def complete(board: pcbnew.BOARD, side: str, fanout: set[str], only: tuple[str, 
         if not path:
             if len(pairs) > PAIR_TRIES:          # other island pairs of this net may still route
                 (soft if soft_ok else hard).append(code)
-            elif not soft_ok and name != "GND":
+            elif SOFT_RIP and not soft_ok and name != "GND":
                 soft.append(code)
             else:
                 failed.add(name)

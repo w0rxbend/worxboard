@@ -42,6 +42,8 @@ EDGE_CLEAR = 0.6             # via copper to the board edge
 COURTYARD_CLEAR = 0.2        # vias stay out of footprint courtyards (bodies, sockets)
 LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
 COMPLETE_ROUNDS = 3          # completion passes against the filled pours
+LATE_MAX_POPS = 6_000_000    # --continue rounds: A* budget per attempt
+LATE_ATTEMPTS = ((0.1, 35.0),)   # ... and one wide-window attempt
 
 
 def to_mm(v) -> tuple[float, float]:
@@ -153,6 +155,9 @@ def main(argv: list[str]) -> int:
     ses = ROOT / "build" / side / f"{side}.ses"
     board = pcbnew.LoadBoard(str(path))
     if argv[2:] == ["--continue"]:
+        # later rounds: bigger windows and search budgets for the long leftovers
+        complete_routes.MAX_POPS = LATE_MAX_POPS
+        complete_routes.ATTEMPTS = complete_routes.ATTEMPTS + LATE_ATTEMPTS
         fill(board)
         failed = complete_routes.complete(board, side, set(Router.fanout_nets(board)), skip=(),
                                           extra=complete_routes.pour_copper(board))

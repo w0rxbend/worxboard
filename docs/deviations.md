@@ -224,3 +224,83 @@ what changed, why, and who consumes it.
   board bottom at Z 0), so any export origin works.
 - Render tools need trimesh / matplotlib / pillow, which are not in the `case` group (pyproject is
   WS0's): `case.just` pins them with `uv run --with`.
+
+## WS2b: placement and routing (`pcb/scripts/place.py`, `route_critical.py`, `export_dsn.py`, `import_ses.py`, `complete_routes.py`, `checks.py`)
+
+### WS2b-1. The left RP2040 is turned 180° and moved 0.6 mm toward J1 and 2 mm back (§8.3, §9 stage 7)
+
+- **Spec:** U1 at the anchor (166, 44) (left 94, 44); left parts use rot_L = −rot_R.
+- **Problem:** a QFN cannot be mirrored. With the same rotation on both halves, the left USB pins
+  face away from J1 and the D+/D− pair would have to cross the QSPI and supply escapes.
+- **Change:** right U1 at (166, 44) rot 0; left U1 at **(93.4, 42.0) rot 180**. The fan-out, inner
+  joins and USB start are laid in the U1 frame, so they are identical on both halves. The shift keeps
+  the left USB path within 25 mm. Without it the path runs from the turned U1 to J1 past SW1/SW2,
+  which stay at their anchors because the case has pin holes over them.
+- **Consumers:** WS3 (`check_fit.py` uses the STEP; the U1 envelope is 1 mm high, below the 1.2 mm
+  zone allowance anywhere in Z_BACK).
+
+### WS2b-2. The flash U2 is moved next to its QSPI escapes (§8.3)
+
+- **Spec:** U2 at (152, 42) / (108, 42).
+- **Problem:** at the anchor the flash sits across U1's west escapes on the right and beyond the
+  east escapes on the left, so six QSPI lines would cross the display, UART and row lines.
+- **Change:** right U2 at **(154.6, 35.0)** (north-west of U1), left at **(96.0, 53.7) rot 180**
+  (beside the turned U1's QSPI side). Both are inside Z_BACK.
+- **Consumers:** WS3 (`web_check` keeps webs off `part_rect("U2")` at the layout anchor; the
+  actual body is checked by `check_fit.py` against the STEP).
+
+### WS2b-3. Routing flow: locked critical routes, Freerouting, then a completion router (§9 stages 8–10)
+
+- **Spec:** `route_critical.py` lays the QFN fan-out, USB, crystal, QSPI, decoupling, power and TRRS
+  routes; Freerouting does the rest.
+- **Problem:** Freerouting 2.5.0 cannot finish a route into a 0.4 mm-pitch QFN pad with 0.2 mm
+  clearance (its debug log: `insert trace failed`), it never tries a 0.5 mm 3V3 track that cannot
+  enter the pad, and rotated or any-angle items degrade its search. Each run stopped at 25–60 open
+  connections however the rules were tuned.
+- **Change:**
+  - `route_critical.py` lays, locked: a **45° corner fan-out** of every U1 signal pin
+    (0.15 mm, the spec's QFN fan-out width). Each half-side bends toward a corner, one pin after the
+    other 0.3 mm further out. It also lays the **inner joins** between the pad ring and the exposed
+    pad (3V3 pins 42/43/44/33/22 and 1/10, 1V1 pins 45/50, TESTEN), three 3V3 exits, the GND via
+    array, XIN into Y1, the **USB pair** with the J1 ties and escape vias, and the **key matrix**
+    (switch→diode links, rows on F.Cu, columns on B.Cu, vias at the 25° thumb pads).
+  - `export_dsn.py` takes U1's pins out of the DSN nets so routes end on the fan-out. It puts the
+    U1 signal nets in a 0.18 mm class, rounds pin offsets to 1 µm (with a 2 µm clearance margin)
+    and writes rounded-rectangle pads as rectangles.
+  - `complete_routes.py` (new, called by `import_ses.py`) routes what Freerouting leaves open: a
+    0.05 mm-grid two-layer A* router with 45° moves and vias. Obstacles are dilated by
+    half-width + clearance. It then connects GND pads that the filled pours left isolated.
+  - Crystal (XOUT), QSPI, decoupling, power trunks and TRRS lines are autorouted, not scripted.
+- **Result:** U1 signal nets, the matrix rows/columns and the thumb links run at **0.15–0.18 mm**,
+  not the Default 0.25 mm. They are still above the 0.127 mm board minimum (JLC 2-layer). The
+  netclass table in the project file is as specified. DRC (`--schematic-parity --severity-error`) is
+  the gate for all copper.
+- **Consumers:** WS5 (G3: 0.127 mm minimum track already listed).
+
+### WS2b-4. GND stitching vias are placed after routing (§8.4)
+
+- **Spec:** `place.py` adds the stitching vias before autorouting.
+- **Change:** `import_ses.py` adds them after the routes (5 mm grid near U1/Y1/J1 in Z_BACK, 10 mm
+  elsewhere) wherever a via clears every other net. It keeps only vias that land in filled GND
+  on both layers. Freerouting therefore never has to route around them.
+
+### WS2b-5. Smaller rule and check details
+
+- **Y1 (§6.4, §9 stage 12):** `checks.py` measures from the XIN/XOUT pads to Y1's courtyard
+  (≤ 3.0 mm). The pad ring's fan-out leaves no room for the crystal body closer than that.
+- **USB length (§6.3):** the copper path from the U1 pin to the nearest J1 pin of the net (tracks,
+  plus the R3/R4 pad pitch) is ≤ 25 mm, and D+/D− differ by ≤ 1 mm. The A6/B6 and A7/B7 ties are
+  not counted. The pair runs on F.Cu on both halves.
+- **USB keepout:** the B.Cu track keepout runs under the pair from U1 to U4. On the right it stops
+  at the J1 pad row: there, the VBUS/CC2 pads the pair encloses drop to B.Cu through vias.
+- **Mounting holes (§8.2):** the Ø6.5 copper keepout is a rule area (no tracks, vias or pour) on
+  both layers.
+- **J2 (§8.3):** its courtyard (sleeve pad and snout) may extend 1.4 mm past Z_TRRS. The body stays
+  inside it.
+- **DRC severities:** schematic-parity items (missing/extra footprint, net conflict, symbol
+  mismatch, duplicates) are raised to error. Silk overlap, text size, library-footprint warnings and
+  `npth_inside_courtyard` are warnings. The last one is set because on the left half SK117's
+  rectangular courtyard corner reaches hole 4; the nearest socket copper/body is 1.8 mm outside
+  the Ø6.5 boss.
+- **Project file:** `place.py` writes the netclasses and rules into `pcb/<side>/*.kicad_pro`
+  (`gen_sch.py` keeps those keys).

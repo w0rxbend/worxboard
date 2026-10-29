@@ -3,12 +3,13 @@
 
     python3 pcb/scripts/export_dsn.py <side>   pcb/<side>/worxboard-<side>.kicad_pcb -> build/<side>/<side>.dsn
 
-Post-processing of KiCad's export:
-- the GND pours are left out, so Freerouting routes GND as tracks (a pour cut up by the
-  matrix wiring cannot be relied on to join the MCU and TRRS areas); import_ses.py fills them;
-- the U1 signal nets move to a FANOUT_W class (0.4 mm pitch: 0.21 mm to the next pad): Freerouting cannot neck a 0.25 mm track down
-  between 0.4 mm-pitch QFN pads (docs/deviations.md WS2b);
-- the 0.5 mm copper-to-edge rule is passed to Freerouting on its command line (pcb.just).
+Post-processing of KiCad's export (docs/deviations.md WS2b-3):
+- U1's pins leave the nets: routes end on the locked fan-out (strip_pins);
+- the U1 signal nets move to a FANOUT_W class (fanout_class);
+- pin offsets are rounded to 1 um and every clearance gets CLEARANCE_MARGIN (snap_pins, margin);
+- rounded-rectangle pads become their bounding rectangles (rect_pads);
+- with DROP_PLANES the GND pours are left out, so GND is routed as tracks.
+The 0.5 mm copper-to-edge rule is passed on Freerouting's command line (pcb.just).
 """
 from __future__ import annotations
 

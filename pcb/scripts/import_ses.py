@@ -6,7 +6,7 @@
 
 --route-only imports the session and stops (an intermediate routing round, see pcb.just).
 
-After the import, GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
+After the import, complete_routes.py routes whatever Freerouting left open. Then GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
 and a STITCH_FAR grid elsewhere, wherever a via clears every other net, hole and the edge
 (spec §8.4). They are placed after routing rather than before (docs/deviations.md WS2b), so
 they never block a route. The pours are then filled; vias that do not land in filled GND on
@@ -27,7 +27,9 @@ from shapely.geometry import LineString, Point, Polygon, box  # noqa: E402
 from shapely.ops import unary_union  # noqa: E402
 from shapely.strtree import STRtree  # noqa: E402
 
+import complete_routes  # noqa: E402
 from place import VIA, layout_side, mm, outline_points, pt  # noqa: E402
+from route_critical import Router  # noqa: E402
 
 STITCH_NEAR = 5.0            # grid pitch near U1 / Y1 / J1 (mm)
 STITCH_FAR = 10.0            # grid pitch elsewhere
@@ -156,12 +158,20 @@ def main(argv: list[str]) -> int:
         board.Save(str(path))
         print(f"{side}: imported {ses.name} (routing round)")
         return 0
+    fanout = set(Router.fanout_nets(board))
+    failed = complete_routes.complete(board, side, fanout)
     vias = add_stitching(board, side)
     fill(board)
     dead = [v for v in vias if not in_both_pours(board, v)]
     for v in dead:
         board.Remove(v)
     fill(board)
+    # GND pads the pours left isolated: route them to the pour, then refill
+    failed += complete_routes.complete(board, side, fanout, only=("GND",),
+                                       extra=complete_routes.pour_copper(board))
+    fill(board)
+    if failed:
+        print(f"{side}: still open after completion: {', '.join(failed)}")
     board.Save(str(path))
     stats = {"tracks": sum(t.Type() == pcbnew.PCB_TRACE_T for t in board.GetTracks()),
              "vias": sum(t.Type() == pcbnew.PCB_VIA_T for t in board.GetTracks()),

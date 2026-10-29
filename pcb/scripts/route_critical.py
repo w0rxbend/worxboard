@@ -35,6 +35,8 @@ PAD_END = 3.875              # QFN pad outer end from the centre
 MOAT = 2.3                   # inner joins: between the pad inner ends (3.0) and the exposed pad (1.6)
 EP_VIAS = (-1.0, 0.0, 1.0)
 PAIR_PITCH = 0.45
+USB_CHAMFER = 0.35           # 45 deg corner where the pair leaves the pads
+USB_BUMP = 1.2               # D- detour depth (~0.7 mm extra length)
 # U1 corner fan-out: (side normal, 45 deg heading, pins from the corner inward), U1 frame
 FAN_GROUPS = [
     ((-1, 0), (-1, -1), ["1", "2", "3", "4", "5", "6", "7"]),
@@ -45,7 +47,7 @@ FAN_GROUPS = [
     ((1, 0), (1, 1), ["29", "30", "31", "32", "34", "35", "36", "37", "38"]),
 ]
 FAN_R0 = 0.25                # first bend this far past the pad end
-FAN_STAGGER = 0.15           # each next pin bends this much further out
+FAN_STAGGER = 0.3            # each next pin bends this much further out
 FAN_STAGGER_POWER = 0.6      # after the 3V3 exit (pin 1, 0.5 mm wide)
 FAN_RUN = 1.2                # diagonal length, alternately + FAN_RUN_ALT
 FAN_RUN_ALT = 0.0
@@ -213,11 +215,17 @@ class Router:
         r3, r4 = (self.local(*self.pad_xy(r, "2")) for r in ("R3", "R4"))
         yP, yM = -PAD_END - 0.975, -PAD_END - 0.525
         x_wide = 2.6                                          # 0.15 -> 0.25 past the corner pins
-        self.ltrack(dp, [(xp, yp), (xp, yP), (x_wide, yP)], FAN_W)
-        self.ltrack(dm, [(xm, ym), (xm, yM), (x_wide, yM)], FAN_W)
-        for net, y0, r_in in ((dp, yP, r3), (dm, yM, r4)):
-            ry = r_in[1]
-            self.ltrack(net, [(x_wide, y0), (r_in[0] - 0.6 - abs(ry - y0), y0), (r_in[0] - 0.6, ry), r_in], PAIR_W)
+        # out of the pads with 45 deg chamfers (D- bends first, clear of pad 45)
+        c = USB_CHAMFER
+        self.ltrack(dp, [(xp, yp), (xp, yP + c), (xp + c, yP), (x_wide, yP)], FAN_W)
+        self.ltrack(dm, [(xm, ym), (xm, yM + c), (xm + c, yM), (x_wide, yM)], FAN_W)
+        ry = r3[1]
+        self.ltrack(dp, [(x_wide, yP), (r3[0] - 0.6 - abs(ry - yP), yP), (r3[0] - 0.6, ry), r3], PAIR_W)
+        # D- is the inner line of every bend: a 45 deg bump toward the pads evens the lengths
+        b0, d = x_wide + 0.3, USB_BUMP
+        ry = r4[1]
+        self.ltrack(dm, [(x_wide, yM), (b0, yM), (b0 + d, yM + d), (b0 + d + 0.5, yM + d),
+                         (b0 + d + 0.5 + abs(yM + d - ry), ry), r4], PAIR_W)
         self.u4_vias()
         start = [self.g(xp, yP), self.g(r3[0], (yP + yM) / 2)]
         if self.side == "right":

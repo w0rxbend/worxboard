@@ -55,13 +55,13 @@ DIODE_OFFSET = (0.0, 5.0)        # B.Cu diode centre in the key frame (below the
 
 # U1 (x, y, rot) per half. The RP2040 cannot be mirrored: the left one is turned 180 deg so its
 # USB pins face J1, and sits 1.5 mm further back (docs/deviations.md WS2b)
-U1_POSE = {"right": (166.0, 44.0, 0.0), "left": (94.0, 42.5, 180.0)}
+U1_POSE = {"right": (166.0, 44.0, 0.0), "left": (93.4, 42.0, 180.0)}
 U1_ROT = {s: p[2] for s, p in U1_POSE.items()}
 
 # MCU cluster in the U1 frame (x, y, rot), mm from the U1 centre; the same on both halves
 CLUSTER = {
     "Y1": (-0.37, 8.9, -90), "R7": (2.6, 10.42, 0),
-    "R3": (6.7, -5.125, 180), "R4": (6.7, -4.075, 180),              # USB 27R, in the pair
+    "R3": (6.5, -5.125, 180), "R4": (6.5, -4.075, 180),              # USB 27R, in the pair
     "C14": (2.2, -6.4, 0), "C15": (2.2, -7.6, 0), "C17": (4.3, -6.4, 0), "C16": (4.3, -7.6, 0),
     "C19": (6.0, -7.4, 90),                                          # beside the pins 48-50 escapes
     "C8": (-5.6, -5.6, -45), "C9": (-5.6, 5.6, 45), "C10": (5.6, 5.6, -45),   # fan-out corner gaps
@@ -76,7 +76,7 @@ PLACE_R = {
     "U2": (154.6, 35.0, 0), "C5": (160.6, 33.2, 90),                 # flash beside its escapes
     "R8": (147.0, 33.4, 90), "R9": (145.8, 33.4, 90), "R13": (145.0, 46.0, 0),
     "U4": (177.5, 39.4, 0),
-    "C11": (174.0, 43.2, 0), "C12": (174.0, 44.4, 0), "C13": (176.2, 43.2, 0), "C18": (176.2, 44.4, 0),
+    "C11": (175.0, 43.2, 0), "C12": (175.0, 44.4, 0), "C13": (177.2, 43.2, 0), "C18": (177.2, 44.4, 0),
     "SW1": (176.0, 50.0, 90), "SW2": (180.0, 50.0, 90),
     "J1": (186.0, 34.25, 180),
     "R1": (189.4, 42.4, 90), "R2": (183.4, 43.2, 0), "R10": (182.6, 47.6, 90),
@@ -100,8 +100,8 @@ PLACE_L = {
 }
 
 # Left USB pair: a straight run from past R3/R4 to the J1 columns, U4 on it (route_critical.py)
-USB_L_START = (8.2, -4.6)        # U1 frame
-USB_L_END_DY = 1.6               # end of the diagonal below the J1 pad rear ends
+USB_L_START = (7.8, -4.6)        # U1 frame
+USB_L_END_DY = 1.0               # end of the diagonal below the J1 pad rear ends
 U4_L_S = 8.6                     # U4 centre along the diagonal
 
 # Silkscreen, right frame (text, x, y, rot)

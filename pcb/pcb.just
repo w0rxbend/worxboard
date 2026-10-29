@@ -2,6 +2,10 @@
 #   just pcb-deps            pinned container Python deps -> pcb/.tools/site313
 #   just pcb-sch left        stages 1-6: footprints, schematic, ERC, netlist, netcmp
 #   just pcb-sch-all         both sides, then require the committed schematics to be current
+#   just pcb-place left      stages 7-9: placement, locked critical routes, DSN
+#   just pcb-route left      Freerouting (container B)
+#   just pcb-finish left     stages 10-12: SES import, completion router, pours, DRC gate, checks
+#   just pcb left | pcb-all  everything for one / both sides
 
 pcb_image := "kicad/kicad:10.0.7"
 pcb_site  := "pcb/.tools/site313"
@@ -39,3 +43,9 @@ pcb-route side passes="30":
 # Container C: SES import, stitching, zone fill, DRC gate, scripted checks
 pcb-finish side:
     {{_pcb_docker}} bash pcb/scripts/stage_c.sh {{side}}
+
+# All stages for one side (spec §9.2): schematic, layout, autoroute, finish + DRC + checks
+pcb side: (pcb-sch side) (pcb-place side) (pcb-route side) (pcb-finish side)
+
+# Both sides
+pcb-all: (pcb "left") (pcb "right")

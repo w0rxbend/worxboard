@@ -14,7 +14,8 @@ pcb_full  := "kicad/kicad:10.0.7-full"   # stock 3D models: STEP and renders onl
 pcb_site  := "pcb/.tools/site313"
 fr_image  := "eclipse-temurin:25-jre"
 
-_pcb_run    := "docker run --rm --network none -u $(id -u):$(id -g) -e HOME=/tmp -v $PWD:/w -w /w -e PYTHONPATH=/w:/w/" + pcb_site
+# PYTHONHASHSEED=0 + seeded KIIDs (place.seed_kiids): the same inputs give byte-identical boards
+_pcb_run    := "docker run --rm --network none -u $(id -u):$(id -g) -e HOME=/tmp -e PYTHONHASHSEED=0 -v $PWD:/w -w /w -e PYTHONPATH=/w:/w/" + pcb_site
 _pcb_docker := _pcb_run + " " + pcb_image
 
 # Install the container Python deps (spec §9.1) once

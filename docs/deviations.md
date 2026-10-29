@@ -374,3 +374,22 @@ what changed, why, and who consumes it.
 - `kicad-cli pcb export dxf -o <file>` treats `-o` as a directory in KiCad 10 (deprecated multi
   mode). The stage passes `--mode-single --output-units mm`, so `build/<side>/edge.dxf` is one file
   in mm (the default unit is inches).
+
+### WS2c-4. The layout stages are seeded, so a clean rebuild reproduces the committed boards (§9 stages 7–12)
+
+- **Spec:** `just pcb <side>` runs every stage; the committed boards are its output.
+- **Problem:** the rebuild was not reproducible. KiCad gives every new item a random KIID and
+  saves items sorted by KIID, so each `place.py` run wrote the footprints, and then the DSN, in a
+  different order. Freerouting is deterministic for a given DSN, but a reordered DSN routes
+  differently, and the completion router then closed every gap on some runs and left 1–2 items
+  unconnected on others (2 of 2 CI rebuilds and 1 local clean run ended with 1 unconnected).
+- **Change:** `place.py`, `route_critical.py` and `import_ses.py` seed KiCad's generator
+  (`KIID.SeedGenerator`) from a CRC of the stage inputs (schematic and `layout.json`, or the board
+  and session files) and a per-side base seed `KIID_SEED`. `pcb.just` runs every container with
+  `PYTHONHASHSEED=0` so set iteration is fixed too. Two runs give byte-identical boards.
+- **Seeds:** left 0x2, right 0x1. Each was tried with two others; these route to 0 unconnected
+  and finish fastest (about 20 min per side). The committed boards are their output, re-made
+  for this change: the footprint positions are unchanged, the copper is a new route. If a rule
+  or placement change leaves items unconnected, try another base seed before retuning the router.
+- **CI:** the `rebuild` job runs stages 1–12 from scratch and requires the result to equal the
+  committed board (`git diff --exit-code -- pcb/<side>/`).

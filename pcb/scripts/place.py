@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import math
 import sys
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -55,6 +56,21 @@ DIODE_OFFSET = (0.0, 5.0)        # B.Cu diode centre in the key frame (below the
 
 # U1 (x, y, rot) per half. The RP2040 cannot be mirrored: the left one is turned 180 deg so its
 # USB pins face J1, and sits 1.5 mm further back (docs/deviations.md WS2b)
+# KiCad saves items sorted by KIID, so random KIIDs reorder the board, the DSN and with them the
+# Freerouting result. Every board-writing stage seeds the generator from its inputs instead, so
+# the same inputs give a byte-identical board (with PYTHONHASHSEED=0, set by pcb.just). The
+# per-side base seeds are ones whose rebuild routes to 0 unconnected (docs/deviations.md WS2c-4).
+KIID_SEED = {"left": 0x2, "right": 0x1}
+
+
+def seed_kiids(side: str, *inputs: bytes) -> None:
+    """Seed KiCad's UUID generator from the stage inputs (distinct inputs -> distinct streams)."""
+    crc = KIID_SEED[side]
+    for b in inputs:
+        crc = zlib.crc32(b, crc)
+    pcbnew.KIID.SeedGenerator(crc)
+
+
 U1_POSE = {"right": (166.0, 44.0, 0.0), "left": (93.4, 42.0, 180.0)}
 U1_ROT = {s: p[2] for s, p in U1_POSE.items()}
 
@@ -429,6 +445,8 @@ def main(argv: list[str]) -> int:
     side = argv[1]
     net_path = ROOT / "build" / side / f"{side}.net"
     pcb_path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
+    sch = pcb_path.with_suffix(".kicad_sch")    # the netlist carries an export date: seed from its source
+    seed_kiids(side, b"place", side.encode(), sch.read_bytes(), LAYOUT_JSON.read_bytes())
     board = pcbnew.BOARD()
     setup_board(board)
     add_footprints(board, side, net_path)

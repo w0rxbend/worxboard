@@ -31,7 +31,7 @@ from shapely.ops import unary_union  # noqa: E402
 from shapely.strtree import STRtree  # noqa: E402
 
 import complete_routes  # noqa: E402
-from place import BOARD_MIN, VIA, layout_side, mm, outline_points, pt  # noqa: E402
+from place import BOARD_MIN, VIA, layout_side, mm, outline_points, pt, seed_kiids  # noqa: E402
 from route_critical import Router  # noqa: E402
 
 STITCH_NEAR = 5.0            # grid pitch near U1 / Y1 / J1 (mm)
@@ -168,6 +168,7 @@ def main(argv: list[str]) -> int:
     side, route_only = argv[1], argv[2:] == ["--route-only"]
     path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
     ses = ROOT / "build" / side / f"{side}.ses"
+    seed_kiids(side, b"import_ses", " ".join(argv[1:]).encode(), path.read_bytes(), ses.read_bytes())
     board = pcbnew.LoadBoard(str(path))
     if argv[2:] == ["--continue"]:
         # later rounds: bigger windows and search budgets for the long leftovers

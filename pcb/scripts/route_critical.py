@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pcbnew  # noqa: E402
 
 from design import POWER_NETS  # noqa: E402
-from place import U1_ROT, U4_L_S, USB_NETS, layout_side, mm, pt, rotate, usb_diagonal  # noqa: E402
+from place import U1_ROT, U4_L_S, USB_NETS, layout_side, mm, pt, rotate, seed_kiids, usb_diagonal  # noqa: E402
 
 FAN_W = 0.15                 # QFN stubs and inner joins
 PAIR_W = 0.25
@@ -498,6 +498,7 @@ def main(argv: list[str]) -> int:
         return 2
     side = argv[1]
     path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
+    seed_kiids(side, b"route_critical", path.read_bytes())
     board = pcbnew.LoadBoard(str(path))
     clear_locked(board)
     r = Router(board, side)

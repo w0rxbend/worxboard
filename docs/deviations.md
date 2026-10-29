@@ -343,3 +343,34 @@ what changed, why, and who consumes it.
   Through U4 the pair already runs ±0.95 mm apart. A B.Cu track there passes the pair over
   the GND-poured B.Cu for about 1 mm, which is harmless at USB full speed (12 Mbit/s). The right
   half is unchanged.
+
+## WS2c: fab outputs, renders, exports and CI (`pcb/scripts/stage_d.sh`, `pcb.just`, `.github/workflows/pcb.yml`)
+
+### WS2c-1. Not-assembled parts are excluded by footprint attributes, not `kikit --ignore` (§9 stage 13)
+
+- **Spec:** JP1, the test pads, the holes and J3 are excluded from assembly with `--ignore`.
+- **Problem:** kikit 1.8.1 implements `--ignore` by deleting the footprints from the loaded board.
+  Under KiCad 10.0.7 this corrupts the bindings (the same `BOARD.Remove` issue as WS2b-6): the
+  following gerber plot fails with `'SwigPyObject' object has no attribute 'SetOutputDirectory'`
+  and Python segfaults. Whether it fails depends on the ignore list.
+- **Change:** `place.py` already marks those footprints `exclude_from_bom exclude_from_pos_files`
+  (J3 `dnp`), and kikit honours that, so stage 13 runs without `--ignore`. `--missingError` still
+  fails on any assembled part without an LCSC field. `stage_d.sh` then fails if any of JP1, J3,
+  TP*, H* or STAB_* appears in `bom.csv` or `pos.csv`.
+
+### WS2c-2. Renders use the `-full` image too (§9 stage 14)
+
+- **Spec:** `kicad/kicad:10.0.7-full` only for the STEP; renders in the base image.
+- **Change:** stage 14 runs entirely in the `-full` image (`pcb-fab`), so the committed renders
+  show the stock 3D models (RP2040, passives, buttons) instead of a bare board. The output is
+  otherwise the same command; renders are byte-identical between runs.
+- **Pin:** `kicad/kicad:10.0.7-full` = `kicad/kicad@sha256:347d5b7d5d88207ba4217cdf594eeccd142279600d023e7a7e426f8599c77708`
+  (the `tools/images.lock` line still needs this digest; that file is outside WS2c's paths).
+- **Gap:** KiCad's library has no 3D model for J1 (HRO TYPE-C-31-M-12) or J2 (PJ-320D), and the
+  hot-swap socket footprint has none, so the STEP lacks those bodies (export warns, does not fail).
+
+### WS2c-3. Edge DXF in single-file mode, mm (§9 stage 14)
+
+- `kicad-cli pcb export dxf -o <file>` treats `-o` as a directory in KiCad 10 (deprecated multi
+  mode). The stage passes `--mode-single --output-units mm`, so `build/<side>/edge.dxf` is one file
+  in mm (the default unit is inches).

@@ -55,6 +55,7 @@ FAN_VIA_PINS = ("17", "29", "30", "31")   # COL0, COL4..COL6: fan end -> via, un
 FAN_STAGGER_VIA = 0.45       # beside a via end: (0.4 + 0.45) / sqrt 2 clears via + track
 FAN_VIA_STEP = 0.9           # each next via end this much further along its run
 KEEPOUT_GROW = 0.6           # B.Cu keepout half-width beyond the pair
+U4_KEEPOUT_GAP = 0.3         # left half: the keepout stops this far past U4's row jogs
 
 # Key matrix, key frame (mm from the switch centre, as seen from the top; B.Cu socket pads at
 # (-7.085, -2.54) COL and (5.842, -5.08) MX, diode at (0, 5) with the cathode west)
@@ -295,7 +296,11 @@ class Router:
                    P(s4 + 2.6, sign * row), P(s4 + 2.6 + jog, sign * hp), P(s_c, sign * hp), pad]
             self.track(net, pts, PAIR_W)
         self.j1_ties(dp, dm)
-        return [[P(0, 0), P((b[0] - a[0]) / u[0] if abs(u[0]) > 1e-9 else n, 0)]]
+        # no keepout across U4: its pins 2 / 5 sit between the split rows, and the VBUS via
+        # can only leave on B.Cu (docs/deviations.md WS2b-7)
+        end = (b[0] - a[0]) / u[0] if abs(u[0]) > 1e-9 else n
+        gap = 2.6 + jog + U4_KEEPOUT_GAP
+        return [[P(0, 0), P(s4 - gap, 0)], [P(s4 + gap, 0), P(end, 0)]]
 
     def j1_ties(self, dp, dm) -> None:
         """A6/B6 (DP) tied in front of the pad row, A7/B7 (DM) behind it."""
@@ -481,10 +486,10 @@ def clear_locked(board: pcbnew.BOARD) -> None:
     """Re-running replaces the critical routes (and nothing else)."""
     for t in list(board.GetTracks()):
         if t.IsLocked():
-            board.Remove(t)
+            board.Delete(t)
     for z in list(board.Zones()):
         if z.GetZoneName() == "USB_KEEPOUT":
-            board.Remove(z)
+            board.Delete(z)
 
 
 def main(argv: list[str]) -> int:

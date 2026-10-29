@@ -8,7 +8,8 @@
 --continue skips the import and runs more completion rounds on the board as saved (stage_c.sh
 uses it while DRC still reports unconnected items).
 
-After the import, complete_routes.py routes whatever Freerouting left open. Then GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
+After the import, complete_routes.py routes whatever Freerouting left open (and, for the last
+gaps, rips up and reroutes other nets, keeping a change only when fewer gaps remain). Then GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
 and a STITCH_FAR grid elsewhere, wherever a via clears every other net, hole and the edge
 (spec §8.4). They are placed after routing rather than before (docs/deviations.md WS2b), so
 they never block a route. The pours are then filled; vias that do not land in filled GND on
@@ -30,7 +31,7 @@ from shapely.ops import unary_union  # noqa: E402
 from shapely.strtree import STRtree  # noqa: E402
 
 import complete_routes  # noqa: E402
-from place import VIA, layout_side, mm, outline_points, pt  # noqa: E402
+from place import BOARD_MIN, VIA, layout_side, mm, outline_points, pt  # noqa: E402
 from route_critical import Router  # noqa: E402
 
 STITCH_NEAR = 5.0            # grid pitch near U1 / Y1 / J1 (mm)
@@ -146,6 +147,20 @@ def in_both_pours(board: pcbnew.BOARD, v: pcbnew.PCB_VIA) -> bool:
     return len(hit) == len(LAYERS)
 
 
+def pours(board: pcbnew.BOARD) -> list:
+    fill(board)
+    return complete_routes.pour_copper(board)
+
+
+def finish_open(board: pcbnew.BOARD, side: str, fanout: set[str]) -> list[str]:
+    """Transactional rip-up for the gaps the plain completion left, then GND against the
+    refilled pours."""
+    complete_routes.negotiate(board, side, fanout, pours)
+    failed = complete_routes.complete(board, side, fanout, skip=(), extra=pours(board))
+    fill(board)
+    return failed
+
+
 def main(argv: list[str]) -> int:
     if len(argv) not in (2, 3) or argv[1] not in ("left", "right") or argv[2:] not in ([], ["--route-only"], ["--continue"]):
         print(__doc__)
@@ -159,17 +174,23 @@ def main(argv: list[str]) -> int:
         complete_routes.MAX_POPS = LATE_MAX_POPS
         complete_routes.ATTEMPTS = complete_routes.ATTEMPTS + LATE_ATTEMPTS
         fill(board)
-        failed = complete_routes.complete(board, side, set(Router.fanout_nets(board)), skip=(),
-                                          extra=complete_routes.pour_copper(board))
+        fanout = set(Router.fanout_nets(board))
+        failed = complete_routes.complete(board, side, fanout, skip=(), extra=complete_routes.pour_copper(board))
         fill(board)
+        if failed:
+            failed = finish_open(board, side, fanout)
         board.Save(str(path))
         print(f"{side}: completion round, still open: {', '.join(failed) or 'none'}")
         return 0
     for t in list(board.GetTracks()):          # re-import replaces the previous session
         if not t.IsLocked():
-            board.Remove(t)
+            board.Delete(t)
     if not pcbnew.ImportSpecctraSES(board, str(ses)):
         raise SystemExit(f"SES import failed: {ses}")
+    thin = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T and not t.IsLocked()
+            and pcbnew.ToMM(t.GetWidth()) < BOARD_MIN - 1e-6]
+    for t in thin:                             # Freerouting necks some down below the board minimum:
+        board.Delete(t)                        # the completion router rejoins them at full width
     if route_only:
         board.Save(str(path))
         print(f"{side}: imported {ses.name} (routing round)")
@@ -180,7 +201,7 @@ def main(argv: list[str]) -> int:
     fill(board)
     dead = [v for v in vias if not in_both_pours(board, v)]
     for v in dead:
-        board.Remove(v)
+        board.Delete(v)
     fill(board)
     # GND pads the pours left isolated, and anything a rip-up left open: route against the
     # filled pours, refill, up to COMPLETE_ROUNDS times
@@ -189,6 +210,8 @@ def main(argv: list[str]) -> int:
         fill(board)
         if not failed:
             break
+    if failed:
+        failed = finish_open(board, side, fanout)
     if failed:
         print(f"{side}: still open after completion: {', '.join(failed)}")
     board.Save(str(path))

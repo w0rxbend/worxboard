@@ -2,7 +2,8 @@ name: pcb
 
 # Spec §9: the headless KiCad pipeline. `schematic` regenerates stages 1-6 and requires the committed
 # schematics to be current; `board` gates the committed boards (DRC + checks) and builds the fab
-# outputs (jlc/, STEP, Edge DXF, renders); `rebuild` runs place -> Freerouting -> finish from scratch.
+# outputs (jlc/, STEP, Edge DXF, renders); `rebuild` runs place -> Freerouting -> finish from scratch
+# and requires the result to equal the committed board (the pipeline is seeded, docs/deviations.md WS2c-4).
 
 on:
   push:
@@ -67,7 +68,7 @@ jobs:
   rebuild:
     name: Rebuild ${{ matrix.side }} from scratch (stages 7-12)
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +87,8 @@ jobs:
         run: just pcb-route ${{ matrix.side }}
       - name: just pcb-finish (SES import, completion, pours, DRC gate, checks)
         run: just pcb-finish ${{ matrix.side }}
+      - name: The rebuilt board equals the committed one
+        run: git diff --exit-code --stat -- pcb/${{ matrix.side }}/
       - uses: actions/upload-artifact@v4
         if: always()
         with:

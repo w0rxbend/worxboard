@@ -310,17 +310,36 @@ what changed, why, and who consumes it.
 - **Project file:** `place.py` writes the netclasses and rules into `pcb/<side>/*.kicad_pro`
   (`gen_sch.py` keeps those keys).
 
-### WS2b-6. Open: the routed boards still have unconnected items (§9 stage 11 gate not met)
+### WS2b-6. Last gaps closed by a transactional rip-up (§9 stages 10–11)
 
-- The committed boards pass DRC with 0 violations and 0 schematic-parity issues, and the USB,
-  Y1 and Edge.Cuts checks pass. The 0-unconnected gate is **not** met: the left half has 10
-  unconnected items (1V1, COL4, COL5, DISP_DC, GND x2, QSPI_SD3, ROW5, TP4, VBUS) and the right
-  half has 11 (COL2, DISP_DC, DISP_MOSI, DISP_SCK, GND, QSPI_SD1, QSPI_SD2, ROW1, ROW5, TP7,
-  UART_RX). `pcb-finish` therefore exits non-zero.
-- Freerouting 2.5.0 leaves about 30 connections open on each half, most of them at the
-  0.4 mm-pitch RP2040 fan-out. `complete_routes.py` routes all but these gaps. More
-  `--continue` rounds do not change the list. Rip-up of other nets (`SOFT_RIP`) made the
-  routes oscillate (600 routes churned, the open count did not fall), so it is off.
-- To close the gaps, hand-route these few connections in KiCad and lock them so the pipeline
-  keeps them, or give the RP2040 fan-out more room (move Y1, U2 or the test points). A rip-up
-  that keeps a change only when every ripped net re-routes would also help.
+- **Problem:** after Freerouting and the plain completion pass, 10 (left) and 11 (right)
+  connections stayed open. Most were RP2040 fan-out stubs walled in by other nets' autorouted
+  tracks, and the stub ends sit about 0.3 mm from the next via. The completion grid's 0.6-step
+  safety margin closed those exits. Rip-up without a check made the routes oscillate.
+- **Change:** `complete_routes.negotiate()` (called by `import_ses.py` when gaps remain):
+  - routes the gap across other nets' **unlocked** copper (a crossing cost per cell), rips that
+    copper up and reroutes the ripped nets, up to five levels deep;
+  - uses a 0.1-step margin and then checks the path exactly (shapely) against the pads, locked
+    copper, holes, keepouts and edge, so tight stub exits can be used without DRC errors;
+  - avoids a 2 mm lane straight on from other nets' locked stub ends, so a new route does not
+    wall in the next stub;
+  - judges GND on a fresh pour fill;
+  - keeps a change only if the open-island count of the whole board falls, and otherwise
+    restores the board exactly. Locked copper (fan-out, USB, matrix) is never touched.
+- Freerouting tracks narrower than the 0.127 mm board minimum are deleted after the session
+  import and rejoined by the completion router. Copper is removed with `BOARD.Delete`, because
+  `BOARD.Remove` followed by garbage collection corrupted the board in KiCad 10.0.7's bindings.
+- **Result:** both halves pass `kicad-cli pcb drc --schematic-parity --severity-error` with
+  0 violations, 0 unconnected items and 0 parity issues, and `checks.py` passes.
+  `just pcb-finish <side>` exits 0.
+
+### WS2b-7. Left half: no B.Cu USB keepout across U4 (§6.3, §8.4)
+
+- **Spec:** B.Cu track keepout under the USB pair (WS2b-5).
+- **Problem:** on the left half U4 sits on the diagonal pair run, and its pins 2/5 lie between
+  the split rows. The VBUS via from pin 5 lands inside the keepout and is fenced in on F.Cu by
+  D+/D−, so U4's VBUS pin could never connect.
+- **Change:** the left keepout stops 0.3 mm past U4's row jogs on each side (`U4_KEEPOUT_GAP`).
+  Through U4 the pair already runs ±0.95 mm apart. A B.Cu track there passes the pair over
+  the GND-poured B.Cu for about 1 mm, which is harmless at USB full speed (12 Mbit/s). The right
+  half is unchanged.

@@ -5,6 +5,7 @@ A small two-layer maze router: for every net still split into islands it rasteri
 grid around the gap (ATTEMPTS), all other-net copper, holes, keepouts and the board edge (dilated by the
 track half-width + the clearance + a grid margin), then runs A* with 45 deg moves and vias between the
 islands. Routes are written as ordinary (unlocked) tracks and vias; DRC is the judge afterwards.
+negotiate() closes the last gaps by a transactional rip-up of other nets' unlocked copper.
 
     import complete_routes; complete_routes.complete(board, side)
 """
@@ -38,7 +39,12 @@ HEURISTIC = 1.3              # A* weight (> 1: faster, slightly longer routes)
 QUANT = 0.6                  # extra dilation, in grid steps, for the centre-line quantisation
 WIDTHS = {"power": (0.5, 0.25, 0.2), "fanout": (0.15,), "default": (0.25, 0.15)}
 LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
-PROTECT: set = set()         # nets a rip-up must not touch (negotiate: those it just routed)
+ESCAPE_LEN = 2.0             # soft mode: a lane this long straight on from other nets' locked
+ESCAPE_R = 0.35              # stub ends (+- this) costs ESCAPE_COST mm of track per grid cell,
+ESCAPE_COST = 3.0            # so a rip-up route does not wall in the next stub
+STUB_ENDS: list = []         # (net, layer, lane) for locked track ends that join nothing (collect)
+PROTECT: set = set()         # nets a rip-up should spare (negotiate: those it just routed) ...
+PROTECT_COST = 25.0          # ... crossing them costs this many mm of track per grid cell
 STATS: dict = {}             # last route_pair call: grid cells, start / goal cells, expansions
 MOVES = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
          (1, 1, math.sqrt(2)), (1, -1, math.sqrt(2)), (-1, 1, math.sqrt(2)), (-1, -1, math.sqrt(2))]
@@ -51,6 +57,7 @@ class Item:
     hole: object = None          # drilled hole (shapely), any net
     ref: object = None           # the unlocked board track / via (may be ripped up)
     pour: bool = False           # filled GND pour: a GND target, never an obstacle (refilled later)
+    pad: bool = False            # a pour joins a pad it overlaps, but tracks / vias only by anchor
     anchors: dict = None         # layer -> [(x, y)]: track ends, via / pad centres (KiCad joins
                                  # items only where an anchor lies inside the other's copper)
 
@@ -93,11 +100,37 @@ def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
             if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
                 geoms = {}
             items.append(Item(pad.GetNetCode() if geoms else -1, geoms, hole,
-                              anchors={l: [centre] for l in geoms}))
+                              anchors={l: [centre] for l in geoms}, pad=True))
     for z in board.Zones():
         if z.GetIsRuleArea() and z.GetDoNotAllowTracks():
             keepouts.append(([l for l in LAYERS if z.IsOnLayer(l)], poly(z.Outline()), z.GetDoNotAllowVias()))
+    STUB_ENDS[:] = stub_ends(items)
     return items, keepouts
+
+
+def stub_ends(items: list[Item]) -> list:
+    """Ends of locked tracks (the fan-out) that touch no other locked copper or pad of their net."""
+    ends: dict = {}
+    for it in items:
+        if it.ref is None and not it.pad and not it.pour and len(it.geoms) == 1:
+            (layer, pts), = it.anchors.items()
+            for p, q in ((pts[0], pts[-1]), (pts[-1], pts[0])):
+                k = (it.net, layer, round(p[0], 3), round(p[1], 3))
+                n, _ = ends.get(k, (0, q))
+                ends[k] = (n + 1, q)
+    fixed = [(it.net, l, g) for it in items if it.ref is None and not it.pour and (it.pad or len(it.geoms) == 2)
+             for l, g in it.geoms.items()]
+    tree = shapely.STRtree(np.array([g for _, _, g in fixed], dtype=object))
+    out = []
+    for (net, layer, x, y), (n, q) in ends.items():
+        if n != 1:
+            continue
+        hits = tree.query(Point(x, y).buffer(1e-3), predicate="intersects")
+        if not any(fixed[h][0] == net and fixed[h][1] == layer for h in hits):
+            d = math.dist((x, y), q) or 1.0
+            ux, uy = (x - q[0]) / d, (y - q[1]) / d       # straight on, out of the stub
+            out.append((net, layer, LineString([(x, y), (x + ux * ESCAPE_LEN, y + uy * ESCAPE_LEN)])))
+    return out
 
 
 def islands(items: list[Item], net: int) -> list[list[Item]]:
@@ -126,10 +159,11 @@ def islands(items: list[Item], net: int) -> list[list[Item]]:
             for a, b in zip(*tree.query(np.array(pts, dtype=object), predicate="intersects")):
                 parent[find(owner[a])] = find(idx[b])
         pours = [i for i in idx if mine[i].pour]
-        if pours:                                 # a pour holds everything it touches
+        if pours:                                 # a pour holds every pad it touches (KiCad)
             for a, b in zip(*tree.query(np.array([mine[i].geoms[layer] for i in pours], dtype=object),
                                         predicate="intersects")):
-                parent[find(pours[a])] = find(idx[b])
+                if mine[idx[b]].pad:
+                    parent[find(pours[a])] = find(idx[b])
     groups: dict[int, list[Item]] = {}
     for i, it in enumerate(mine):
         groups.setdefault(find(i), []).append(it)
@@ -233,6 +267,8 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
     soft = {l: np.zeros((grid.ny, grid.nx), bool) for l in LAYERS}
     via_bad = np.zeros((grid.ny, grid.nx), bool)
     via_soft = np.zeros((grid.ny, grid.nx), bool)
+    dear = {l: np.zeros((grid.ny, grid.nx), bool) for l in LAYERS}
+    via_dear = np.zeros((grid.ny, grid.nx), bool)
     vr = VIA[0] / 2
     inside = edge.buffer(-(EDGE_CLEARANCE + half))
     for l in LAYERS:
@@ -240,15 +276,24 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
     via_bad |= ~shapely.contains_xy(edge.buffer(-(EDGE_CLEARANCE + vr)), grid.X, grid.Y)
     for it, key in index.near(win):
         if key == "hole":
-            ripable = soft_ok and it.ref is not None and it.net != net and it.net not in PROTECT
+            ripable = soft_ok and it.ref is not None and it.net != net
+            dr = ripable and it.net in PROTECT
             if it.net != net:
                 for l in LAYERS:
-                    grid.mark(index.dilated(it, key, HOLE_CLEARANCE + half + quant), (soft if ripable else blocked)[l])
-            grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant), via_soft if ripable else via_bad)
+                    grid.mark(index.dilated(it, key, HOLE_CLEARANCE + half + quant),
+                              (dear if dr else soft if ripable else blocked)[l])
+            grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant),
+                      via_dear if dr else via_soft if ripable else via_bad)
         elif it.net != net and not it.pour:
-            ripable = soft_ok and it.ref is not None and it.net not in PROTECT
-            grid.mark(index.dilated(it, key, CLEARANCE + half + quant), (soft if ripable else blocked)[key])
-            grid.mark(index.dilated(it, key, CLEARANCE + vr + quant), via_soft if ripable else via_bad)
+            ripable = soft_ok and it.ref is not None
+            dr = ripable and it.net in PROTECT
+            grid.mark(index.dilated(it, key, CLEARANCE + half + quant), (dear if dr else soft if ripable else blocked)[key])
+            grid.mark(index.dilated(it, key, CLEARANCE + vr + quant), via_dear if dr else via_soft if ripable else via_bad)
+    penal = {l: np.zeros((grid.ny, grid.nx), bool) for l in LAYERS}
+    if soft_ok:
+        for n, l, lane in STUB_ENDS:
+            if n != net and win.intersects(lane):
+                grid.mark(lane.buffer(ESCAPE_R), penal[l])
     for layers, g, no_via in keepouts:
         if g.intersects(win):
             for l in layers:
@@ -292,6 +337,12 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
     soft_cells = SOFT_COST / step
     sft = [soft[l] & ~blocked[l] for l in LAYERS]
     via_sft = via_soft & ~via_bad
+    esc_cells = ESCAPE_COST / step
+    dear_cells = PROTECT_COST / step
+    dr = [dear[l] & ~blocked[l] for l in LAYERS]
+    via_dr = via_dear & ~via_bad
+    pen = [penal[l] for l in LAYERS]
+    via_pen = penal[LAYERS[0]] | penal[LAYERS[1]]
     pops = 0
     blk = [blocked[l] for l in LAYERS]
     found = None
@@ -314,14 +365,16 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
                 if dj and di and (blk[k][j, ii] or blk[k][jj, i]):
                     continue                     # no corner cutting
                 nn = k * nyx + jj * grid.nx + ii
-                ng = g0 + c + (soft_cells if sft[k][jj, ii] else 0.0)
+                ng = (g0 + c + (soft_cells if sft[k][jj, ii] else 0.0) + (esc_cells if pen[k][jj, ii] else 0.0)
+                      + (dear_cells if dr[k][jj, ii] else 0.0))
                 if ng < cost[nn]:
                     cost[nn] = ng
                     prev[nn] = n
                     heapq.heappush(heap, (ng + HEURISTIC * h(jj, ii), ng, nn))
         if not via_bad[j, i] and not blk[1 - k][j, i]:
             nn = (1 - k) * nyx + j * grid.nx + i
-            ng = g0 + via_cells + (soft_cells if via_sft[j, i] else 0.0)
+            ng = (g0 + via_cells + (soft_cells if via_sft[j, i] else 0.0) + (esc_cells if via_pen[j, i] else 0.0)
+                  + (dear_cells if via_dr[j, i] else 0.0))
             if ng < cost[nn]:
                 cost[nn] = ng
                 prev[nn] = n
@@ -522,9 +575,9 @@ def ripped(index: "Index", new: list[Item], net: int) -> list[Item]:
 # The last few gaps (fan-out stubs boxed in by other nets' autorouted tracks) need a rip-up.
 # Unlike SOFT_RIP above, negotiate() keeps a rip-up only when it lowers the open-island count
 # of every net it touched together; otherwise the board is restored exactly.
-NEGOTIATE_COSTS = (2.0, 8.0, 0.7)   # SOFT_COST tries per open net (mm per crossed cell)
+NEGOTIATE_COSTS = (2.0, 8.0, 0.7, 20.0)   # SOFT_COST tries per open net (mm per crossed cell)
 NEGOTIATE_ROUNDS = 4
-NEGOTIATE_DEPTH = 3          # rip-up levels within one transaction
+NEGOTIATE_DEPTH = 5          # rip-up levels within one transaction
 NEGOTIATE_ATTEMPTS = ((0.1, 8.0), (0.05, 4.0), (0.1, 30.0))
 NEGOTIATE_QUANT = 0.1        # tighter grid margin: fan-out stub ends sit 0.3 mm from the next via;
                              # path_clear() then checks the route exactly against fixed copper
@@ -618,10 +671,10 @@ def path_clear(index: "Index", keepouts, net: int, path, width: float, side: str
             if it.pour or it.net == net and key != "hole":
                 continue
             if key == "hole":
-                if (it.ref is None or it.net in PROTECT) and it.net != net and g.distance(it.hole) < HOLE_CLEARANCE - EPS:
+                if it.ref is None and it.net != net and g.distance(it.hole) < HOLE_CLEARANCE - EPS:
                     STATS["unclear"] = ("hole", it.hole.centroid.coords[0])
                     return False
-            elif (it.ref is None or it.net in PROTECT) and key in layers and g.distance(it.geoms[key]) < CLEARANCE - EPS:
+            elif it.ref is None and key in layers and g.distance(it.geoms[key]) < CLEARANCE - EPS:
                 STATS["unclear"] = ("copper", it.net, round(g.distance(it.geoms[key]), 3),
                                     it.geoms[key].centroid.coords[0])
                 return False
@@ -678,37 +731,56 @@ def negotiate(board: pcbnew.BOARD, side: str, fanout: set[str], extra_fn=lambda 
         progress = False
         for code in todo:
             name = nets[code].GetNetname()
-            for cost in NEGOTIATE_COSTS:
+            avoid: set[int] = set()                  # nets whose rip-up failed before: leave them be
+            for cost in NEGOTIATE_COSTS * 2:
                 if not base[code]:
                     break
                 snap = snapshot(board)
+                PROTECT.clear()
+                PROTECT.update(avoid)
                 victims = soft_route(board, side, fanout, code, cost, extra)
                 if victims is None:
                     restore(board, snap)
+                    PROTECT.clear()
+                    if avoid:                        # sparing the stuck nets leaves no route
+                        avoid.clear()
+                        continue
                     break                            # no route at any cost: next net
                 touched = ({code} | victims) & nets.keys()
-                PROTECT.clear()
                 PROTECT.add(code)
+                fresh = extra
                 for _ in range(NEGOTIATE_DEPTH):     # victims that cannot reroute rip in turn
                     complete(board, side, fanout, only=tuple(nets[c].GetNetname() for c in touched),
-                             skip=(), extra=extra)
-                    still = [c for c, n in open_counts(board, touched - PROTECT, extra).items() if n]
+                             skip=(), extra=fresh)
+                    # GND joins through the pours, which the reroutes may have cut: refill
+                    gnd = any(nets[c].GetNetname() == "GND" for c in touched)
+                    if gnd:
+                        fresh = extra_fn(board)
+                    counts = open_counts(board, touched, fresh)
+                    still = [c for c, n in counts.items() if n]
                     if not still:
                         break
                     for c in still:
                         PROTECT.add(c)
-                        more = soft_route(board, side, fanout, c, cost, extra)
+                        more = soft_route(board, side, fanout, c, cost, fresh)
                         touched |= (more or set()) & nets.keys()
                 PROTECT.clear()
-                after = open_counts(board, nets, extra)          # every net: a reroute may rip others
+                gnd = any(nets[c].GetNetname() == "GND" for c in touched)
+                fresh = extra_fn(board) if gnd else extra
+                after = open_counts(board, nets, fresh)          # every net: a reroute may rip others
                 before, now = sum(base.values()), sum(after.values())
                 if now < before:
-                    base = after
+                    base, extra = after, fresh
                     progress = True
                     log(f"  negotiated {name} (cost {cost}, ripped {len(victims)} nets, open {before} -> {now})")
                     break
+                stuck = {c for c in touched if after[c] and c != code}
+                avoid |= stuck
                 restore(board, snap)
-                log(f"  rejected {name} at cost {cost} (ripped {len(victims)} nets, open {before} -> {now})")
+                if gnd:
+                    extra = extra_fn(board)
+                log(f"  rejected {name} at cost {cost} (ripped {len(victims)} nets, open {before} -> {now}; "
+                    f"stuck: {', '.join(sorted(nets[c].GetNetname() for c in stuck))})")
         if not progress:
             break
     left = open_counts(board, nets, extra_fn(board))

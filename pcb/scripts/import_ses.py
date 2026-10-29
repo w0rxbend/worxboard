@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Import the Freerouting session, stitch and fill the GND pours (spec §9 stage 10).
 
-    python3 pcb/scripts/import_ses.py <side> [--route-only]
+    python3 pcb/scripts/import_ses.py <side> [--route-only | --continue]
         build/<side>/<side>.ses -> pcb/<side>/worxboard-<side>.kicad_pcb
 
 --route-only imports the session and stops (an intermediate routing round, see pcb.just).
+--continue skips the import and runs more completion rounds on the board as saved (stage_c.sh
+uses it while DRC still reports unconnected items).
 
 After the import, complete_routes.py routes whatever Freerouting left open. Then GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
 and a STITCH_FAR grid elsewhere, wherever a via clears every other net, hole and the edge
@@ -39,6 +41,7 @@ HOLE_CLEAR = 0.3             # via to any drilled hole
 EDGE_CLEAR = 0.6             # via copper to the board edge
 COURTYARD_CLEAR = 0.2        # vias stay out of footprint courtyards (bodies, sockets)
 LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
+COMPLETE_ROUNDS = 3          # completion passes against the filled pours
 
 
 def to_mm(v) -> tuple[float, float]:
@@ -142,13 +145,21 @@ def in_both_pours(board: pcbnew.BOARD, v: pcbnew.PCB_VIA) -> bool:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) not in (2, 3) or argv[1] not in ("left", "right") or argv[2:] not in ([], ["--route-only"]):
+    if len(argv) not in (2, 3) or argv[1] not in ("left", "right") or argv[2:] not in ([], ["--route-only"], ["--continue"]):
         print(__doc__)
         return 2
     side, route_only = argv[1], argv[2:] == ["--route-only"]
     path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
     ses = ROOT / "build" / side / f"{side}.ses"
     board = pcbnew.LoadBoard(str(path))
+    if argv[2:] == ["--continue"]:
+        fill(board)
+        failed = complete_routes.complete(board, side, set(Router.fanout_nets(board)), skip=(),
+                                          extra=complete_routes.pour_copper(board))
+        fill(board)
+        board.Save(str(path))
+        print(f"{side}: completion round, still open: {', '.join(failed) or 'none'}")
+        return 0
     for t in list(board.GetTracks()):          # re-import replaces the previous session
         if not t.IsLocked():
             board.Remove(t)
@@ -166,10 +177,13 @@ def main(argv: list[str]) -> int:
     for v in dead:
         board.Remove(v)
     fill(board)
-    # GND pads the pours left isolated: route them to the pour, then refill
-    failed += complete_routes.complete(board, side, fanout, only=("GND",),
-                                       extra=complete_routes.pour_copper(board))
-    fill(board)
+    # GND pads the pours left isolated, and anything a rip-up left open: route against the
+    # filled pours, refill, up to COMPLETE_ROUNDS times
+    for _ in range(COMPLETE_ROUNDS):
+        failed = complete_routes.complete(board, side, fanout, skip=(), extra=complete_routes.pour_copper(board))
+        fill(board)
+        if not failed:
+            break
     if failed:
         print(f"{side}: still open after completion: {', '.join(failed)}")
     board.Save(str(path))

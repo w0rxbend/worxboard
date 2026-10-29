@@ -30,9 +30,9 @@ HOLE_CLEARANCE = 0.25
 EDGE_CLEARANCE = 0.5
 VIA_COST = 1.6               # mm of track a via is worth
 SOFT_COST = 3.0              # mm of track that crossing a rippable track costs, per grid cell
-MAX_RIP_CHAIN = 80           # items ripped with one route at most
-MAX_RIPS = 6                 # times one net may be ripped up
-MAX_ROUTES = 400
+PAIR_TRIES = 3               # closest island pairs tried per round
+MAX_RIPS = 2                 # rip-ups before a net waits for the soft queue
+MAX_ROUTES = 600
 HEURISTIC = 1.3              # A* weight (> 1: faster, slightly longer routes)
 WIDTHS = {"power": (0.5, 0.25), "fanout": (0.15,), "default": (0.25, 0.15)}
 LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
@@ -47,6 +47,9 @@ class Item:
     geoms: dict                  # layer -> shapely geometry (copper)
     hole: object = None          # drilled hole (shapely), any net
     ref: object = None           # the unlocked board track / via (may be ripped up)
+    pour: bool = False           # filled GND pour: a GND target, never an obstacle (refilled later)
+    anchors: dict = None         # layer -> [(x, y)]: track ends, via / pad centres (KiCad joins
+                                 # items only where an anchor lies inside the other's copper)
 
 
 def xy(v) -> tuple[float, float]:
@@ -70,20 +73,24 @@ def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
             c = Point(xy(t.GetPosition()))
             disc = c.buffer(pcbnew.ToMM(t.GetWidth(pcbnew.F_Cu)) / 2)
             items.append(Item(t.GetNetCode(), {l: disc for l in LAYERS}, c.buffer(pcbnew.ToMM(t.GetDrillValue()) / 2),
-                              None if t.IsLocked() else t))
+                              None if t.IsLocked() else t, anchors={l: [(c.x, c.y)] for l in LAYERS}))
         else:
-            seg = LineString([xy(t.GetStart()), xy(t.GetEnd())]).buffer(pcbnew.ToMM(t.GetWidth()) / 2)
-            items.append(Item(t.GetNetCode(), {t.GetLayer(): seg}, None, None if t.IsLocked() else t))
+            a, b = xy(t.GetStart()), xy(t.GetEnd())
+            seg = LineString([a, b]).buffer(pcbnew.ToMM(t.GetWidth()) / 2)
+            items.append(Item(t.GetNetCode(), {t.GetLayer(): seg}, None, None if t.IsLocked() else t,
+                              anchors={t.GetLayer(): [a, b]}))
     for fp in board.GetFootprints():
         for pad in fp.Pads():
-            geoms = {l: poly(pad.GetEffectivePolygon(l, pcbnew.ERROR_OUTSIDE)) for l in LAYERS if pad.IsOnLayer(l)}
+            geoms = {l: poly(pad.GetEffectivePolygon(l, pcbnew.ERROR_INSIDE)) for l in LAYERS if pad.IsOnLayer(l)}
+            centre = xy(pad.GetPosition())
             hole = None
             if pad.HasHole():
                 d = max(pcbnew.ToMM(pad.GetDrillSize().x), pcbnew.ToMM(pad.GetDrillSize().y))
                 hole = Point(xy(pad.GetPosition())).buffer(d / 2)
             if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
                 geoms = {}
-            items.append(Item(pad.GetNetCode() if geoms else -1, geoms, hole))
+            items.append(Item(pad.GetNetCode() if geoms else -1, geoms, hole,
+                              anchors={l: [centre] for l in geoms}))
     for z in board.Zones():
         if z.GetIsRuleArea() and z.GetDoNotAllowTracks():
             keepouts.append(([l for l in LAYERS if z.IsOnLayer(l)], poly(z.Outline()), z.GetDoNotAllowVias()))
@@ -91,7 +98,8 @@ def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
 
 
 def islands(items: list[Item], net: int) -> list[list[Item]]:
-    """Copper of one net grouped into electrically joined islands (overlap on a layer)."""
+    """Copper of one net grouped into electrically joined islands: two items join when an anchor
+    of one lies inside the other's copper on a shared layer (pours join whatever they cover)."""
     mine = [it for it in items if it.net == net and it.geoms]
     parent = list(range(len(mine)))
 
@@ -106,8 +114,19 @@ def islands(items: list[Item], net: int) -> list[list[Item]]:
             continue
         geoms = np.array([mine[i].geoms[layer] for i in idx], dtype=object)
         tree = shapely.STRtree(geoms)
-        for a, b in zip(*tree.query(geoms, predicate="intersects")):
-            parent[find(idx[a])] = find(idx[b])
+        pts, owner = [], []
+        for i in idx:
+            for p in (mine[i].anchors or {}).get(layer, []):
+                pts.append(Point(p))
+                owner.append(i)
+        if pts:
+            for a, b in zip(*tree.query(np.array(pts, dtype=object), predicate="intersects")):
+                parent[find(owner[a])] = find(idx[b])
+        pours = [i for i in idx if mine[i].pour]
+        if pours:                                 # a pour holds everything it touches
+            for a, b in zip(*tree.query(np.array([mine[i].geoms[layer] for i in pours], dtype=object),
+                                        predicate="intersects")):
+                parent[find(pours[a])] = find(idx[b])
     groups: dict[int, list[Item]] = {}
     for i, it in enumerate(mine):
         groups.setdefault(find(i), []).append(it)
@@ -220,7 +239,7 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
                 for l in LAYERS:
                     grid.mark(index.dilated(it, key, HOLE_CLEARANCE + half + quant), blocked[l])
             grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant), via_bad)
-        elif it.net != net:
+        elif it.net != net and not it.pour:
             ripable = soft_ok and it.ref is not None
             grid.mark(index.dilated(it, key, CLEARANCE + half + quant), (soft if ripable else blocked)[key])
             grid.mark(index.dilated(it, key, CLEARANCE + vr + quant), via_soft if ripable else via_bad)
@@ -312,7 +331,17 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
         path.append((k, j, i))
         n = int(prev[n])
     path.reverse()
-    return [(LAYERS[k], grid.point(j, i)) for k, j, i in path]
+    out = [(LAYERS[k], grid.point(j, i)) for k, j, i in path]
+    if len(out) == 1:                            # the islands overlap without a shared anchor:
+        layer, p = out[0]                        # join with a stub from an anchor of island a
+        anchors = [q for it in a for q in (it.anchors or {}).get(layer, [])]
+        if not anchors:
+            return None
+        q = min(anchors, key=lambda q: math.dist(q, p))
+        if not 1e-3 < math.dist(q, p) < 1.0:
+            return None
+        out = [(layer, q), (layer, p)]
+    return out
 
 
 def emit(board, net_item, path, width: float) -> list[Item]:
@@ -336,7 +365,8 @@ def emit(board, net_item, path, width: float) -> list[Item]:
             t.SetLayer(run[0][0])
             t.SetNet(net_item)
             board.Add(t)
-            new.append(Item(net_item.GetNetCode(), {run[0][0]: LineString([p, q]).buffer(width / 2)}, None, t))
+            new.append(Item(net_item.GetNetCode(), {run[0][0]: LineString([p, q]).buffer(width / 2)}, None, t,
+                            anchors={run[0][0]: [p, q]}))
     for step in path[1:]:
         if step[0] != run[-1][0]:
             flush(run)
@@ -347,7 +377,8 @@ def emit(board, net_item, path, width: float) -> list[Item]:
             v.SetNet(net_item)
             board.Add(v)
             c = Point(step[1])
-            new.append(Item(net_item.GetNetCode(), {l: c.buffer(VIA[0] / 2) for l in LAYERS}, c.buffer(VIA[1] / 2), v))
+            new.append(Item(net_item.GetNetCode(), {l: c.buffer(VIA[0] / 2) for l in LAYERS}, c.buffer(VIA[1] / 2), v,
+                            anchors={l: [step[1]] for l in LAYERS}))
             run = [step]
         else:
             run.append(step)
@@ -365,7 +396,7 @@ def pour_copper(board: pcbnew.BOARD) -> list[Item]:
             if z.IsOnLayer(l):
                 g = poly(z.GetFilledPolysList(l))
                 for part in getattr(g, "geoms", [g]):
-                    out.append(Item(z.GetNetCode(), {l: part}))
+                    out.append(Item(z.GetNetCode(), {l: part}, pour=True))
     return out
 
 
@@ -395,37 +426,53 @@ def complete(board: pcbnew.BOARD, side: str, fanout: set[str], only: tuple[str, 
         groups = islands(items, code)
         if len(groups) > 1:
             todo.append((code, ni, len(groups)))
-    queue = [code for code, _, _ in sorted(todo, key=lambda t: t[2])]
+    hard = [code for code, _, _ in sorted(todo, key=lambda t: t[2])]
+    soft: list[int] = []                         # nets that failed without ripping anything
     rips: dict[int, int] = {}
+    dead: set = set()                            # (island, island, mode) pairs that found no route
     failed, routes = set(), 0
-    while queue and routes < MAX_ROUTES:
-        code = queue.pop(0)
+    while (hard or soft) and routes < MAX_ROUTES:
+        soft_ok = not hard                       # rip-up only once every clean route is done
+        code = (hard or soft).pop(0)
         ni = nets[code]
         name = ni.GetNetname()
         groups = islands(items, code)
+        orphans = [it for grp in groups if all(it.ref is not None for it in grp) for it in grp]
+        if orphans and len(groups) > 1:          # pieces of a ripped route: delete, not reconnect
+            for it in orphans:
+                board.Remove(it.ref)
+            index.remove(orphans)
+            groups = islands(items, code)
         if len(groups) < 2:
             continue
         geoms = [unary_union([g for it in grp for g in it.geoms.values()]) for grp in groups]
-        pairs = sorted((geoms[i].distance(geoms[j]), i, j) for i in range(len(groups)) for j in range(i + 1, len(groups)))
+        sig = [(round(g.centroid.x, 1), round(g.centroid.y, 1)) for g in geoms]
+        pairs = sorted((geoms[i].distance(geoms[j]), i, j) for i in range(len(groups)) for j in range(i + 1, len(groups))
+                       if (code, sig[i], sig[j], soft_ok) not in dead)
         path = None
-        for soft_ok in (False, True):
-            for _, i, j in pairs[:3]:
-                if geoms[i].area > geoms[j].area:     # search from the smaller island
-                    i, j = j, i
-                for w in width_class(name, fanout):
-                    for step, margin in ATTEMPTS:
-                        path = route_pair(index, keepouts, code, groups[i], groups[j], w, step, margin, side, soft_ok)
-                        if path:
-                            break
+        for _, i, j in pairs[:PAIR_TRIES]:
+            if geoms[i].area > geoms[j].area:    # search from the smaller island
+                i, j = j, i
+            for w in width_class(name, fanout):
+                for step, margin in ATTEMPTS:
+                    path = route_pair(index, keepouts, code, groups[i], groups[j], w, step, margin, side, soft_ok)
                     if path:
                         break
                 if path:
                     break
-            if path or name == "GND":
+            if path:
                 break
+            dead.add((code, sig[min(i, j)], sig[max(i, j)], soft_ok))
+            dead.add((code, sig[i], sig[j], soft_ok))
+            dead.add((code, sig[j], sig[i], soft_ok))
         if not path:
-            failed.add(name)
-            log(f"  FAILED {name}: {len(groups)} islands")
+            if len(pairs) > PAIR_TRIES:          # other island pairs of this net may still route
+                (soft if soft_ok else hard).append(code)
+            elif not soft_ok and name != "GND":
+                soft.append(code)
+            else:
+                failed.add(name)
+                log(f"  FAILED {name}: {len(groups)} islands")
             continue
         new = emit(board, ni, path, w)
         hit = ripped(index, new, code)
@@ -435,18 +482,18 @@ def complete(board: pcbnew.BOARD, side: str, fanout: set[str], only: tuple[str, 
         index.add(new)
         routes += 1
         log(f"  routed {name} ({w} mm, {len(path)} cells{f', ripped {len(hit)}' if hit else ''})")
-        queue.append(code)                       # more islands may remain
+        hard.insert(0, code)                     # more islands may remain
         for other in {it.net for it in hit}:
             rips[other] = rips.get(other, 0) + 1
-            if rips[other] <= MAX_RIPS and other not in queue:
-                queue.append(other)
-    failed |= {nets[c].GetNetname() for c in queue}
+            if other not in hard:
+                (hard if rips[other] <= MAX_RIPS else soft).append(other)
+    failed |= {nets[c].GetNetname() for c in hard + soft}
     return sorted(failed)
 
 
 def ripped(index: "Index", new: list[Item], net: int) -> list[Item]:
-    """Unlocked other-net copper the new route violates, extended to the whole unlocked chain
-    each hit belongs to (so no orphan pieces of a ripped route stay behind)."""
+    """Unlocked other-net copper the new route violates (to rip up; complete() deletes the
+    orphan pieces this leaves)."""
     hit: list[Item] = []
     seen: set[int] = set()
     for it in new:
@@ -457,17 +504,6 @@ def ripped(index: "Index", new: list[Item], net: int) -> list[Item]:
                     continue
                 og = other.hole if key == "hole" else other.geoms[key] if key == l else None
                 if og is not None and og.intersects(zone):
-                    hit.append(other)
-                    seen.add(id(other))
-    i = 0
-    while i < len(hit) and len(hit) < MAX_RIP_CHAIN:   # grow along the hit net's unlocked copper
-        it = hit[i]
-        i += 1
-        for l, g in it.geoms.items():
-            for other, key in index.near(g):
-                if key != l or other.ref is None or other.net != it.net or id(other) in seen:
-                    continue
-                if other.geoms[l].intersects(g):
                     hit.append(other)
                     seen.add(id(other))
     return hit

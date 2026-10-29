@@ -10,6 +10,7 @@
   3V3 exits necked to 0.15 mm between the pads, then 0.5 mm.
 - USB pair U1 -> R3/R4 -> U4 (pass-through) -> J1, with the receptacle's A/B ties, and the
   J1 escape vias the pair encloses on the right half. A B.Cu track keepout runs under the pair.
+- Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
 
 Geometry is written in the U1 frame (place.U1_ROT) where it is the same on both halves; the
 J1 end is laid per side.
@@ -49,8 +50,10 @@ FAN_GROUPS = [
 FAN_R0 = 0.25                # first bend this far past the pad end
 FAN_STAGGER = 0.3            # each next pin bends this much further out
 FAN_STAGGER_POWER = 0.6      # after the 3V3 exit (pin 1, 0.5 mm wide)
-FAN_RUN = 1.2                # diagonal length, alternately + FAN_RUN_ALT
-FAN_RUN_ALT = 0.0
+FAN_RUN = 1.2                # diagonal length
+FAN_VIA_PINS = ("17", "29", "30", "31")   # COL0, COL4..COL6: fan end -> via, under U1 on B.Cu
+FAN_STAGGER_VIA = 0.45       # beside a via end: (0.4 + 0.45) / sqrt 2 clears via + track
+FAN_VIA_STEP = 0.9           # each next via end this much further along its run
 KEEPOUT_GROW = 0.6           # B.Cu keepout half-width beyond the pair
 
 # Key matrix, key frame (mm from the switch centre, as seen from the top; B.Cu socket pads at
@@ -175,23 +178,28 @@ class Router:
         pads = self.u1_pads()
         for normal, heading, pins in FAN_GROUPS:
             r = PAD_END + FAN_R0
+            vias_done = 0
             for i, num in enumerate(pins):
                 lx, ly = pads[num]
                 lat = lx if normal[0] == 0 else ly
                 def at(rad: float, t: float):
                     return (rad * normal[0], t) if normal[0] else (t, rad * normal[1])
                 turn = at(r, lat)
-                run = FAN_RUN + FAN_RUN_ALT * (i % 2)
+                run = FAN_RUN + FAN_VIA_STEP * vias_done if num in FAN_VIA_PINS else FAN_RUN
                 end = (turn[0] + heading[0] * run / math.sqrt(2), turn[1] + heading[1] * run / math.sqrt(2))
                 net = self.net("U1", num)
                 if num == "1":                     # 3V3: wide once clear of the pads, more room after
                     mid = (turn[0] + heading[0] * 0.4, turn[1] + heading[1] * 0.4)
                     self.ltrack(net, [(lx, ly), turn, mid], FAN_W)
                     self.ltrack(net, [mid, end], POWER_W)
-                    r += FAN_STAGGER_POWER
                 else:
                     self.ltrack(net, [(lx, ly), turn, end], FAN_W)
-                    r += FAN_STAGGER
+                if num in FAN_VIA_PINS:            # columns drop to B.Cu to cross under U1
+                    self.via(net, self.g(*end))
+                    vias_done += 1
+                nxt = pins[i + 1] if i + 1 < len(pins) else None
+                wide = num == "1" or num in FAN_VIA_PINS or nxt in FAN_VIA_PINS
+                r += FAN_STAGGER_POWER if num == "1" else FAN_STAGGER_VIA if wide else FAN_STAGGER
         # XIN straight down into the crystal
         y1 = self.local(*self.pad_xy("Y1", "1"))
         lx, ly = pads["20"]

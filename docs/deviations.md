@@ -260,7 +260,8 @@ what changed, why, and who consumes it.
 - **Change:**
   - `route_critical.py` lays, locked: a **45° corner fan-out** of every U1 signal pin
     (0.15 mm, the spec's QFN fan-out width). Each half-side bends toward a corner, one pin after the
-    other 0.3 mm further out. It also lays the **inner joins** between the pad ring and the exposed
+    other 0.3 mm further out. COL0 and COL4–COL6 end in vias, so they can cross under U1 on B.Cu
+    toward their columns. It also lays the **inner joins** between the pad ring and the exposed
     pad (3V3 pins 42/43/44/33/22 and 1/10, 1V1 pins 45/50, TESTEN), three 3V3 exits, the GND via
     array, XIN into Y1, the **USB pair** with the J1 ties and escape vias, and the **key matrix**
     (switch→diode links, rows on F.Cu, columns on B.Cu, vias at the 25° thumb pads).
@@ -268,8 +269,10 @@ what changed, why, and who consumes it.
     U1 signal nets in a 0.18 mm class, rounds pin offsets to 1 µm (with a 2 µm clearance margin)
     and writes rounded-rectangle pads as rectangles.
   - `complete_routes.py` (new, called by `import_ses.py`) routes what Freerouting leaves open: a
-    0.05 mm-grid two-layer A* router with 45° moves and vias. Obstacles are dilated by
-    half-width + clearance. It then connects GND pads that the filled pours left isolated.
+    two-layer A* router (0.1/0.05 mm grid, 45° moves, vias). Obstacles are dilated by half-width +
+    clearance. If no clean route exists it may cross unlocked tracks, which it then rips up and
+    reroutes. After the pours are filled it repeats against them, which also joins GND pads the
+    pours left isolated.
   - Crystal (XOUT), QSPI, decoupling, power trunks and TRRS lines are autorouted, not scripted.
 - **Result:** U1 signal nets, the matrix rows/columns and the thumb links run at **0.15–0.18 mm**,
   not the Default 0.25 mm. They are still above the 0.127 mm board minimum (JLC 2-layer). The
@@ -293,6 +296,8 @@ what changed, why, and who consumes it.
   not counted. The pair runs on F.Cu on both halves.
 - **USB keepout:** the B.Cu track keepout runs under the pair from U1 to U4. On the right it stops
   at the J1 pad row: there, the VBUS/CC2 pads the pair encloses drop to B.Cu through vias.
+- **Decoupling (§6.4):** the IOVDD pins are joined inside the pad ring, so their 100 nF caps
+  (C8–C15) sit on the 3V3 net near the exits rather than one at each pin.
 - **Mounting holes (§8.2):** the Ø6.5 copper keepout is a rule area (no tracks, vias or pour) on
   both layers.
 - **J2 (§8.3):** its courtyard (sleeve pad and snout) may extend 1.4 mm past Z_TRRS. The body stays

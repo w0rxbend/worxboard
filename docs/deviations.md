@@ -309,3 +309,18 @@ what changed, why, and who consumes it.
   the Ø6.5 boss.
 - **Project file:** `place.py` writes the netclasses and rules into `pcb/<side>/*.kicad_pro`
   (`gen_sch.py` keeps those keys).
+
+### WS2b-6. Open: the routed boards still have unconnected items (§9 stage 11 gate not met)
+
+- The committed boards pass DRC with 0 violations and 0 schematic-parity issues, and the USB,
+  Y1 and Edge.Cuts checks pass. The 0-unconnected gate is **not** met: the left half has 10
+  unconnected items (1V1, COL4, COL5, DISP_DC, GND x2, QSPI_SD3, ROW5, TP4, VBUS) and the right
+  half has 11 (COL2, DISP_DC, DISP_MOSI, DISP_SCK, GND, QSPI_SD1, QSPI_SD2, ROW1, ROW5, TP7,
+  UART_RX). `pcb-finish` therefore exits non-zero.
+- Freerouting 2.5.0 leaves about 30 connections open on each half, most of them at the
+  0.4 mm-pitch RP2040 fan-out. `complete_routes.py` routes all but these gaps. More
+  `--continue` rounds do not change the list. Rip-up of other nets (`SOFT_RIP`) made the
+  routes oscillate (600 routes churned, the open count did not fall), so it is off.
+- To close the gaps, hand-route these few connections in KiCad and lock them so the pipeline
+  keeps them, or give the RP2040 fan-out more room (move Y1, U2 or the test points). A rip-up
+  that keeps a change only when every ripped net re-routes would also help.

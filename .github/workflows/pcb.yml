@@ -1,0 +1,95 @@
+name: pcb
+
+# Spec §9: the headless KiCad pipeline. `schematic` regenerates stages 1-6 and requires the committed
+# schematics to be current; `board` gates the committed boards (DRC + checks) and builds the fab
+# outputs (jlc/, STEP, Edge DXF, renders); `rebuild` runs place -> Freerouting -> finish from scratch.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schematic:
+    name: Schematics, ERC, netcmp (stages 1-6)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v2
+      - name: just pcb-sch-all (fails if pcb/lib or the schematics change)
+        run: just pcb-sch-all
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worxboard-pcb-erc
+          path: |
+            build/*/erc.json
+            build/*/*.net
+
+  board:
+    name: Board ${{ matrix.side }}, DRC gate and fab outputs (stages 11-14)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        side: [left, right]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v2
+      - name: Free disk for the KiCad images (base + -full, about 11 GB)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: just pcb-drc (schematic parity, 0 violations, 0 unconnected, checks.py)
+        run: just pcb-drc ${{ matrix.side }}
+      - name: just pcb-fab (kikit --missingError, renders, Edge DXF, STEP)
+        run: just pcb-fab ${{ matrix.side }}
+      - name: Committed renders are current
+        run: git diff --exit-code --stat -- docs/images/pcb-${{ matrix.side }}-*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worxboard-pcb-${{ matrix.side }}
+          path: |
+            build/${{ matrix.side }}/jlc/gerbers.zip
+            build/${{ matrix.side }}/jlc/bom.csv
+            build/${{ matrix.side }}/jlc/pos.csv
+            build/${{ matrix.side }}/worxboard-${{ matrix.side }}.step
+            build/${{ matrix.side }}/edge.dxf
+            build/${{ matrix.side }}/drc.json
+            docs/images/pcb-${{ matrix.side }}-*.png
+          if-no-files-found: error
+
+  rebuild:
+    name: Rebuild ${{ matrix.side }} from scratch (stages 7-12)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        side: [left, right]
+    env:
+      GH_TOKEN: ${{ github.token }}   # tools/fetch_freerouting.sh (gh release download)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v2
+      - name: just pcb-place (placement, locked critical routes, DSN)
+        run: just pcb-place ${{ matrix.side }}
+      - name: just pcb-route (Freerouting 2.5.0)
+        run: just pcb-route ${{ matrix.side }}
+      - name: just pcb-finish (SES import, completion, pours, DRC gate, checks)
+        run: just pcb-finish ${{ matrix.side }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worxboard-pcb-rebuild-${{ matrix.side }}
+          path: |
+            pcb/${{ matrix.side }}/worxboard-${{ matrix.side }}.kicad_pcb
+            build/${{ matrix.side }}/drc.json
+            build/${{ matrix.side }}/freerouting.log
+          if-no-files-found: warn

@@ -110,6 +110,9 @@ RP2350A copy and includes the same generated layouts file.
 Both halves drive a Sharp LS011B7DH03 memory LCD (nice!view-compatible, 160 × 68) with the ZMK
 `sharp,ls0xx` driver over a PIO SPI master (`raspberrypi,pico-spi-pio`; the RP2040 PL022 SPI cannot
 send LSB-first). The stock `nice_view` shield is not used, because it does not build on RP2040.
+The display is write-only, but the PIO driver still muxes a MISO pin in 4-wire mode, and without
+`miso-gpios` it picks GP0, the split UART's TX. The node therefore names MOSI (GP3) as its MISO, as
+ZMK's own pico-spi-pio examples do (deviation REVIEW-FIX-1).
 
 - **Left**: the ZMK built-in status screen (active layer, output).
 - **Right**: a custom LVGL screen (`firmware/zmk/src/worx_status_screen.c`) with a `worxboard` logo,

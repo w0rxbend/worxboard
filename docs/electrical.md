@@ -74,6 +74,14 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
   roughly 300 mA rating.
 - **VBUS_SENSE** (GP26 / ADC0) sees VBUS through a 10k/10k divider, about 2.5 V. Rev A firmware does
   not use it; it is there for future host detection.
+- **VBUS is not a clean presence signal.** When a half runs from VLINK with no USB host but its USB
+  device is enabled (the left central firmware, or the UF2 bootloader), the RP2040's 1.5 kΩ D+
+  pull-up forward-biases U4's I/O1-to-VBUS steering diode. With R5 + R6 (20 kΩ) as the only load,
+  VBUS then sits near 2.5 V and VBUS_SENSE near 1.25 V instead of 0, and J1's VBUS pin is back-driven
+  (about 0.13 mA, above vSafe0V). D1 stays reverse-biased, so nothing else is affected, and the
+  peripheral builds do not enable USB. Firmware that uses VBUS_SENSE for host detection needs a
+  threshold above about 1.8 V (VBUS > 3.6 V); a later revision can take U4's VBUS pin from VSYS
+  instead.
 
 ## TRRS link
 
@@ -115,10 +123,24 @@ Cloned from the Corne v4.1 production BOM, with these values:
 - **Flash** U2 W25Q128JVSIQ, C5 100 nF decoupling, R8 10k pull-up on QSPI_SS.
 - **Crystal** Y1 12 MHz 3225, 2 × 27 pF load capacitors (C6, C7), R7 1 kΩ in series on XOUT. Its
   courtyard is within 3 mm of the XIN/XOUT pads (measured by `checks.py`, 2.93 mm on both halves).
+  R7 sits beside the crystal, so XOUT runs about 5 mm without a via, and a B.Cu keepout over Y1
+  keeps tracks and vias out from under it: both GND pours are solid there (deviation REVIEW-FIX-8).
 - **Decoupling**: 100 nF for the six IOVDD pins, USB_VDD and ADC_AVDD (C8–C15) and both DVDD pins
-  (C16, C17); 1 µF on VREG_VIN (C18) and VREG_VOUT (C19); DVDD is tied to VREG_VOUT (net `1V1`). The
-  IOVDD pins are joined inside the QFN pad ring, so their capacitors sit on the 3V3 net near the
-  exits rather than one at each pin (deviation WS2b-5).
+  (C16, C17); 1 µF on VREG_VIN (C18) and VREG_VOUT (C19); DVDD is tied to VREG_VOUT (net `1V1`).
+  Several supply pins are joined inside the QFN pad ring, so the caps sit at the five places where
+  the supplies leave it, each joined to that exit and to its own GND via by locked copper
+  (deviation REVIEW-FIX-2):
+
+  | Exit | Caps | Pins served |
+  |---|---|---|
+  | North, pins 48/49 | C14, C15, C13, C10 | USB_VDD 48, IOVDD 49 |
+  | East, pin 42 | C18 (1 µF), C11, C12 | IOVDD 42, ADC_AVDD 43, VREG_VIN 44; IOVDD 33 and 22 on the inner join |
+  | West, pin 1 | C8, C9 | IOVDD 1; IOVDD 10 on the inner join |
+  | Pin-50 fan end | C16, C19 (1 µF) | DVDD 50; VREG_VOUT 45 on the inner join |
+  | Pin-23 fan end | C17 | DVDD 23 |
+
+  `checks.py` measures the copper path from every supply pin to its nearest cap and from every cap
+  to its nearest pin, and fails above 12 mm and 7 mm.
 - **Buttons**: SW1 (BOOT) pulls QSPI_SS to GND through R9 1 kΩ; SW2 (RESET) pulls RUN to GND (R10
   10k pull-up). Both are TS-1088R tact switches at (176, 50) and (180, 50) in the right frame,
   reachable through Ø3 pin holes in the case top.

@@ -7,10 +7,14 @@ the case always matches the PCB.
 
 > [!NOTE]
 > **Modelled and checked, not yet made.** `just model` builds both halves and passes every case
-> check, and `just fitcheck` reports **0 mm³** of interference against both PCB STEPs (the `fit`
-> job of the [`pcb` workflow](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) runs
-> it on every push). Nothing has been printed or machined. Gates G1 (display stack) and G2 (TRRS
-> jack height) can still change the display pocket and the bump ceiling.
+> check, and `just fitcheck` reports **0 mm³** of interference against both PCB STEPs plus the
+> `layout` envelopes of the parts those STEPs have no body for: J1 (USB-C), J2 (TRRS), J3 with the
+> display module, and the hot-swap sockets (the `fit` job of the
+> [`pcb` workflow](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) runs it on every
+> push). Those envelopes are the layout's assumed sizes: gates G1 and G2 found the real display
+> module 0.7 mm longer and the real PJ-320D 2.1 mm longer than them, so the pocket and the bump
+> relief still need the fixes listed in [verification.md](verification.md#open-items-that-block-ordering)
+> before ordering. Nothing has been printed or machined.
 
 ![Both top shells](../case/renders/pair_top_iso.png)
 
@@ -49,11 +53,11 @@ Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm aroun
 | Feature | worxboard rev A |
 |---|---|
 | Outline | The PCB polygon from `layout.outline(side)` offset by 3.5 mm (0.5 clearance + 3.0 wall). Short PCB corner chamfers collapse into one filleted corner. Radii by vertex class: back corners r8 (r10 left too little cavity clearance), front-outer r12, thumb r8, concave r6 / r14, TRRS bump r5 (deviations WS3-1, WS3-2). The cavity keeps ≥ 0.3 mm to the PCB everywhere. |
-| Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get plate stabiliser cut-outs. The key well is clipped to keep 2.0 mm of wall at the T0/T3 cap corners (WS3-4). |
+| Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get Cherry-spec plate stabiliser cut-outs (6.65 × 12.3 mm with the side and end notches; the 0.875 mm side notch is 1.0 mm for a 1 mm end mill). Each cut-out's long half points the same way as the PCB's Ø4.0 stabiliser holes: both read `layout.stab_dir`, and the left half is the mirror image (deviation REVIEW-FIX-7). The key well is clipped to keep 2.0 mm of wall at the T0/T3 cap corners (WS3-4). |
 | Screws | 8 × M2.5 on the ErgoDox pattern, with hole 7 moved to (88.0, 37.135) for the display. |
-| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to Z 16.8, through the spacer and plate, and a 26 × 12 mm viewing window (r1, 0.5 mm chamfer) through a 0.8 mm skin. The window is centred at (72.39, 60.0) (deviation WS0-2), 1.0 mm from the C6R1 key well. `display_check()` asserts the window is inside the pocket. The pocket opens a 1.1 mm strip of the C6R1 well floor, which the module fills to within 0.5 mm (WS3-5). |
+| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to Z 16.8, through the spacer and plate, and a 26 × 12 mm viewing window (r1, 0.5 mm chamfer) through a 0.8 mm skin. The window is centred on the LCD viewing area at (72.39, 56.54), which leaves a 4.5 mm top-skin bar to the C6R1 key well (deviation REVIEW-FIX-6). `display_check()` asserts the window is inside the pocket. The pocket opens a 1.1 mm strip of the C6R1 well floor, which the module fills to within 0.5 mm (WS3-5). |
 | USB-C | On **both** halves: a 9.4 × 3.6 mm notch (r1.6) in the back wall at x 186.0 (right frame), Z centre 10.2, with a 13 × 8 mm outside recess 1.8 mm deep so a plug seats fully. The recess continues 0.8 mm into the tray. |
-| TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis (Z 11.1); `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The bump pocket leaves 0.5 mm over a 5.5 mm jack body (gate G2). |
+| TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis (Z 11.1); `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The bump pocket leaves 0.5 mm over the 5.5 mm `layout` jack body; the real PJ-320D is 5.0 mm tall (G2 PASS) but 14.1 mm long, 2.1 mm longer than the relief (G2 open item). The plug has to pass 3.65 mm of Ø6.5 hole before it seats (see [TRRS cable](#trrs-cable)). |
 | Back strip | A relief pocket over Z_BACK and Z_TRRS (ceiling 14.6), with a 1 mm wall kept to the key well (WS3-6), and Ø3 pin holes through the top over BOOT (176, 50) and RESET (180, 50). |
 | Legs | The three stock positions on the derived walls; M3 drill 5.5 mm at the outer and thumb legs (≥ 5.0 checked), 7.5 mm at the inner leg (WS3-3). |
 | Removed | The EZ's capacitor pocket, LED windows and reset hole, and the back-wall jack notches. |
@@ -90,10 +94,23 @@ just order      # PDF drawings + CNC order package in case/exports/order
 `just model` prints the screw-to-switch clearances, every case check (outline, legs, webs, display,
 jacks, spacer, mirror) and each part's volume, mass and validity, and exits non-zero if a check
 fails. `case/check_fit.py` places the KiCad STEP by matching the board outline and requires
-0 mm³ of interference with the top and bottom. Without a STEP it checks the `layout` component
-zones instead and prints a warning: run `just pcb-fab left` and `just pcb-fab right` first. The
-STEP leaves out the DNP display socket J3 (deviation WS2c-5), so the display stack itself is gate
-G1's job. `fitcheck` also prints the boss webs that top-side PCB parts must stay off.
+0 mm³ of interference with the top, bottom and spacer. The STEP has no body for J1, J2 or the
+hot-swap sockets (KiCad ships no model) and leaves out the DNP display socket J3 (WS2c-5), so the
+`layout` envelopes of those parts (USB-C and TRRS bodies, J3 + module up to the 8.2 mm stack limit,
+a 1.8 mm slab under the board) are checked with it (deviation REVIEW-FIX-4). Without a STEP it
+checks only the `layout` envelopes and prints a warning: run `just pcb-fab left` and
+`just pcb-fab right` first. The envelopes are as good as the layout's part sizes, which gates G1
+and G2 check against the drawings. `fitcheck` also prints the boss webs that top-side PCB parts
+must stay off.
+
+## TRRS cable
+
+The jack mouth is 3.65 mm inside the case: the plug passes the Ø6.5 hole in the 3.0 mm bump wall
+and the 0.65 mm gap to the PJ-320D barrel (case outer face x 45.5, barrel front x 49.15, right
+frame). A plug whose head (overmould or metal shell) is wider than **Ø6.3 mm within 3.7 mm of
+the shaft** stops short of full insertion: tip, ring and VLINK contacts then sit on the wrong
+springs. Use a cable with a slim straight plug (most keyboard TRRS cables with a thin metal shell
+fit); check one with calipers before ordering.
 
 ## Fasteners
 

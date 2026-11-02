@@ -51,6 +51,30 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
 - `.gitignore` no longer ignores `/zephyr/` (the ZMK module lives at `zephyr/module.yml`). It now
   ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags.
 
+### Fixed
+
+Post-integration review (deviations REVIEW-FIX-1 to -8):
+
+- Firmware: the display's PIO SPI no longer takes GP0 (UART0 TX, the wired-split link) on its first
+  transfer; `nice_view_spi` names MOSI as its `miso-gpios`. The integration tests now fail if a PIO
+  SPI pin lands on a UART, row or column pin. The right-central build has a USB product name again.
+- PCB, decoupling: every RP2040 supply cap sits at the exit of the pins it serves and is joined to it
+  and to its own GND via with locked copper; DVDD pin 23 has its own 100 nF and VREG_VOUT's 1 µF sits
+  at the 1V1 exit. On the left half seven 3V3 caps had reached U1 only through a 75–86 mm detour.
+  `checks.py` now measures the pin-to-cap copper paths.
+- PCB: no via in an SMD pad any more (router, session import and a check); a B.Cu keepout under the
+  crystal, with R7 beside it and a short locked XOUT; the left stabiliser holes face the same way as
+  the case cut-outs; JLC CPL rotation corrections for the QFN, SOIC, SOT-23 and USB-C parts.
+- Case: Cherry-spec stabiliser cut-outs on the PCB holes' side (left = mirror of right, checked to
+  0.005 mm); the display window is centred on the LCD viewing area (G1 open item 3), which also
+  widens the skin bar to the C6R1 well from 1.0 to 4.5 mm; the fit check covers the USB-C, TRRS,
+  display and socket envelopes the PCB STEP has no body for; drawing and order-note feature ids
+  match the PCB parts (J1 USB-C, J2 TRRS).
+- Docs: the display-socket build steps (pin-1 end per half, a 6.0–6.3 mm socket stack), the TRRS
+  plug-head limit, the VBUS back-drive note, the leg bearing faces and fold limit, and the README,
+  BOM, case, ordering and microsite status brought in line with verification.md, which now records
+  the re-checks of these fixes.
+
 ### Known issues
 
 - Not built or tested on hardware.

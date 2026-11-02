@@ -41,7 +41,7 @@ For one keyboard (both halves). Part numbers and the assembled parts are in [bom
 | worxboard-left PCB, JLC-assembled | 1 | RP2040, USB-C, TRRS jack, 37 hot-swap sockets and 37 diodes fitted |
 | worxboard-right PCB, JLC-assembled | 1 | the same circuit with the TRRS data lines crossed |
 | nice!view display (or an LS011B7DH03 breakout with the same pinout) | 2 | one per half, gate G1 |
-| 1×5 2.54 mm female socket, low profile | 2 | J3; the display module plugs into it |
+| 1×5 2.54 mm female socket and male header spacer | 2 | J3; the display module plugs into it. Socket + spacer must lift the module 6.0–6.3 mm (step 4) |
 | MX-compatible switches, 3- or 5-pin | 74 | 37 per half |
 | 2u plate-mount stabilisers | 4 | thumb keys T4 and T5 on each half |
 | Keycaps | 74 | 1.5u × 8 (outer column), vertical 1.5u × 4 (inner column), 2u × 4 (thumbs), 1u × 58 |
@@ -49,7 +49,7 @@ For one keyboard (both halves). Part numbers and the assembled parts are in [bom
 | M2.5 countersunk screws, ISO 10642 | 16 | per half 6 × M2.5 × 14 and 2 × M2.5 × 12 ([case.md](case.md#fasteners)) |
 | Rubber feet, Ø10 mm | 8 | 4 per half |
 | Tent legs, foot caps, stock ErgoDox EZ M3 spring thumbscrews | 6 each | [legs.md](legs.md) |
-| TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm |
+| TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm, with a **slim plug head: ≤ Ø6.3 mm for the first 3.7 mm** behind the metal shaft ([case.md](case.md#trrs-cable)) |
 | USB-C cable | 1–2 | the second is only needed in split-powered mode or for flashing the right half |
 
 ## Tools
@@ -130,6 +130,12 @@ Do not run one half bridged and the other cut.
 
 ## 4. Fit the display socket
 
+> [!WARNING]
+> On the rev A boards J3 is reversed: gate G1 found the module's MOSI pin at the other end, so a
+> module plugged in face-up has its clock tied to ground and stays blank
+> ([verification.md](verification.md#g1-niceview-display), open item 1). The steps below describe the
+> intended fit; the display works only once J3 is turned on the PCB.
+
 The display module (nice!view or compatible) plugs into a 1×5 female socket J3 at the back end of
 the display area, so it can be removed.
 
@@ -139,11 +145,16 @@ the display area, so it can be removed.
    where the top key would be.
 3. Solder the five pins from the bottom side. Trim them flush: the hot-swap sockets are nearby on
    the bottom side, and the bottom tray has only 4 mm of cavity.
-4. Check the stack height: from the PCB top to the top of the display glass must be **≤ 8.2 mm**
-   (gate G1). Use the lowest socket you can find, or solder the module directly if it is too tall.
-5. Pin 1 (MOSI) is at the outer end of the socket on both halves; see the
+4. Check the stack height. The module runs 0.7 mm further from the header than the case pocket
+   allows at plate level, so its underside must sit **above the plate top**: socket + header spacer
+   **6.0–6.3 mm** above the PCB (for example a 3.5 mm low-profile female socket on a standard
+   2.5 mm male-header spacer), which puts the top of the glass at **≤ 8.2 mm** (gate G1). A lower
+   socket, or a module soldered straight to the board, pushes its far end into the case wall; a
+   standard 8.5 mm socket is too tall for the pocket.
+5. J3 pad 1 (MOSI) is at low x in each half's own KiCad frame: the **inner** end of the socket
+   (towards the TRRS jack) on the right half, the **outer** end on the left half; see the
    [J3 table in pinout.md](pinout.md#display-header-j3). The module mounts face-up the same way on
-   both halves.
+   both halves, display towards the user.
 
 Plug the board in again. The left display shows the ZMK status screen (layer and output); the right
 display shows the `worxboard` logo, the lock indicators and `wired`.

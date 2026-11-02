@@ -50,13 +50,18 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 <!-- END GENERATED: bom_assembled -->
 
 > [!WARNING]
-> **Stock.** When WS2 checked LCSC on 2026-10-29 it listed **0 in stock** for C113767 (W25Q128JVSIQ),
-> C25744 (10 kΩ 0402) and C2803348 (hot-swap socket). JLC's own stock can differ. Check every line
-> on the day you order; pick a same-footprint replacement if one is out (gate G3).
+> **Stock.** On 2026-11-02 the hot-swap socket C2803348 was discontinued, and JLC had only 163 of
+> C113767 (W25Q128JVSIQ) and 34 of C91749 (crystal); see [verification.md](verification.md#g3-parts-stock-and-track-width)
+> for the replacements. Check every line on the day you order (`tests/integration/stock.py`); pick a
+> same-footprint replacement if one is out (gate G3).
 
 F1 is WS2's choice for the spec's "PTC 1206, 250 mA hold" (deviation WS2a-4). JLCPCB's preview
 shows no 3D body for J1, J2 or the hot-swap sockets, because KiCad's library has no model for them
-(deviation WS2c-2); the placement data is still correct.
+(deviation WS2c-2). The CPL carries rotation corrections for the RP2040 (QFN-56, +270°), the flash
+(SOIC-8, +270°), the SOT-23-5/6 parts U3–U5 (−90°) and the USB-C J1 (+180°) from a public KiCad→JLC
+table (deviation REVIEW-FIX-5); the community tables have changed over the years, so check every
+IC, diode and connector in JLC's placement preview before you confirm the order
+([ordering-jlcpcb.md](ordering-jlcpcb.md#placement-preview)).
 
 ## Not in the JLC BOM or placement file
 
@@ -78,11 +83,11 @@ and the pipeline fails if any of them reaches `bom.csv` or `pos.csv` (deviation 
 | Qty (pair) | Part | Notes |
 |---|---|---|
 | 2 | nice!view display, or an LS011B7DH03 breakout with the same pinout | G1: 36 × 14 × 2.9 mm assumed, pin order MOSI, SCK, VCC, GND, CS |
-| 2 | 1×5 2.54 mm female socket, low profile | J3; socket + module + glass ≤ 8.2 mm above the PCB (G1) |
+| 2 | 1×5 2.54 mm female socket and a 1×5 male header spacer | J3; the stack must lift the module 6.0–6.3 mm above the PCB (for example a 3.5 mm low-profile socket on a 2.5 mm spacer), so its underside clears the plate and the glass stays ≤ 8.2 mm (G1, [buildguide](buildguide_en.md#4-fit-the-display-socket)) |
 | 74 | MX-compatible switches, 3- or 5-pin | 37 per half |
 | 4 | 2u plate-mount stabilisers | T4 and T5 on each half |
 | 74 | Keycaps | 8 × 1.5u (outer column), 4 × vertical 1.5u (inner column), 4 × 2u (T4, T5), 58 × 1u |
-| 1 | TRRS cable, 3.5 mm, 4-pole, **straight** | |
+| 1 | TRRS cable, 3.5 mm, 4-pole, **straight** | plug head ≤ Ø6.3 mm for its first 3.7 mm, to pass the case hole and seat fully ([case.md](case.md#trrs-cable)) |
 | 1–2 | USB-C cable | the second only for split-powered mode or flashing the right half |
 | 12 | M2.5 × 14 countersunk screws, ISO 10642 | 6 per half, bezel and edge bosses ([case.md](case.md#fasteners)) |
 | 4 | M2.5 × 12 countersunk screws, ISO 10642 | 2 per half, the bosses under the key well |
@@ -100,11 +105,16 @@ right boards are two separate designs, so each one pays the fees once. See
 
 ## Gates
 
-These gates block **ordering**, not the repository. WS5 (integration and release, not started yet)
-records the results in `docs/verification.md`. Until then all three are **open**.
+These gates block **ordering**, not the repository. WS5 recorded the results in
+[verification.md](verification.md); the table below is their summary.
 
-| Gate | What must be checked |
-|---|---|
-| **G1** | nice!view dimensions (36 × 14 × 2.9 mm assumed), header pin order, the active-area position under the window (WS0-2), and the socket stack ≤ 8.2 mm. The board STEP leaves J3 out (WS2c-5), so the fit check does not cover the display stack. |
-| **G2** | PJ-320D height (≤ 5.5 mm; the case leaves 0.5 mm over a 5.5 mm body) and the footprint pad map against the datasheet |
-| **G3** | Every **[G3]** LCSC number above and its stock, the PTC choice, and the JLC 2-layer minimum track (0.127 mm). The boards route signal tracks at 0.15–0.18 mm (WS2b-3). |
+| Gate | What is checked | Result |
+|---|---|---|
+| **G1** | nice!view dimensions (36 × 14 × 2.9 mm), pin order, which end pin 1 is, the viewing area under the window, and the socket stack ≤ 8.2 mm | **FAIL**: size, pin order and window PASS; J3 pin 1 is at the wrong end on both boards (the display cannot work as routed), and the module runs 0.7 mm past the case pocket unless the socket stack lifts it above the plate |
+| **G2** | PJ-320D height (≤ 5.5 mm), the footprint pad map against the datasheet, and the body length | **FAIL**: height 5.0 mm and pad map PASS; the body is 14.1 mm long, 2.1 mm longer than the case relief |
+| **G3** | Every **[G3]** LCSC number above and its stock, the PTC choice, and the JLC 2-layer minimum track (0.127 mm) | **FAIL**: the hot-swap socket C2803348 is discontinued (replacement candidates in verification.md); track width PASS |
+
+The fixes and their owners are listed under
+[open items](verification.md#open-items-that-block-ordering). `tests/integration/test_gates.py`
+checks G1 and G2 against the drawings, and `tests/integration/stock.py` re-checks G3 stock on the
+day of ordering.

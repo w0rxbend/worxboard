@@ -35,19 +35,22 @@ viewer. CI rebuilds all of it on every push.
 
 > [!WARNING]
 > **Status: rev A, designed and built in CI, not yet made.** The boards are routed and pass DRC,
-> the firmware builds, the case fits the board STEPs, but no board has been ordered or tested on
-> hardware. Gates **G1–G3** ([bom.md](docs/bom.md#gates)) are open and block ordering. The frozen
-> design is [`docs/design.md`](docs/design.md); every change from it is in
+> the firmware builds, the case passes its fit check against the board STEPs and the layout part
+> envelopes, but no board has been ordered or tested on hardware. Gates **G1–G3** fail
+> ([verification.md](docs/verification.md)) and block ordering: the display socket J3 has pin 1 at
+> the wrong end, so neither display can work on the routed boards; the TRRS jack body is 2.1 mm
+> longer than the case allows for; and the hot-swap socket C2803348 is discontinued. The frozen design
+> is [`docs/design.md`](docs/design.md); every change from it is in
 > [`docs/deviations.md`](docs/deviations.md).
 
 | Part | State |
 |---|---|
 | Layout (`layout/`) | **Done.** Keys, thumbs, display, jacks, holes, outline, zones and the GPIO map; `just layout-check` |
-| PCB (`pcb/`) | **Routed.** Both halves generated in KiCad 10: ERC clean, DRC with schematic parity 0 violations / 0 unconnected, USB pair, crystal and outline checks pass. A seeded from-scratch rebuild reproduces the committed boards. CI writes gerbers, BOM, CPL, STEP and renders. |
+| PCB (`pcb/`) | **Routed.** Both halves generated in KiCad 10: ERC clean, DRC with schematic parity 0 violations / 0 unconnected; the USB pair, crystal, decoupling-path, via-in-pad and outline checks pass. A seeded from-scratch rebuild reproduces the committed boards. CI writes gerbers, BOM, CPL, STEP and renders. |
 | Firmware (`firmware/`, `zephyr/`, `build.yaml`) | **Builds.** All six `build.yaml` rows (left central, right peripheral, two role-swap and two RP2350A rows) build locally and in CI. Untested on hardware. |
-| Case and plates (`case/`, `plates/`) | **Modelled.** Every case check passes; `just fitcheck` reports 0 mm³ against both PCB STEPs. Not printed or machined yet. |
+| Case and plates (`case/`, `plates/`) | **Modelled.** Every case check passes; `just fitcheck` reports 0 mm³ against both PCB STEPs plus the layout envelopes of the USB-C, TRRS, display and hot-swap socket bodies the STEPs lack. Not printed or machined yet. |
 | Docs and microsite (`docs/`, `site/`) | **Done.** Build guide, generated BOM, pinout and matrix, electrical, ordering, case, legs, firmware; the viewer |
-| Gates and release | **Open.** G1–G3 to be verified; integration tests, `docs/verification.md` and the `v0.1.0-revA` tag are the last step (WS5) |
+| Gates and release | **Checked, failing.** [`docs/verification.md`](docs/verification.md) records the integration tests, a clean-clone `just all` and gates G1–G3, which fail and block ordering. `release.yml` is written; no tag or release exists yet. |
 
 ## Spin it in your browser
 
@@ -187,13 +190,19 @@ their pinned Python packages into `pcb/.tools/` once.
 
 - **Not built yet.** No board has been made; the displays, the wired split, the lock-indicator
   forwarding and the role-swap firmware are untested on hardware.
-- **Gates G1–G3** ([bom.md](docs/bom.md#gates)): the display stack and active-area position, the
-  TRRS jack height and pad map, every [G3] part, and the 0.127 mm track minimum. The case leaves only
-  0.5 mm over a 5.5 mm jack body.
+- **Gates G1–G3 fail** ([verification.md](docs/verification.md#open-items-that-block-ordering)):
+  - G1: J3 pin 1 is at the wrong end on both boards, so a module plugged in face-up meets its pins
+    reversed and the display cannot work as routed; the module also runs 0.7 mm past the display
+    pocket unless the socket stack lifts it above the plate (6.0–6.3 mm).
+  - G2: the PJ-320D's height and pad map pass, but its body is 14.1 mm long, 2.1 mm longer than the
+    case relief over it.
+  - G3: the hot-swap socket C2803348 is discontinued; the 0.127 mm track minimum passes.
 - **Display orientation.** The module is mounted upright, but both screens are laid out landscape;
   expect rotated text until the firmware gets a rotation ([firmware.md](docs/firmware.md#known-issues)).
-- **Stock.** On 2026-10-29 LCSC listed no stock for the flash C113767, the 10 kΩ resistor C25744 and
-  the hot-swap socket C2803348.
+- **Stock.** On 2026-11-02 JLC had 163 of the flash C113767 and 34 of the crystal C91749; same-footprint
+  basic parts (C97521, C9002) are listed in [verification.md](docs/verification.md#g3-parts-stock-and-track-width).
+- **JLC placement.** `pos.csv` carries rotation corrections from a community table; check every IC,
+  diode and connector in JLC's placement preview ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md#placement-preview)).
 - **3D models.** KiCad has no model for the USB-C, the TRRS jack or the hot-swap socket, so the board
   STEP and the JLC preview lack those bodies; the STEP also leaves out the DNP display socket J3.
 - **RP2350A target** (`worxboard2`): settings do not persist (flash map and NVS are forced off).
@@ -231,6 +240,7 @@ tools/               container helpers and pinned image digests
 | [docs/legs.md](docs/legs.md) | Tent/tilt legs: mounts, positions, the custom leg |
 | [docs/design.md](docs/design.md) | The frozen rev A specification |
 | [docs/deviations.md](docs/deviations.md) | Every change from the specification, by work-stream |
+| [docs/verification.md](docs/verification.md) | Integration results, the clean-clone build and gates G1–G3 with the open items that block ordering |
 | [docs/sources.md](docs/sources.md) | Prior art, tools and attribution |
 
 `docs/pinout.md`, `docs/matrix.md` and the BOM tables in `docs/bom.md` are generated by

@@ -504,3 +504,93 @@ what changed, why, and who consumes it.
   row or column pin, or if miso is neither MOSI nor a spare pin.
 - **Also:** `ZMK_KEYBOARD_NAME` now defaults to `worxboard` on both halves, so the
   `worxboard_right_central_EXPERIMENTAL` build no longer enumerates with an empty USB product name.
+
+### REVIEW-FIX-2. Decoupling caps sit at the U1 exits on locked copper (§6.4; supersedes the WS2b-5 decoupling note)
+
+- **Spec:** 100 nF on every IOVDD pin, USB_VDD, ADC_AVDD and both DVDD pins; 1 µF on VREG_IN and
+  VREG_VOUT, placed at the pins (RP2040 hardware design guide).
+- **Problem:** WS2b-5 put the 3V3 caps "near the exits", but they were placed 4–13 mm away (east of
+  U1 on the right, and on the far side of U1 on the left) and joined by whatever the autorouter and
+  the rip-up left: on the left half C8–C13 and C18 reached U1 only through a 75–86 mm detour under the
+  key field. DVDD pin 23 had no cap within 31–34 mm, VREG_VOUT's 1 µF was 13–17 mm from pin 45, and
+  netcmp only checked that a cap was on the net.
+- **Change:** the caps are in `place.CLUSTER` (U1 frame, the same on both halves) at the three 3V3
+  exits and the two 1V1 fan ends, and `route_critical.decoupling()` joins each one to its exit and
+  its GND pad to its own via with locked copper:
+  - north bus from the 48/49 exit: C14, C15, C13, C10 (USB_VDD 48, IOVDD 49);
+  - east bus from the pin-42 exit: C18 (1 µF VREG_VIN), C11, C12 (IOVDD 42, ADC_AVDD 43,
+    VREG_VIN 44, and IOVDD 33 / 22 on the inner join);
+  - pin-1 exit: C8, C9 (IOVDD 1, and 10 on the inner join);
+  - pin-50 fan end: C16 and C19 (1 µF) for DVDD 50 and VREG_VOUT 45 (inner join); pin-23 fan end: C17.
+- **Remaining gap:** IOVDD 10, 22, 33 and VREG_VOUT 45 have no outward escape between the 0.4 mm
+  fan-out, so they still reach their caps through the joins inside the pad ring.
+- **Check:** `checks.py` measures the copper path pin → nearest cap and cap → nearest U1 supply pin
+  per net, and each cap's GND via (limits `PIN_CAP_MAX_MM`, `CAP_PIN_MAX_MM`, `CAP_GND_VIA_MM`).
+
+### REVIEW-FIX-3. No vias in SMD pads (§8.4)
+
+- **Problem:** the completion router treated a same-net SMD pad as free for a via, and Freerouting
+  could leave one too: 13 (right) and 15 (left) vias touched SMD pads (0402 caps, the flash, the
+  LDO, the ESD arrays, SOD-123 diodes, socket pads, test points, U1 pins 15, 43 and 44), and one
+  drill cut 0.15 mm into U1 pin 43. The vias are not plugged, so solder wicks into them, and JLC's
+  DFM check flags drill hits on SMD pads.
+- **Change:** `complete_routes` keeps vias off every SMD pad of any net (grid and exact checks), and
+  `import_ses.py` deletes session vias that touch an SMD pad so the completion router rejoins those
+  nets outside the pads. `checks.py` fails on any via overlapping an SMD pad; the thermal via array
+  in the RP2040 exposed pad (locked, by design) is the only exception. Vias may still end close to a
+  pad edge (a few within 0.05 mm); the boards tent vias on both sides, so the mask keeps solder
+  out of them.
+
+### REVIEW-FIX-4. The fit check adds the layout envelopes of parts the STEP lacks (§10.10)
+
+- **Spec:** `check_fit.py` loads the PCB STEP when it exists, else the `layout` envelopes.
+- **Problem:** the STEP has no body for J1, J2 or the 37 hot-swap sockets (WS2c-2) and leaves out
+  J3 (WS2c-5), so once it existed the check could not see a jack, USB-C, display or socket clash.
+- **Change:** with the STEP, `check_fit.py` also checks the `layout` envelopes of J1, J2, J3 + module
+  and the bottom-side sockets (`STEP_GAPS`). The envelopes are the layout's part sizes, so gate
+  G1/G2 fixes to those sizes reach the check automatically.
+
+### REVIEW-FIX-5. JLC CPL rotation corrections (§9 stage 13)
+
+- **Problem:** `pos.csv` held raw KiCad rotations; JLC's library uses another zero orientation for
+  several packages.
+- **Change:** stage 13 passes `pcb/scripts/jlc_rotations.csv` to kikit (`--correctionpatterns`):
+  QFN-56 and SOIC-8 +270°, SOT-23-5/6 −90°, HRO TYPE-C-31-M-12 +180°, from the JLCKicadTools table
+  of 2024-09. These community tables have changed over time (SOT-23 was +180°), so
+  `docs/ordering-jlcpcb.md` keeps the placement preview as the check for every IC, diode and
+  connector.
+
+### REVIEW-FIX-6. The display window is centred on the LCD viewing area (§4, §10 change 4; supersedes WS0-2)
+
+- **Problem:** WS0-2 centred the window at y 60.0. Gate G1 found the viewing area at y 43.9–69.2, so
+  the window (47.0–73.0) hid the header end, and its far edge left a 1.0 mm wide, 0.8 mm thick bar of
+  top skin over the display pocket to the C6R1 well, unsupported for 15 mm (a CNC chatter risk).
+- **Change:** `layout/display.py` centres the window on the viewing area from the header position
+  (header y − 1.3 + 4.6 + 25.28 / 2 = 56.54): window y 43.54–69.54. The bar to the C6R1 well is now
+  4.5 mm, and the layout test keeps it ≥ 3.0 mm. G1 open item 3 is closed; if the header moves (item
+  2), the window follows.
+
+### REVIEW-FIX-7. Stabiliser cut-outs: Cherry spec, oriented with the PCB holes (§5, §10.8)
+
+- **Problem:** the plate cut-outs' long half pointed away from the PCB's Ø4.0 stabiliser holes on all
+  four 2u keys (1.2 mm off for a PCB-mount stabiliser), they were plain 12.3 × 6.65 rectangles without
+  the Cherry side and end notches, and the left top was not the mirror of the right
+  (`MIRROR_TOL_MM = 0.1` let it pass). `layout.stab_holes()` gave no orientation, so the PCB and the
+  case each chose one.
+- **Change:** `layout.stab_dir(key, side)` is the direction of the stabiliser housings (Ø4.0 holes),
+  −U on the right and its mirror on the left, exported as `stab_dir` in `layout.json`. `place.py`
+  turns `Stab_MX_2u` to it (the left footprints turn 180° from before), and `case.stab_cuts` builds
+  the Cherry cut-out (−5.53…+6.77 across, 6.65 along, side notch −2.3…+0.5, end notch 3.3 × 1.2) on
+  that side. The 0.875 mm side notch is 1.0 mm for a 1 mm end mill; outside corners are R0.5. The
+  halves are now mirror images, and `MIRROR_TOL_MM` is 0.005.
+
+### REVIEW-FIX-8. Crystal: R7 beside Y1, short XOUT, no copper under Y1 (§6.4)
+
+- **Spec:** Y1 within 3 mm of XIN/XOUT, a GND guard and no traces underneath; 1 kΩ in series on XOUT.
+- **Problem:** COL0 (and on the right COL1 and XOUT) ran on B.Cu under Y1; XOUT was 13 mm long with
+  two vias, because the pin-21 fan end was boxed in by Y1's GND pad and the pin-23 fan.
+- **Change:** Y1 moves 0.7 mm away from pin 23 in the U1 frame (still 2.93 mm from XIN/XOUT), R7
+  sits between Y1 and the pin-23 fan end, and `route_critical.crystal()` lays XOUT → R7 → Y1 pad 3
+  locked (about 5 mm of XOUT, no via). A B.Cu rule area over Y1's courtyard + 0.25 mm forbids tracks and
+  vias, so both pours stay solid under the crystal; F.Cu cannot pass between its pads. `checks.py`
+  fails on any B.Cu track or via under Y1. The left C6 moves 0.5 mm out to keep its courtyard clear.

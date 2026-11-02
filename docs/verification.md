@@ -9,10 +9,10 @@ gates block **ordering**, not the repository.
 
 | Check | Result | Blocks |
 |---|---|---|
-| [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 68 passed, 8 expected failures (the gate findings below), 0 skipped | |
+| [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 88 passed, 6 expected failures (the gate findings below), 0 skipped, after the [review fixes](#review-fixes) (68 / 8 before) | |
 | [`just all` from a clean clone](#just-all-from-a-clean-clone) | **PASS** in 34 min 44 s; both boards rebuilt byte-identical | |
 | [CI on `main`](#ci) | **PASS**: every workflow green | |
-| [G1 display](#g1-niceview-display) | **FAIL**: pin order right, but J3 pin 1 is at the wrong end; the module and the viewing area sit 0.7 mm and 3.5 mm off the model | PCB and case |
+| [G1 display](#g1-niceview-display) | **FAIL**: pin order right, but J3 pin 1 is at the wrong end; the module sits 0.7 mm off the model (the window now shows the viewing area, see [review fixes](#review-fixes)) | PCB and case |
 | [G2 TRRS jack](#g2-pj-320d-trrs-jack) | Pad map and height **PASS**; the body is 2.1 mm longer than the case allows for: **FAIL** | case |
 | [G3 parts and rules](#g3-parts-stock-and-track-width) | **FAIL**: the hot-swap socket C2803348 is discontinued; track width **PASS** | PCB assembly |
 
@@ -55,7 +55,9 @@ and the netlists `just pcb-sch` exports) and `layout/pins.py`:
 - **The checks catch what they are for.** Mutated firmware (right columns not reversed, no
   `col-offset`, rows rotated, UART roles swapped) must fail the chain and crossover checks.
 
-`test_gates.py` checks G1 and G2 against the drawings (below). `test_release.py` checks the release
+`test_gates.py` checks G1 and G2 against the drawings (below). `test_stabs.py` checks that the
+PCB's Ø4.0 stabiliser holes sit on the side `layout.json` names (`stab_dir`, which the case cut-outs
+also follow) and that the halves are mirror images. `test_release.py` checks the release
 assembly on a synthetic tree and, after `just all`, on the real outputs (gerber zip contents, CPL
 header, BOM LCSC column, STEP and UF2 magic numbers), and that `release.yml` runs only on `v*` tags.
 
@@ -114,7 +116,7 @@ five pins, socket and pins included); viewing area of the Sharp LS011B7DH03 from
 | Pin order | MOSI, SCK, VCC, GND, CS (schematic J2: SI, SCLK, 3V3, GND, SCS) | J3 pins 1–5: `DISP_MOSI`, `DISP_SCK`, `3V3`, `GND`, `DISP_CS` | PASS |
 | Pin-1 end | Front (LCD) view with the header at the bottom: MOSI at the left. Mounted LCD up with the header at the back (low y), MOSI is at **high x** | J3 pad 1 (`DISP_MOSI`) at **low x** on both halves (right x 67.31, left x 182.53) | **FAIL** |
 | Header row to the module edge | 1.3 mm; the pins are centred across the 14 mm width | 1.975 mm (header y 40.6, module y 38.625–74.625) | **FAIL** |
-| Viewing area | 25.28 × 10.74, starting 4.6 mm from the header-end edge (1.3 + 1.7 to the glass + 1.6) | window 26 × 12 at y 47.0–73.0 | **FAIL** |
+| Viewing area | 25.28 × 10.74, starting 4.6 mm from the header-end edge (1.3 + 1.7 to the glass + 1.6) | window 26 × 12 at y 43.54–69.54 (was 47.0–73.0) | PASS since the review fixes |
 | Stack above the PCB | socket body + header spacer + 1.0 + 0.9 | ≤ 8.2 mm (pocket ceiling Z 16.8) | socket + spacer ≤ 6.3 mm |
 | CS polarity | active high (LS011B7DH03) | `cs-gpios … GPIO_ACTIVE_HIGH` | PASS |
 
@@ -129,10 +131,13 @@ exported case parts (both halves) gives 7.3 mm³ of top-part interference with a
 spacer stack and 7.9 mm³ at 4.5 mm. It clears only when the module underside is above the plate top
 (Z 13.6), which needs a 6.0–6.3 mm stack, for example a 3.5 mm low-profile socket and a standard
 2.5 mm male-header spacer. A standard 8.5 mm socket breaks the 8.2 mm limit. The board STEP leaves J3
-out (WS2c-5), so `just fitcheck` does not see any of this.
+out (WS2c-5); `just fitcheck` now checks the layout's J3 + module envelope instead, which ends at
+y 74.625, so it does not see this either until fix 2 lands.
 
-**Window.** The viewing area runs y 43.9–69.2 (right frame) and the window 47.0–73.0: the 3.1 mm
-nearest the header (about 20 of the 160 pixels along it) is hidden, and 3.8 mm of bezel shows at the far end.
+**Window.** The viewing area runs y 43.9–69.2 (right frame). The window was 47.0–73.0, hiding the
+3.1 mm nearest the header (about 20 of the 160 pixels along it); it is now centred on the viewing area
+from the header position (`layout/display.py`), y 43.54–69.54, so it also follows the header if fix 2
+moves it.
 Across, the window is 0.6 mm wider than the viewing area on each side, which is fine. Separately, both
 screens are laid out landscape (160 × 68) for an upright module (WS1 open item).
 
@@ -159,7 +164,8 @@ jack with a plug and a meter before relying on that argument.
 real body runs to x 63.1 (right frame), past Z_TRRS (x < 62.2) and the layout envelope that the case
 relief is cut for. Intersecting a 14.1 × 6.1 × 5.0 mm body with the exported case parts gives
 16.8 mm³ with the top part and 7.3 mm³ with the spacer, on each half. The board STEP has no model
-for J2 (WS2c-2), so the fit check cannot see it.
+for J2 (WS2c-2); `just fitcheck` now checks the layout's J2 envelope instead, so it catches the clash
+once fix 4 sets the real body size there.
 
 ## G3: parts, stock and track width
 
@@ -205,7 +211,35 @@ for 5 assembled boards per half (both halves draw on the same stock):
   to 0.15 mm drill / 0.25 mm pad, and copper ≥ 0.2 mm from a routed edge. The boards use a 0.127 mm
   minimum track and clearance rule; the narrowest track is 0.135 mm (three segments on the right
   half), signal tracks are 0.15–0.18 mm, all 702 vias are 0.3 / 0.6 mm and the edge clearance is
-  0.5 mm: **PASS**.
+  0.5 mm: **PASS**. On the boards re-routed by the [review fixes](#review-fixes): narrowest track
+  0.135 mm (3 segments left, 4 right), 774 vias, all 0.3 / 0.6 mm: still **PASS**.
+
+## Review fixes
+
+A post-integration review on 2026-11-02 found defects that the checks above did not catch. They are
+fixed on `main` (deviations REVIEW-FIX-1 to -8) and were re-checked on the fixed tree:
+
+| Finding | Fix | Re-check | Result |
+|---|---|---|---|
+| The display's PIO SPI took GP0 (UART0 TX) on its first transfer: no TRRS link on any build | `miso-gpios` = MOSI on both targets (REVIEW-FIX-1) | six builds; `miso` is `{gpio0, 3}` in the compiled config; `test_pins.py` fails a PIO SPI pin on a UART, row or column | PASS |
+| Right-central build had no USB product name | `ZMK_KEYBOARD_NAME` on both halves | `.config` of all six builds: `worxboard` | PASS |
+| Left 3V3 caps C8–C13, C18 reached U1 only through a 75–86 mm detour; no cap near DVDD 23; VREG_VOUT 1 µF 13–17 mm away | caps at the five U1 supply exits on locked copper (REVIEW-FIX-2) | `checks.py`: every supply pin ≤ 11.6 mm of copper from a cap (IOVDD 22, the worst; DVDD 23 5.2, VREG_VOUT 45 8.3), every cap ≤ 6.8 mm from a pin, each GND pad ≤ 0.84 mm from its via | PASS |
+| Vias in SMD pads (15 left, 13 right; one cut into U1 pin 43) | router, session import and a check keep them out (REVIEW-FIX-3) | `checks.py`: none on either half | PASS |
+| The fit check ignored J1, J2, J3 + module and the sockets once the STEP existed | their layout envelopes join the STEP (REVIEW-FIX-4) | `just fitcheck`: 0 mm³ | PASS against the layout sizes; G1/G2 items 2 and 4 still apply |
+| CPL had no JLC rotation corrections | `jlc_rotations.csv` (REVIEW-FIX-5) | `pos.csv`: U1–U5 at 270°, J1 at 0° | check in JLC's preview |
+| Window hid the header end of the viewing area; a 1.0 mm skin bar to the C6R1 well | window centred on the viewing area (REVIEW-FIX-6, open item 3) | `test_g1_window_shows_the_viewing_area` passes; bar 4.5 mm | PASS |
+| Stab cut-outs faced away from the PCB's Ø4.0 holes, no Cherry notches, left ≠ mirror(right) | `layout.stab_dir` for both, Cherry cut-out (REVIEW-FIX-7) | `test_stabs.py`; mirror check at 0.005 mm (top centroid 7e-4 mm) | PASS |
+| COL0/COL1/XOUT on B.Cu under Y1; XOUT 13 mm with 2 vias | R7 beside Y1, locked XOUT, B.Cu keepout (REVIEW-FIX-8) | `checks.py`: nothing under Y1; XOUT 5.1 mm, no via | PASS |
+| Build guide, BOM, case, legs and README behind this page; TRRS plug-head limit and VBUS back-drive undocumented | docs | link check | PASS |
+
+Both boards were rebuilt from scratch after the fixes (placement, Freerouting, completion) and are
+byte-identical to the committed ones; DRC with schematic parity reports 0 violations, 0 unconnected
+and 0 parity issues on each, `checks.py` passes 7/7, and `layout-check`, `just model` (every case
+check) and `just fitcheck` pass. Integration tests on those outputs: **88 passed, 6 xfailed** (the 6 remaining gate findings), nothing skipped.
+
+Not changed: unlocked track and via stubs left by the completion rip-up show up as DRC
+`track_dangling` / `via_dangling` warnings (about 90 on the left, 70 on the right); they carry no
+current and are not errors.
 
 ## Open items that block ordering
 
@@ -213,10 +247,8 @@ for 5 assembled boards per half (both halves draw on the same stock):
 |---|---|---|---|
 | 1 | G1 | Put J3 pin 1 at **high x** on both halves (turn J3 by 180°: pad 1 at right-frame x 77.47, left-frame x 192.69) and re-route the display nets. `layout.display()["header_pins"]` lists pin 1 at low x (WS0-5 left this end provisional). | WS0, WS2 |
 | 2 | G1 | Move the J3 row to y **39.925** (module edge + 1.3) so the module spans the modelled y 38.625–74.625, in the same re-placement; or lengthen the case pocket to y ≥ 75.8 below the plate top. | WS0, WS2 (or WS3) |
-| 3 | G1 | Centre the window on the viewing area: y = header + 15.94 (55.87 with fix 2, 56.54 without), window y 42.9–68.9 with fix 2. | WS0, WS3 |
+| 3 | G1 | ~~Centre the window on the viewing area~~ **done** in the review fixes: y = header + 15.94 (56.54 now, 55.87 with fix 2, which the layout then follows). | WS0, WS3 |
 | 4 | G2 | Set the TRRS body to 14.1 × 6.1 mm (height 5.0) in `layout/jacks.py` and cut the case relief and spacer over it; the plate between the C6R1 and C6R2 switch cut-outs (y 95.9–110.5) is free. The PCB is unchanged. | WS0, WS3 |
 | 5 | G3 | Replace C2803348 (see above) and re-check stock on the order day with `stock.py`. Switching U2 to C97521 and Y1 to C9002 is advised. | WS2, WS4 (BOM) |
 
-Not blocking, for the owning streams: `docs/bom.md` (gates section) and the README status row still
-call G1–G3 unchecked and WS5 not started (WS4); both screens need a rotation for the upright module
-(WS1).
+Not blocking, for the owning streams: both screens need a rotation for the upright module (WS1).

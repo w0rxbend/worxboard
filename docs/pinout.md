@@ -84,7 +84,7 @@ UART0, GP0 TX and GP1 RX at 115200 baud, ZMK `zmk,wired-split`. Use a **straight
 
 ## Display header J3
 
-1×5 2.54 mm female socket, hand-soldered (DNP at JLC). Pin 1 is at low x on **both** halves (the module is one part mounted face-up the same way; deviation WS0-5). The order is provisional until gate **G1** confirms the nice!view pinout.
+1×5 2.54 mm female socket, hand-soldered (DNP at JLC). Pin 1 is at low x in each half's own frame: the **inner** end of the socket on the right half and the **outer** end on the left (the module is one part mounted face-up the same way; deviation WS0-5). The order matches the nice!view, but gate **G1** found its MOSI pin at the other end: plugged in face-up, the module meets J3 reversed, so the display cannot work until J3 is turned ([verification.md](verification.md#open-items-that-block-ordering), item 1).
 
 | Pin | Function | Net | GPIO | Right frame (mm) | Left frame (mm) |
 |---|---|---|---|---|---|
@@ -105,20 +105,20 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `C3` | 10u | `3V3`, `GND` | (57.2, 45.2) 90° | (202.8, 45.2) 90° |
 | `C4` | 1u | `3V3`, `GND` | (57.2, 48) 90° | (202.8, 48) 90° |
 | `C5` | 100n | `3V3`, `GND` | (90, 55.4) 90° | (160.6, 33.2) 90° |
-| `C6` | 27p | `GND`, `XIN` | (96.2, 33) -90° | (165, 56.2) 0° |
+| `C6` | 27p | `GND`, `XIN` | (96.7, 33) -90° | (165, 56.2) 0° |
 | `C7` | 27p | `GND`, `XTAL_OUT` | (89.2, 32.6) -90° | (167.2, 56.2) 0° |
-| `C8` | 100n | `3V3`, `GND` | (102, 36.4) 0° | (179.4, 43.2) 0° |
-| `C9` | 100n | `3V3`, `GND` | (102, 37.6) 0° | (179.4, 44.4) 0° |
-| `C10` | 100n | `3V3`, `GND` | (104, 37) 0° | (179.4, 45.6) 0° |
-| `C11` | 100n | `3V3`, `GND` | (99.8, 34.4) 0° | (175, 43.2) 0° |
-| `C12` | 100n | `3V3`, `GND` | (99.8, 33.2) 0° | (175, 44.4) 0° |
-| `C13` | 100n | `3V3`, `GND` | (101.8, 34.4) 0° | (177.2, 43.2) 0° |
-| `C14` | 100n | `3V3`, `GND` | (91.2, 48.4) 180° | (168.2, 37.6) 0° |
-| `C15` | 100n | `3V3`, `GND` | (91.2, 49.6) 180° | (168.2, 36.4) 0° |
-| `C16` | 100n | `1V1`, `GND` | (89.1, 49.6) 180° | (170.3, 36.4) 0° |
-| `C17` | 100n | `1V1`, `GND` | (89.1, 48.4) 180° | (170.3, 37.6) 0° |
-| `C18` | 1u | `3V3`, `GND` | (101.8, 33.2) 0° | (177.2, 44.4) 0° |
-| `C19` | 1u | `1V1`, `GND` | (87.4, 49.4) -90° | (172, 36.6) 90° |
+| `C8` | 100n | `3V3`, `GND` | (98.85, 46.3) 0° | (160.55, 39.7) 180° |
+| `C9` | 100n | `3V3`, `GND` | (98.85, 47.6) 0° | (160.55, 38.4) 180° |
+| `C10` | 100n | `3V3`, `GND` | (88.6, 48.08) -90° | (170.8, 37.92) 90° |
+| `C11` | 100n | `3V3`, `GND` | (86.1, 44.12) 90° | (173.3, 41.88) -90° |
+| `C12` | 100n | `3V3`, `GND` | (84.6, 44.12) 90° | (174.8, 41.88) -90° |
+| `C13` | 100n | `3V3`, `GND` | (89.8, 48.08) -90° | (169.6, 37.92) 90° |
+| `C14` | 100n | `3V3`, `GND` | (92.2, 48.08) -90° | (167.2, 37.92) 90° |
+| `C15` | 100n | `3V3`, `GND` | (91, 48.08) -90° | (168.4, 37.92) 90° |
+| `C16` | 100n | `1V1`, `GND` | (94.45, 49.6) -90° | (164.95, 36.4) 90° |
+| `C17` | 100n | `1V1`, `GND` | (90.95, 33.6) 90° | (168.45, 52.4) -90° |
+| `C18` | 1u | `3V3`, `GND` | (87.6, 44.12) 90° | (171.8, 41.88) -90° |
+| `C19` | 1u | `1V1`, `GND` | (93.35, 49.6) -90° | (166.05, 36.4) 90° |
 | `D1` | B5819W | `VBUS`, `VSYS` | (66.4, 44.2) 90° | (193.6, 44.2) 90° |
 | `F1` | 250mA | `VLINK`, `VLINK_JP` | (67.2, 52.8) 180° | (192.8, 52.8) 0° |
 | `J1` | TYPE-C-31-M-12 | `CC1`, `CC2`, `GND`, `USB_C_DM`, `USB_C_DP`, `VBUS` | (74, 34.25) 180° | (186, 34.25) 180° |
@@ -131,7 +131,7 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `R4` | 27 | `USB_C_DM`, `USB_DM` | (86.9, 46.08) 0° | (172.5, 39.92) 180° |
 | `R5` | 10k | `VBUS`, `VBUS_SENSE` | (69.4, 47.6) 90° | (190.6, 47.6) 90° |
 | `R6` | 10k | `GND`, `VBUS_SENSE` | (69.4, 50.4) 90° | (190.6, 50.4) 90° |
-| `R7` | 1k | `XOUT`, `XTAL_OUT` | (90.8, 31.58) 180° | (168.6, 54.42) 0° |
+| `R7` | 1k | `XOUT`, `XTAL_OUT` | (92, 33.6) -90° | (167.4, 52.4) 90° |
 | `R8` | 10k | `3V3`, `QSPI_SS` | (89, 52.6) 90° | (147, 33.4) 90° |
 | `R9` | 1k | `BOOT`, `QSPI_SS` | (87.8, 52.6) 90° | (145.8, 33.4) 90° |
 | `R10` | 10k | `3V3`, `RUN` | (77.4, 47.6) 90° | (182.6, 47.6) 90° |
@@ -156,7 +156,7 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `U3` | AP2112K-3.3 | `3V3`, `GND`, `VSYS` | (60.4, 46.4) 180° | (199.6, 46.4) 0° |
 | `U4` | USBLC6-2SC6 | `GND`, `USB_C_DM`, `USB_C_DP`, `VBUS` | (78.04, 42.49) 151.5° | (177.5, 39.4) 0° |
 | `U5` | USBLC6-2SC6 | `GND`, `TRRS_A`, `TRRS_B`, `VLINK` | (204.6, 94.6) 180° | (55.4, 94.6) 0° |
-| `Y1` | 12MHz | `GND`, `XIN`, `XTAL_OUT` | (93.77, 33.1) 90° | (165.63, 52.9) -90° |
+| `Y1` | 12MHz | `GND`, `XIN`, `XTAL_OUT` | (94.47, 33.1) 90° | (164.93, 52.9) -90° |
 
 ## Mounting holes
 

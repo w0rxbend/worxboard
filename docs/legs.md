@@ -27,11 +27,15 @@ spring thumbscrew presses the leg's flat hub onto the boss, so the leg holds any
 In the right-half frame (the left half is the mirror image). The positions are the stock EZ ones,
 measured along the walls of the derived outline (deviation WS3-3):
 
-| Mount | Boss face at | Pad depth | M3 drill depth | Note |
-|---|---|---|---|---|
-| Outer | (209.4, 64.0), outer wall | 6.00 | 5.50 | the drill stops short of the key well floor; the wall is 3.1 mm from the well |
-| Inner | (55.6, 64.0), inner wall | 5.00 | 7.50 | pad **clamped to 5.0 mm** (x ≤ 63.6), 1.29 mm clear of the display pocket |
-| Thumb | (27.2, 158.5), thumb-cluster end wall, v = 0.56 u | 1.75 | 5.50 | the pad is limited by the T0 switch housing |
+| Mount | On the wall at | Bearing face (boss top, 2.7 mm out) | Pad depth | M3 drill depth | Note |
+|---|---|---|---|---|---|
+| Outer | (209.4, 64.0), outer wall | (212.1, 64.0) | 6.00 | 5.50 | the drill stops short of the key well floor; the wall is 3.1 mm from the well |
+| Inner | (55.6, 64.0), inner wall | (52.9, 64.0) | 5.00 | 7.50 | pad **clamped to 5.0 mm** (x ≤ 63.6), 1.29 mm clear of the display pocket |
+| Thumb | (27.2, 158.5), thumb-cluster end wall, v = 0.56 u | (24.8, 159.7) | 1.75 | 5.50 | the pad is limited by the T0 switch housing |
+
+The first column is the boss centre on the outer face of the wall; the flat bearing face the leg's
+hub sits on is `LEG_BOSS_H` = 2.7 mm further out along the wall normal. The hub then reaches another
+8.0 mm out (`LEG_HUB_L`), so the inner leg's arm swings in the plane x 44.9–50.9.
 
 The inner leg sits right beside the display. Its position is unchanged from the EZ (the spec rejected
 moving it); only the pad behind the wall is shallower. The outer and thumb threads are shorter than
@@ -57,7 +61,8 @@ than 1.5 × the M3 diameter of engagement.
 ## Known limitations
 
 - The legs hold by friction only; there are no click stops.
-- The inner leg cannot fold flat forwards, because its foot meets the thumb cluster. The stock EZ has
-  the same limitation.
+- The inner leg cannot fold flat forwards. Its arm swings at x 44.9–50.9, across the outer face of
+  the TRRS bump (x 45.5, from y ≈ 80), so it hits the bump at about 75° forward, and a plugged TRRS
+  cable (y 103) even earlier. Fold it backwards, or keep it below that angle.
 - The leg and thumbscrew dimensions come from caliper photos of a stock EZ (about ±0.3 mm). A printed
   leg on a printed top confirms the fit.

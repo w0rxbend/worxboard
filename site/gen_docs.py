@@ -148,9 +148,12 @@ def pinout(d: dict) -> str:
     order = d["display_part"]["header_pin_order"]
     net_of = {"MOSI": "DISP_MOSI", "SCK": "DISP_SCK", "VCC": "3V3", "GND": "GND", "CS": "DISP_CS"}
     out += ["", "## Display header J3", "",
-            "1×5 2.54 mm female socket, hand-soldered (DNP at JLC). Pin 1 is at low x on **both** halves "
-            "(the module is one part mounted face-up the same way; deviation WS0-5). The order is provisional "
-            "until gate **G1** confirms the nice!view pinout.", ""]
+            "1×5 2.54 mm female socket, hand-soldered (DNP at JLC). Pin 1 is at low x in each half's own "
+            "frame: the **inner** end of the socket on the right half and the **outer** end on the left (the "
+            "module is one part mounted face-up the same way; deviation WS0-5). The order matches the "
+            "nice!view, but gate **G1** found its MOSI pin at the other end: plugged in face-up, the module "
+            "meets J3 reversed, so the display cannot work until J3 is turned "
+            "([verification.md](verification.md#open-items-that-block-ordering), item 1).", ""]
     rows = []
     for i, (fn, xy) in enumerate(zip(order, disp["header_pins"]), 1):
         net = net_of[fn]

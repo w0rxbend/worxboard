@@ -18853,7 +18853,7 @@
 		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 467.36 50.8 0)
 			(effects (font (size 1.27 1.27)) (hide yes)))
 	)
-	(global_label "VBUS" (shape passive) (at 459.74 40.64 90) (fields_autoplaced yes)
+	(global_label "VSYS" (shape passive) (at 459.74 40.64 90) (fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify left))
 		(uuid "04688c80-49ab-5106-9bfd-b4daf1a3d95d")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 459.74 40.64 0)

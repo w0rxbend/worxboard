@@ -12,6 +12,8 @@ Parses the s-expression netlist (KiCad 10, version "E") and asserts:
   - Tip/Ring1 reach TX/RX on the left and RX/TX on the right through 1 kΩ
   - CC1/CC2 each have 5.1k to GND
   - every RP2040 supply pin has a capacitor to GND on its net
+  - the USB-C VBUS reaches only J1, D1's anode and the R5 sense divider (nothing can back-drive it),
+    and the ESD arrays take their clamp reference from VSYS (U4) and VLINK (U5)
   - every BOM part has a non-empty LCSC field
   - the matrix nets are identical to the other half (design.py, and its netlist when built)
 """
@@ -246,6 +248,24 @@ def check_decoupling(nl: Netlist) -> list[str]:
     return errs
 
 
+# USB-C VBUS loads that cannot source current into it, and the ESD clamp references (deviation ELEC-2)
+VBUS_LOADS = {("J1", "VBUS"), ("D1", "A"), ("R5", None)}
+ESD_REFERENCE = {"U4": "VSYS", "U5": "VLINK"}
+
+
+def check_power(nl: Netlist) -> list[str]:
+    errs = []
+    members = {(r, nl.comps[r].pins[p][0]) for r, p in nl.nets.get("VBUS", set())}
+    loads = {(r, None if (r, None) in VBUS_LOADS else name) for r, name in members}
+    errs += [f"VBUS reaches {r}.{name}" for r, name in sorted(loads - VBUS_LOADS, key=str)]
+    errs += [f"VBUS misses {r}{'.' + n if n else ''}" for r, n in sorted(VBUS_LOADS - loads, key=str)]
+    for ref, net in ESD_REFERENCE.items():
+        got = nl.comps[ref].pin_net("VBUS") if ref in nl.comps else []
+        if got != [net]:
+            errs.append(f"{ref} VBUS (clamp reference) on {got}, want {net}")
+    return errs
+
+
 def check_lcsc(nl: Netlist) -> list[str]:
     return [f"{c.ref} has no LCSC" for c in nl.comps.values() if c.in_bom and not c.fields.get("LCSC", "").strip()]
 
@@ -296,6 +316,7 @@ def main(argv: list[str]) -> int:
     ck.section(f"TRRS Tip/Ring1 -> {TRRS[side]['TRRS_A']}/{TRRS[side]['TRRS_B']} ({side})", check_trrs(nl, side))
     ck.section("CC1/CC2 5.1k to GND", check_cc(nl))
     ck.section("RP2040 supply pins decoupled", check_decoupling(nl))
+    ck.section("VBUS only J1/D1/R5; ESD references U4 VSYS, U5 VLINK", check_power(nl))
     ck.section("LCSC on every BOM part", check_lcsc(nl))
     ck.section("matrix nets identical left/right", check_mirror(nl, side, path))
     for t in ck.passed:

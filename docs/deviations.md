@@ -621,3 +621,38 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
 - **Not checked by a build:** that JLC solders C41430893 cleanly (no field report of this copy).
 - **Consumers:** FAB (the corrections for `SW_MX_Hotswap_Kailh`, SOIC-8 and the 3225 crystal apply
   unchanged), DOCS (`bom.md`, `ordering-jlcpcb.md`, verification G3).
+
+### ELEC-2. U4's clamp reference is VSYS: the USB-C VBUS can no longer be back-driven (§6.3)
+
+- **Spec:** USBLC6-2SC6 (U4) on the USB data lines, its VBUS pin on VBUS.
+- **Problem** (docs/electrical.md): the VBUS pin is the cathode of U4's two upper steering diodes
+  and of its TVS. When a half runs from VLINK with no host but its USB device enabled (the left
+  central, or the UF2 bootloader), the RP2040's 1.5 kΩ D+ pull-up to 3.3 V forward-biases the
+  I/O1-to-VBUS diode, and with only R5 + R6 (20 kΩ) as load VBUS sits near 2.5 V: J1's VBUS is
+  back-driven (about 0.13 mA, above vSafe0V) and VBUS_SENSE reads 1.25 V without a host. The cause
+  is the topology, not a part value: with the reference on VBUS, any D+ pull-up drives VBUS
+  whenever no host holds it at 0 V.
+- **Analysis:** the reference pin needs a rail that (1) is at or above every normal I/O level
+  whenever the I/Os can be driven, so the upper diodes never conduct (D± ≤ 3.6 V, the pull-up
+  3.3 V), (2) stays under the 5.25 V stand-off, (3) can absorb the clamp current, and (4) cannot
+  carry that current back out to the connector. VSYS meets all four: it is the diode-OR output,
+  4.2–5.2 V whenever the half has power from either source (VBUS − D1, or VLINK through the two
+  F1s), it carries 2 × 10 µF, and D1 blocks any path from it back to J1. 3V3 would meet (1)–(3) but
+  puts ESD energy straight on the RP2040 rail (abs. max 3.63 V) instead of in front of the LDO. The
+  connector VBUS fails (1) whenever the half runs from VLINK, so it cannot be made back-drive free.
+- **Change:** U4 pin 5 (VBUS) on **VSYS**. VBUS now reaches only J1, D1's anode and R5. With no
+  host, VBUS sits at D1's reverse leakage across R5 + R6: about 5 µA at 4.5 V and 25 °C (CJ
+  B5819W curve), 0.1 V; it reaches vSafe0V (0.8 V) only above about 60 °C. VBUS_SENSE is now a
+  clean host-presence signal. `netcmp.py` fails if anything else lands on VBUS or if U4's
+  reference leaves VSYS (or U5's leaves VLINK); a mutation run of each case fails as intended.
+- **Trade-off:** U4's TVS no longer clamps the VBUS line itself. A positive surge on VBUS goes
+  through D1 into VSYS, where U4's TVS and the bulk caps clamp it; a negative one is blocked by D1
+  and reaches GP26 only through R5 (10 kΩ). The VBUS contacts sit inside the receptacle, so
+  discharges land on the grounded shell first. A VBUS TVS is a rev B option, not added here.
+- **Re-checked, unchanged:** D1 B5819W (1 A, 40 V, 9 A surge); AP2112K (VIN ≤ 6 V, 250 mV dropout
+  at 600 mA: the far half's VSYS of 4.2 V or more leaves margin); F1 nSMD025-24V (0.35 Ω, R1 max
+  2.5 Ω: two in series drop under 0.1 V at the 40 mA of a half); C1–C3 10 µF 6.3 V on ≤ 5.2 V;
+  U5's reference on VLINK (4.2–5.2 V, or floating with JP1 cut on both halves, where the TVS still
+  clamps and nothing reaches a USB connector); two hosts at once still meet only behind their own D1.
+- **Consumers:** PCB (re-route U4 pin 5 to VSYS and keep it short: ST asks for a short track from
+  the rail to the VBUS pin, and the nearest VSYS parts today, D1, C1 and C2, are 11–20 mm from it), DOCS (`electrical.md` power path, the VBUS note).

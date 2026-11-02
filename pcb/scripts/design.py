@@ -90,8 +90,10 @@ def _usb_power() -> list[Part]:
         R("R2", "5.1k", "CC2", "GND", g),
         R("R3", "27", "USB_C_DP", "USB_DP", g),
         R("R4", "27", "USB_C_DM", "USB_DM", g),
+        # U4's VBUS pin is its clamp reference, on VSYS: on VBUS, the RP2040's D+ pull-up back-drove
+        # J1 VBUS to ~2.5 V through U4 whenever the half ran from VLINK (docs/deviations.md ELEC-2)
         Part("U4", "Power_Protection:USBLC6-2SC6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", "C7519",
-             {"I/O1": "USB_C_DP", "I/O2": "USB_C_DM", "VBUS": "VBUS", "GND": "GND"}, g),
+             {"I/O1": "USB_C_DP", "I/O2": "USB_C_DM", "VBUS": "VSYS", "GND": "GND"}, g),
         R("R5", "10k", "VBUS", "VBUS_SENSE", g),
         R("R6", "10k", "VBUS_SENSE", "GND", g),
         Part("D1", "Device:D_Schottky", "B5819W", SOD123, "C8598", {"A": "VBUS", "K": "VSYS"}, g),

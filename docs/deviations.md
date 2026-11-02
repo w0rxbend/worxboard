@@ -421,3 +421,31 @@ what changed, why, and who consumes it.
 - **CI:** the new `fit` job in `pcb.yml` downloads both STEPs from the `board` job and runs
   `just model && just fitcheck` against them. `case.yml` has no STEP and checks the layout
   envelopes only.
+
+## WS4: docs and microsite (`docs/`, `site/`, `README.md`, `.github/workflows/pages.yml`)
+
+### WS4-1. Generated docs and the viewer also read the PCB design data and the committed boards (§14 WS4)
+
+- **Spec:** `pinout.md` and `matrix.md` are generated from `layout`; the microsite reads only
+  `layout` and the exported files.
+- **Problem:** the as-built boards differ from the `layout` anchors where WS2 had to (WS2a-1
+  references, WS2a-2 TP11, WS2b-1/WS2b-2 the left RP2040 and the flash). Docs and a viewer built
+  from the anchors alone would show U1/U2 in the wrong place and could not name the parts.
+- **Change:** `site/pcbdata.py` (stdlib) reads `pcb/scripts/design.py` and the footprint poses and
+  Fab outlines of the committed `pcb/<side>/worxboard-<side>.kicad_pcb`.
+  - `site/gen_docs.py` adds generated sections from them: part positions (`pinout.md`), sockets
+    and diodes (`matrix.md`), and the JLC BOM and not-assembled tables in `bom.md`, between
+    `GENERATED` markers. It fails if a design part's value or footprint differs from either board.
+    `just docs-gen` / `docs-check` cover all three files.
+  - `site/build_site.py` puts every assembled part of the boards into `manifest.json`, and the
+    viewer draws them at their real positions. The keys, sockets, jacks, display and outline still
+    come from `layout.json`.
+- **Consumers:** none. When a board changes, `just docs-gen` refreshes the three files; the
+  `pages` workflow's `gen_docs.py --check` fails until it is run.
+
+### WS4-2. Pages are deployed by hand only (§14 WS4 acceptance)
+
+- **Spec:** "the Pages site builds and deploys".
+- **Change:** `pages.yml` runs only on `workflow_dispatch` (orchestration rule), so the site builds
+  locally (`just site`) and in that workflow, but it has not been deployed. Deploying is one manual
+  run from the Actions tab once Pages is enabled for the repository.

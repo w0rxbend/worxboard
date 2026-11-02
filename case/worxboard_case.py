@@ -40,8 +40,8 @@ from shapely.ops import unary_union  # noqa: E402
 LO = importlib.import_module("layout.outline")      # the package re-exports outline() over it
 LD = importlib.import_module("layout.display")
 LH = importlib.import_module("layout.holes")
-from layout.keys import HOUSING  # noqa: E402
-from layout.thumbs import U as THUMB_U, thumb_pt  # noqa: E402
+from layout.keys import HOUSING, local_axes  # noqa: E402
+from layout.thumbs import STAB_OFFSET, U as THUMB_U, thumb_pt  # noqa: E402
 
 SIDES = L.SIDES
 
@@ -78,6 +78,12 @@ WELL_CLEAR = 0.6         # well clearance around each key cell
 WELL_MIN_WALL = 2.0      # the well is clipped to keep this much wall (T0/T3 overhang, WS0-3)
 KEYCAP_INSET = 0.45      # keycap edge inside its 19.05 cell (18.15 cap)
 STABILIZERS = True       # plate-mount Cherry stab cutouts on the two 2u thumb keys (spec §5)
+# Cherry plate cut-out per stab, across the key (u, + = housing side, layout.stab_dir) and along it
+STAB_CUT_U = (-5.53, 6.77)        # main opening, 6.65 wide along the key
+STAB_CUT_W = 6.65
+STAB_SIDE_NOTCH_U = (-2.3, 0.5)   # notch on the outer side, Cherry 0.875 deep -> 1.0 (1 mm tool)
+STAB_SIDE_NOTCH_D = 1.0
+STAB_END_NOTCH = (3.3, 1.2)       # notch at the housing end: width along the key, depth
 
 # Outline corner radii by vertex class (reference values)
 R_BACK = 10.0            # convex corners of the back edge
@@ -175,7 +181,7 @@ SPACER_CLEAR = 0.5       # to the case walls, screw bosses, leg pads, zones and 
 # Left == mirror(right) before the side mark: relative volume / area, and centroid / bbox in mm
 # (shapely chord approximations differ by a few µm between the two orientations)
 MIRROR_TOL = 5e-5
-MIRROR_TOL_MM = 0.1
+MIRROR_TOL_MM = 0.005    # centroid / bbox; the stab cut-outs once differed by 0.01-0.07 here
 
 # Side mark engraved on the underside
 ENGRAVE_AT = (165.0, 100.0)    # right frame
@@ -453,17 +459,30 @@ def switch_cut(x, y, rot) -> Sketch:
     return Pos(cx, cy) * Rot(0, 0, cad_rot(rot)) * s
 
 
-def stab_cuts(x, y, rot) -> Sketch:
-    """Cherry plate-mount stab for a vertical 2u key (wire across u)."""
+def stab_cuts(x, y, rot, housing) -> Sketch:
+    """Cherry-spec plate-mount stab cut-outs of a vertical 2u key (stabs along v, wire across u).
+    `housing` is layout.stab_dir: the cut-out's long half points there, at the PCB's Ø4.0 holes.
+    The 0.875 side notch is widened to the 1 mm end mill; every outside corner is R0.5."""
     cx, cy = P(x, y)
+    ux, uy = local_axes(rot)[0]
+    su = 1.0 if housing[0] * ux + housing[1] * uy > 0 else -1.0      # housing towards +u or -u
+    (u0, u1), w, r = STAB_CUT_U, STAB_CUT_W, SWITCH_CUT_R
+    (n0, n1), nd = STAB_SIDE_NOTCH_U, STAB_SIDE_NOTCH_D
+    bw, bd = STAB_END_NOTCH
     s = Sketch()
     for sv in (-1, 1):
-        s += Pos(0.58, sv * 11.938) * Rectangle(12.3, 6.65)
+        v = sv * STAB_OFFSET
+        s += Pos(su * (u0 + u1) / 2, v) * RectangleRounded(u1 - u0, w, r)
+        s += Pos(su * (n0 + n1) / 2, v + sv * w / 2) * RectangleRounded(n1 - n0, 2 * nd, r)
+        s += Pos(su * (u1 + bd / 2 - nd / 2), v) * RectangleRounded(bd + nd, bw, r)
     return Pos(cx, cy) * Rot(0, 0, cad_rot(rot)) * s
 
 
 def stab_keys(side: str):
-    return [k for k in KEYS(side) if STABILIZERS and k[3] == 2]
+    """(x, y, w, h, rot, layout.stab_dir) of the 2u keys."""
+    if not STABILIZERS:
+        return []
+    return [(k.x, k.y, k.w, k.h, k.rot, L.stab_dir(k, side)) for k in L.keys(side) if k.h == 2]
 
 
 @lru_cache
@@ -723,8 +742,8 @@ def spacer_face(side: str) -> Sketch:
     s &= inner
     for kx, ky, w, h, rot in KEYS(side):
         s -= Pos(*P(kx, ky)) * Rot(0, 0, cad_rot(rot)) * RectangleRounded(SPACER_HOLE, SPACER_HOLE, TOOL_R)
-    for kx, ky, w, h, rot in stab_keys(side):
-        s -= offset(stab_cuts(kx, ky, rot), SPACER_CLEAR, kind=Kind.ARC)
+    for kx, ky, w, h, rot, sd in stab_keys(side):
+        s -= offset(stab_cuts(kx, ky, rot, sd), SPACER_CLEAR, kind=Kind.ARC)
     for sx, sy in SCREWS(side):
         s -= Pos(*P(sx, sy)) * Circle(boss_radius(side, sx, sy) + SPACER_CLEAR)
     for web in boss_webs(side, "top").values():
@@ -757,8 +776,8 @@ def spacer_check(side: str, spacer: Solid):
             q = Vector(cx + u * math.cos(a) - v * math.sin(a), cy + u * math.sin(a) + v * math.cos(a), zmid)
             if spacer.is_inside(q):
                 sys.exit(f"{side} plate spacer covers the switch at ({kx:.1f},{ky:.1f})")
-    for kx, ky, w, h, rot in stab_keys(side):
-        for f in stab_cuts(kx, ky, rot).faces():
+    for kx, ky, w, h, rot, sd in stab_keys(side):
+        for f in stab_cuts(kx, ky, rot, sd).faces():
             c = f.center()
             if spacer.is_inside(Vector(c.X, c.Y, zmid)):
                 sys.exit(f"{side} plate spacer covers a stabiliser at ({kx:.1f},{ky:.1f})")
@@ -1009,8 +1028,8 @@ def build_top(side: str) -> Solid:
     # switch cutouts through the plate
     for kx, ky, w, h, rot in KEYS(side):
         body -= prism(switch_cut(kx, ky, rot), Z_PLATE_BOT - 1, Z_PLATE_TOP + 0.01)
-    for kx, ky, w, h, rot in stab_keys(side):
-        body -= prism(stab_cuts(kx, ky, rot), Z_PLATE_BOT - 1, Z_PLATE_TOP + 0.01)
+    for kx, ky, w, h, rot, sd in stab_keys(side):
+        body -= prism(stab_cuts(kx, ky, rot, sd), Z_PLATE_BOT - 1, Z_PLATE_TOP + 0.01)
 
     # PCB clamp bosses + tapped holes; bosses near the wall are joined to it
     webs = boss_webs(side, "top")
@@ -1201,8 +1220,8 @@ def export_fitcheck_dxf(side: str, path: str):
         dxf.add_shape(wf.outer_wire(), layer="KEY_WELL")
     for kx, ky, w, h, rot in KEYS(side):
         dxf.add_shape(_wire_of(switch_cut(kx, ky, rot)), layer="SWITCH_CUTOUTS")
-    for kx, ky, w, h, rot in stab_keys(side):
-        for f in stab_cuts(kx, ky, rot).faces():
+    for kx, ky, w, h, rot, sd in stab_keys(side):
+        for f in stab_cuts(kx, ky, rot, sd).faces():
             dxf.add_shape(f.outer_wire(), layer="SWITCH_CUTOUTS")
     for sx, sy in SCREWS(side):
         dxf.add_shape(_wire_of(Pos(*P(sx, sy)) * Circle(SCREW_CLEAR_D / 2)), layer="SCREWS")
@@ -1234,8 +1253,8 @@ def plate_face(side: str) -> Sketch:
     s &= inner_face(side)
     for kx, ky, w, h, rot in KEYS(side):
         s -= switch_cut(kx, ky, rot)
-    for kx, ky, w, h, rot in stab_keys(side):
-        s -= stab_cuts(kx, ky, rot)
+    for kx, ky, w, h, rot, sd in stab_keys(side):
+        s -= stab_cuts(kx, ky, rot, sd)
     return s
 
 

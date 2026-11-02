@@ -83,7 +83,6 @@ def test_g1_module_fits_the_pocket(side):
     assert pocket[1] <= y0 and y1 <= pocket[3], f"module y {y0:.2f}-{y1:.2f}, pocket {pocket[1]}-{pocket[3]}"
 
 
-@pytest.mark.xfail(strict=True, reason="G1: the window hides the header end of the viewing area")
 @pytest.mark.parametrize("side", SIDES)
 def test_g1_window_shows_the_viewing_area(side):
     d = display(side)

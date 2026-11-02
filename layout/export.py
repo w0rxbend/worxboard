@@ -60,6 +60,7 @@ def _key_json(k: L.Key, side: str) -> dict:
          "legend": k.legend_left if side == "left" else k.legend_right}
     if k.h == 2:
         d["stabs"] = L.stab_holes(k)
+        d["stab_dir"] = L.stab_dir(k, side)
     return d
 
 

@@ -47,3 +47,13 @@ def stab_holes(k: Key) -> list[tuple[float, float]]:
     """2u stabiliser centres (±STAB_OFFSET along the key's long axis)."""
     _, vy = local_axes(k.rot)
     return [(k.x + s * STAB_OFFSET * vy[0], k.y + s * STAB_OFFSET * vy[1]) for s in (-1, 1)]
+
+
+def stab_dir(k: Key, side: str) -> tuple[float, float]:
+    """Unit vector across a 2u key towards its stabiliser housings: the Ø4.0 NPTHs on the PCB and
+    the long half of the plate cut-out (Cherry: holes at +8.255, cut-out -5.53..+6.77). The PCB and
+    the case both orient their stabiliser from it. -U on the right half and its mirror image (+U
+    of the mirrored key frame) on the left, so the halves stay mirror-equal."""
+    ux, uy = local_axes(k.rot)[0]
+    s = -1.0 if side == "right" else 1.0
+    return (s * ux + 0.0, s * uy + 0.0)

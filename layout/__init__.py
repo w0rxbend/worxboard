@@ -21,11 +21,11 @@ from . import outline as _outline
 from . import zones as _zones
 from .jacks import JACKS, Jack
 from .keys import MAIN_KEYS, PITCH, Key, cell, housing
-from .thumbs import THUMB_KEYS, stab_holes
+from .thumbs import THUMB_KEYS, stab_dir, stab_holes
 
 __all__ = ["MIRROR_X", "PITCH", "SIDES", "Key", "Jack", "keys", "display", "jacks", "holes",
            "anchors", "outline", "outline_vertices", "outline_segments", "zones",
-           "transform_order", "cell", "housing", "stab_holes"]
+           "transform_order", "cell", "housing", "stab_holes", "stab_dir"]
 
 MIRROR_X = 260.0
 SIDES = ("left", "right")

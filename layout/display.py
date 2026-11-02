@@ -16,8 +16,14 @@ HEADER_PITCH = 2.54
 HEADER_PIN_ORDER = ("MOSI", "SCK", "VCC", "GND", "CS")   # pin 1..5 (gate G1)
 HEADER_COURTYARD = 3.3                    # socket courtyard across / beyond the end pins
 
+# nice!view drawing (gate G1): the module edge is 1.3 mm past the header row, and the LCD viewing
+# area (25.28 long) starts 4.6 mm from that edge. The window is centred on it, so it follows the
+# header and leaves a wide top-skin bar to the C6R1 well (docs/deviations.md WS0-2, REVIEW-FIX-6)
+VIEW_EDGE = 1.3                           # header row -> module header-end edge
+VIEW_START = 4.6                          # module header-end edge -> viewing area
+VIEW_LEN = 25.28                          # viewing area along the module
 WINDOW = (12.0, 26.0)                     # viewing window w x h (the spec's 26 x 12, long axis y)
-WINDOW_CENTRE = (72.39, 60.0)             # moved from y 62.5, see docs/deviations.md (WS0)
+WINDOW_CENTRE = (72.39, round(HEADER[1] - VIEW_EDGE + VIEW_START + VIEW_LEN / 2, 3))   # y 56.54
 WINDOW_R = 1.0
 WINDOW_CHAMFER = 0.5
 

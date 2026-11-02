@@ -49,8 +49,8 @@ for wf in E.well_face(side):
     ax.plot(*wire_xy(wf), color="#0070d0", lw=0.9, label="key well")
 for kx, ky, w, h, rot in E.KEYS(side):
     ax.plot(*wire_xy(E.switch_cut(kx, ky, rot).faces()[0]), color="#404040", lw=0.6)
-for kx, ky, w, h, rot in E.stab_keys(side):
-    for f in E.stab_cuts(kx, ky, rot).faces():
+for kx, ky, w, h, rot, sd in E.stab_keys(side):
+    for f in E.stab_cuts(kx, ky, rot, sd).faces():
         ax.plot(*wire_xy(f), color="#404040", lw=0.5)
 d = E.DISPLAY(side)
 for r, col, lab in ((d["pocket"], "#8000c0", "display pocket"), (d["window"], "#d000d0", "window"),

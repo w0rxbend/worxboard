@@ -2,10 +2,12 @@
 """Fit check of the case against the PCB (spec §10.10).
 
 For each half it loads the PCB STEP from WS2 (build/<side>/worxboard-<side>.step, board plus
-3D models) and requires 0 mm3 of interference with the top, bottom and spacer parts. Until that
-file exists it falls back to envelopes from `layout` (board slab, the anchored top-side parts,
-the component zones and the bottom-side socket area), prints a warning and still fails on any
-interference.
+3D models) and requires 0 mm3 of interference with the top, bottom and spacer parts. The STEP has
+no body for J1 (USB-C), J2 (TRRS) or the hot-swap sockets (KiCad ships no model, deviations
+WS2c-2) and leaves out the DNP display socket J3 (WS2c-5), so the `layout` envelopes of those
+parts (STEP_GAPS) are checked with it. Until the STEP exists it falls back to all the `layout`
+envelopes (board slab, the anchored top-side parts, the component zones and the bottom-side
+socket area), prints a warning and still fails on any interference.
 
 Usage: check_fit.py <exports_dir> [side ...]      (run worxboard_case.py first)
 """
@@ -31,6 +33,8 @@ ZONE_H = 1.2             # passives anywhere in Z_BACK / Z_TRRS
 DISPLAY_H = E.Z_DISPLAY_TOP - E.Z_PCB_TOP     # J3 socket + module + glass (gate G1)
 BOTTOM_H = 1.8           # hot-swap sockets and diodes on B.Cu
 BOTTOM_CLEAR = 0.3       # bottom envelope kept off the support posts
+# Layout envelopes checked together with the STEP: parts it has no body for (deviations REVIEW-FIX-4)
+STEP_GAPS = ("J1", "J2", "J3 + display", "bottom-side parts")
 KEEPOUT_MARGIN = 0.05    # envelopes kept off the bosses / webs (polygon chords vs true circles)
 
 
@@ -121,8 +125,9 @@ def main(exports: str, sides: list[str]):
         parts = case_parts(exports, side)
         path = PCB_STEP.format(side=side)
         if os.path.exists(path):
-            env = step_envelopes(side, path)
-            src = os.path.relpath(path, E.ROOT)
+            layout_env = layout_envelopes(side)
+            env = step_envelopes(side, path) | {f"layout {n}": layout_env[n] for n in STEP_GAPS}
+            src = f"{os.path.relpath(path, E.ROOT)} + layout {', '.join(STEP_GAPS)}"
         else:
             print(f"WARNING: {os.path.relpath(path, E.ROOT)} not found (WS2 PCB STEP); checking against the "
                   f"layout zones and part envelopes instead")

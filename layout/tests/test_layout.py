@@ -70,7 +70,7 @@ AREA_TOL = 1e-6
 HOUSING_EDGE = 0.4       # every switch housing at least this far inside the PCB edge
 CHAMFER_KEYS = {"T0", "T3"}   # see docs/deviations.md (WS0)
 CAP_OVERHANG = 2.0
-WINDOW_WELL_GAP = 1.0
+WINDOW_WELL_GAP = 3.0    # top-skin bar between the window and the C6R1 well (CNC, REVIEW-FIX-6)
 
 
 def by_id(side):
@@ -127,6 +127,16 @@ def test_stabilisers_on_2u_thumbs():
     a, b = L.stab_holes(k)
     assert math.dist(a, b) == pytest.approx(2 * 11.938)
     assert math.dist(a, (k.x, k.y)) == pytest.approx(11.938)
+
+
+def test_stabiliser_housing_side_is_mirrored():
+    """stab_dir is across the key (perpendicular to the hole pair) and mirrors with the half."""
+    for kid in ("T4", "T5"):
+        r, l = by_id("right")[kid], by_id("left")[kid]
+        (ax, ay), (bx, by) = L.stab_holes(r)
+        dx, dy = L.stab_dir(r, "right")
+        assert math.hypot(dx, dy) == pytest.approx(1.0) and dx * (bx - ax) + dy * (by - ay) == pytest.approx(0.0, abs=1e-9)
+        assert L.stab_dir(l, "left") == pytest.approx((-dx, dy))
 
 
 # -------------------------------------------------------------- display, holes, jacks

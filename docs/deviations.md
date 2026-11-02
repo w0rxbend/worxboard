@@ -713,3 +713,12 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   row `^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$` → 0, 5.08, 270), CASE (the stack
   above; `check_fit.py`'s J3 + module envelope), DOCS (`bom.md` and `site/gen_docs.py` list J3 as
   not assembled; build guide: no socket to solder).
+
+### ELEC-4. The G3 stock check reads JLC's component record and has a 50-unit floor (§7)
+
+- **Change:** `tests/integration/stock.py` reads JLC's component detail (library type, SMT/THT,
+  stock, attrition, the "no longer manufactured" note) and LCSC's record, needs
+  max(50, 2 × (per board × boards + attrition)) per LCSC number, and fails on a short, discontinued
+  (either shop), unknown or retired part (C2803348, C113767, C91749). `tests/integration/test_stock.py`
+  checks offline that every part with a body is in the JLC BOM with an LCSC number, J3 included,
+  none is DNP, both halves share one BOM, no retired part is back, and the verdicts on canned records.

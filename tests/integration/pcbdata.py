@@ -9,6 +9,7 @@ datasheet pinout); the netlist names them, and a test checks that the two maps a
 """
 from __future__ import annotations
 
+import math
 import re
 import sys
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ class Part:
     key: str | None                                       # Key field of matrix sockets and diodes
     pads: dict[str, str] = field(default_factory=dict)    # pad number -> net
     names: dict[str, str] = field(default_factory=dict)   # pad number -> symbol pin name (netlist)
+    at: dict[str, tuple[float, float]] = field(default_factory=dict)   # pad number -> board x, y (board)
 
 
 @dataclass
@@ -93,5 +95,9 @@ def board(side: str) -> Pcb:
     for fp in find_all(root, "footprint"):
         props = {p[1]: p[2] for p in find_all(fp, "property")}
         pads = {p[1]: val(p, "net") for p in find_all(fp, "pad") if p[1] and find(p, "net")}
-        parts[props["Reference"]] = Part(props.get("Value", ""), props.get("Key") or None, pads)
+        x, y, *rot = map(float, find(fp, "at")[1:])
+        a = math.radians(rot[0] if rot else 0.0)                 # KiCad: CCW on screen, y down
+        at = {p[1]: (x + u * math.cos(a) + v * math.sin(a), y - u * math.sin(a) + v * math.cos(a))
+              for p in find_all(fp, "pad") if p[1] for u, v in [tuple(map(float, find(p, "at")[1:3]))]}
+        parts[props["Reference"]] = Part(props.get("Value", ""), props.get("Key") or None, pads, at=at)
     return Pcb(side, f"{side} board", parts, dict(QFN_GPIO))

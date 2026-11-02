@@ -15,6 +15,11 @@ IMAGES="docs/images"
 # kikit --ignore, which deletes footprints and corrupts the board under KiCad 10 (deviations WS2c-1)
 NOT_ASSEMBLED='^"?(JP1|J3|TP[0-9]+|H[0-9]+|STAB_[A-Z0-9]+)"?$'
 DNP_MODEL="PinSocket_1x05_P2.54mm_Vertical"   # J3: must not reach the STEP (deviations WS2c-5)
+# KiCad -> JLC CPL rotation corrections (kikit pattern file, footprint regex -> degrees). Values from
+# the JLCKicadTools cpl_rotations_db.csv of 2024-09 (SOT-23 -90, QFN / SOIC 270, HRO TYPE-C-31-M-12
+# 180); the community tables disagree over time, so JLC's placement preview is still the check
+# (docs/ordering-jlcpcb.md, deviations REVIEW-FIX-5)
+ROTATIONS="pcb/scripts/jlc_rotations.csv"
 RENDER_W=1600
 RENDER_H=1000
 
@@ -24,7 +29,7 @@ mkdir -p "$OUT" "$IMAGES"
 # 13. gerbers.zip, bom.csv, pos.csv; any assembled part without an LCSC field fails
 rm -rf "$OUT/jlc"
 python3 -m kikit.ui fab jlcpcb --assembly --missingError --no-drc --schematic "$SCH" --field LCSC \
-    "$PCB" "$OUT/jlc"
+    --correctionpatterns "$ROTATIONS" "$PCB" "$OUT/jlc"
 for f in gerbers.zip bom.csv pos.csv; do
     [[ -s "$OUT/jlc/$f" ]] || { echo "missing $OUT/jlc/$f" >&2; exit 1; }
 done

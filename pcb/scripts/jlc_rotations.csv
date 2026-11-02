@@ -1,0 +1,5 @@
+"Footprint pattern","Part pattern","X correction","Y correction","Rotation"
+"^Package_TO_SOT_SMD:SOT-23-[56]$",".*",0,0,-90
+"^Package_DFN_QFN:QFN-56-",".*",0,0,270
+"^Package_SO:SOIC-8_",".*",0,0,270
+"^Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12$",".*",0,0,180

@@ -69,18 +69,38 @@ pipeline fails if one of them shows up (deviation WS2c-1). The builder fits J3.
 2. Turn on assembly and upload `bom.csv` and `pos.csv`.
 3. Check every line on the parts page: the LCSC numbers must match [bom.md](bom.md). If a part
    is out of stock, pick a replacement with the same footprint and value and note it on the order.
-   **[G3]** parts must be re-checked on the day you order. On 2026-10-29 LCSC showed no stock for
-   C113767 (flash), C25744 (10 kΩ) and C2803348 (hot-swap socket).
-4. In the placement preview, check in particular:
+   **[G3]** parts must be re-checked on the day you order (`tests/integration/stock.py`). On
+   2026-11-02 the hot-swap socket C2803348 was discontinued and the flash C113767 and crystal C91749
+   were low ([verification.md](verification.md#g3-parts-stock-and-track-width) lists replacements).
+4. In the placement preview, check in particular (see [Placement preview](#placement-preview)):
    - U1 (RP2040): the pin-1 dot matches the silkscreen (the left U1 is turned 180° on purpose);
+   - U2 (flash), U3 (LDO), U4 and U5 (ESD): pin 1 on the pin-1 pad;
+   - Y1 (crystal), D1 and every bottom-side diode: pads and cathode bar (row side for the diodes);
    - J1 (USB-C): the mouth faces off the back edge;
    - J2 (TRRS): the mouth faces off the inner edge of the bump;
-   - the bottom side: every hot-swap socket sits on its two pads, and every diode's cathode bar is
-     on the row side.
+   - the bottom side: every hot-swap socket sits on its two pads.
 
    J1, J2 and the hot-swap sockets show no 3D body in the preview: KiCad's library has no model
    for them (deviation WS2c-2). Judge them by their pads.
 5. Repeat for the other side.
+
+### Placement preview
+
+KiCad and JLC's parts library do not share a zero orientation for every package, so `pos.csv` adds
+a rotation per footprint (`pcb/scripts/jlc_rotations.csv`, applied by kikit in stage 13):
+
+| Footprint | Parts | Added to the KiCad rotation |
+|---|---|---|
+| `QFN-56-1EP_7x7mm` | U1 | +270° |
+| `SOIC-8_5.3x5.3mm` | U2 | +270° |
+| `SOT-23-5`, `SOT-23-6` | U3, U4, U5 | −90° |
+| `USB_C_Receptacle_HRO_TYPE-C-31-M-12` | J1 | +180° |
+
+The values come from the JLCKicadTools `cpl_rotations_db.csv` of 2024-09. Those community tables
+change over time (SOT-23 was +180° until then), and JLC's library entries differ between parts, so
+the preview is the real check: rotate any part that is off in JLC's editor, and fix the table for
+the next order. Parts not in the table (crystal, diodes, buttons, TRRS jack, sockets, passives)
+keep their KiCad rotation.
 
 ## Costs
 

@@ -1,5 +1,5 @@
-# Microsite: builds _site/ (layout viewer + case STLs when the case builds) and deploys GitHub Pages.
-# Manual only: run it from the Actions tab.
+# Microsite: builds _site/ (viewer from layout.json and the committed boards, plus the case STLs when
+# the case builds) and deploys GitHub Pages. Manual only: run it from the Actions tab.
 name: pages
 
 on:
@@ -28,7 +28,7 @@ jobs:
       - name: Python environment
         run: uv sync --all-groups
 
-      - name: Generated docs are up to date
+      - name: Generated docs are up to date (pinout, matrix, BOM tables)
         run: uv run python site/gen_docs.py --check
 
       - name: Link check (local links and anchors)
@@ -37,8 +37,11 @@ jobs:
           args: --offline --no-progress --include-fragments --root-dir ${{ github.workspace }} README.md docs/*.md
           fail: true
 
+      - name: Fonts for the case side mark
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
+
       - name: Case model (optional; the site builds without it)
-        run: just model || echo "::warning::case model not built; the site shows the PCB from layout.json only"
+        run: just model || echo "::warning::case model not built; the site shows the boards without the case"
 
       - name: Build site
         run: just version="${GITHUB_REF_NAME}@${GITHUB_SHA::7}" site

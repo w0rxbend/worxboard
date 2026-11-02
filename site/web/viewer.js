@@ -1,5 +1,6 @@
 // worxboard viewer. Builds the PCB, switches, keycaps and display of both halves from layout.json,
-// and adds the case STLs when the build included them. Adapted from the w0rxbend/ergodox viewer.
+// places the assembled parts of the committed boards (manifest.components) and adds the case STLs
+// when the build included them. Adapted from the w0rxbend/ergodox viewer.
 // Frames: layout.json is the KiCad frame (mm, +y towards the user); the scene is the CAD frame of the
 // reference case, (x - OX, -(y - OY)) with Z up. The left half's layout data is already mirrored.
 import * as THREE from "three";
@@ -24,7 +25,7 @@ const CAP_TAPER = 0.8;        // top face scale of a keycap
 const SW_LOWER = 14.0, SW_UPPER = 15.6;
 const SOCKET = { off: [-0.6, -3.8], size: [11.0, 5.0], h: 1.8 };   // Kailh MX hot-swap, footprint frame
 const DISPLAY_T = 2.9, DISPLAY_Z = 13.0;
-const PART_H = { U1: 0.9, U2: 1.8, SW_BOOT: 1.5, SW_RST: 1.5, J3: DISPLAY_Z - Z.pcbTop };
+const J3_H = DISPLAY_Z - Z.pcbTop;   // display socket: up to the module
 const CASE_MARGIN = 6.2;      // case wall + clearance + leg boss beyond the PCB edge
 const PAIR_GAP = 30;
 const EXPLODE = { pcb: 12, spacer: 24, top: 36, switches: 48, caps: 66 };
@@ -89,6 +90,7 @@ const M = {
   pcb: std(0x1f6f4a, 0.1, 0.55),
   copper: std(0xd4a54a, 0.9, 0.3),
   chip: std(0x16171a, 0.2, 0.5),
+  passive: std(0x9c7b52, 0.1, 0.6),
   metal: std(0xb9bec6, 0.85, 0.3),
   socket: std(0xece7dc, 0, 0.7),
   sw: std(0x2b2d33, 0.05, 0.6),
@@ -272,10 +274,18 @@ function pcbGroup(side) {
   const s = lay.sides[side];
   const board = mesh(pcbGeometry(side), M.pcb, `worxboard-${side} PCB\n2-layer, 1.6 mm, ENIG\n${s.keys.length} keys`);
   g.add(withEdges(board, 20));
-  const bodies = manifest.bodies[side];
-  const labels = { U1: "RP2040", U2: "W25Q128 flash", SW_BOOT: "BOOT button", SW_RST: "RESET button", J3: "J3 display header" };
-  for (const [ref, label] of Object.entries(labels)) {
-    g.add(rectBox(bodies[ref], Z.pcbTop, Z.pcbTop + PART_H[ref], ref.startsWith("SW") ? M.metal : M.chip, `${ref}  ${label}`));
+  g.add(rectBox(manifest.bodies[side].J3, Z.pcbTop, Z.pcbTop + J3_H, M.chip, "J3  display socket (hand-soldered)"));
+  // assembled parts at their footprint pose: box = [cx, cy, w, l, h] in the footprint frame
+  for (const c of manifest.components[side]) {
+    const [cx, cy, w, l, h] = c.box;
+    const top = c.side === "top";
+    const body = mesh(new THREE.BoxGeometry(w, l, h), M[c.mat], `${side} ${c.ref}  ${c.value}\n${c.part}, ${c.side} side`);
+    body.position.set(cx, -cy, top ? Z.pcbTop + h / 2 : Z.pcb - h / 2);
+    const at = new THREE.Group().add(body);
+    const [x, y] = cad(c.at);
+    at.position.set(x, y, 0);
+    at.rotation.z = THREE.MathUtils.degToRad(c.at[2]);
+    g.add(at);
   }
   for (const j of s.jacks) {
     const label = j.ref === "J1" ? "J1 USB-C (HRO TYPE-C-31-M-12)" : "J2 TRRS jack (PJ-320D)\nDO NOT HOT-PLUG";
@@ -518,15 +528,16 @@ $("shots").innerHTML = manifest.gallery.map((s) =>
 
 const DOCS = [
   ["docs/buildguide_en.md", "Build guide", "Check, flash, solder J3, assemble"],
-  ["docs/bom.md", "Bill of materials", "JLC parts with [G3] flags, builder parts, gates"],
+  ["docs/bom.md", "Bill of materials", "JLC parts with [G3] flags, builder parts, gates (generated)"],
   ["docs/electrical.md", "Electrical design", "Power path, TRRS, USB-C, MCU, display"],
-  ["docs/pinout.md", "Pinout", "GPIO map, TRRS contacts, J3 (generated)"],
-  ["docs/matrix.md", "Key matrix", "6×7 per half, ZMK 6×14 transform (generated)"],
+  ["docs/pinout.md", "Pinout", "GPIO map, TRRS, J3, part positions (generated)"],
+  ["docs/matrix.md", "Key matrix", "6×7 per half, sockets, ZMK 6×14 transform (generated)"],
   ["docs/firmware.md", "Firmware", "ZMK builds, flashing, keymap, displays"],
   ["docs/ordering-jlcpcb.md", "Ordering PCBs", "JLCPCB settings for both sides"],
   ["docs/case.md", "Case and plates", "build123d case, Z stack, files"],
   ["docs/legs.md", "Tent legs", "Mounts, positions, the custom leg"],
   ["docs/design.md", "Design spec", "The frozen rev A specification"],
+  ["docs/deviations.md", "Deviations", "What changed from the spec, and why"],
   ["docs/sources.md", "Sources", "Prior art and attribution"],
 ];
 $("doclinks").innerHTML = DOCS.map(([p, t, d]) => `<a href="${blob(p)}">${t}<span>${d}</span></a>`).join("");

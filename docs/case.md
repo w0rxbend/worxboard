@@ -1,15 +1,33 @@
 # Case and plates
 
-> [!NOTE]
-> **In progress (WS3).** This page describes the rev A case as specified (spec §10). The model is
-> `case/worxboard_case.py`, a port of the [w0rxbend/ergodox](https://github.com/w0rxbend/ergodox) CNC
-> case. Generated files land in `case/exports/` (git-ignored) and in the CI artifacts.
+The case is `case/worxboard_case.py`, a [build123d](https://github.com/gumyr/build123d) port of the
+[w0rxbend/ergodox](https://github.com/w0rxbend/ergodox) CNC case (spec §10). Every dimension is a
+named constant, and the outline and all positions are imported from [`layout/`](../layout/), so
+the case always matches the PCB.
 
-The case is a two-piece CNC aluminium case, like the reference ErgoDox case: a **top shell** with the
-1.5 mm switch plate milled into its key well, a **bottom tray**, and a separate 3 mm **plate spacer**
-between the plate and the PCB. The PCB is clamped between bosses in the top and posts in the tray.
-Every dimension is a named constant, and the outline and all positions are imported from
-[`layout/`](../layout/), so the case always matches the PCB.
+> [!NOTE]
+> **Modelled and checked, not yet made.** `just model` builds both halves and passes every case
+> check, and `just fitcheck` reports **0 mm³** of interference against both PCB STEPs (the `fit`
+> job of the [`pcb` workflow](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) runs
+> it on every push). Nothing has been printed or machined. Gates G1 (display stack) and G2 (TRRS
+> jack height) can still change the display pocket and the bump ceiling.
+
+![Both top shells](../case/renders/pair_top_iso.png)
+
+The case has three parts per half, like the reference ErgoDox case: a **top shell** with the
+1.5 mm switch plate milled into its key well, a **bottom tray**, and a separate 3 mm **plate
+spacer** between the plate and the PCB. The PCB is clamped between bosses in the top and posts in
+the tray.
+
+| | Per half |
+|---|---|
+| Size | 192.4 × 165.6 × 17.6 mm (top 10.6 + tray 7.0; including the leg bosses) |
+| Mass (6061-T6) | about 348 g: top 139 g, tray 208 g |
+| Plate spacer | 182.7 × 136.6 × 3.0 mm, 21 cm³ (printed or laser-cut) |
+| Fasteners | 6 × M2.5 × 14 and 2 × M2.5 × 12 countersunk (ISO 10642) |
+| Threads in the top | 8 × M2.5 (6.0 mm deep, 3.9 mm under the key well) and 3 × M3 for the legs |
+| Feet | 4 × Ø10 mm rubber feet in 0.6 mm recesses |
+| Tent legs | 3 custom legs (4.9 g each in 6061) with TPU foot caps and the stock M3 thumbscrews ([legs.md](legs.md)) |
 
 ## Z stack
 
@@ -21,7 +39,8 @@ Every dimension is a named constant, and the outline and all positions are impor
 | 9.1–12.1 | plate spacer |
 | 12.1–13.6 | plate |
 | 13.6–17.6 | key well |
-| 14.6 | pocket ceiling (back strip, TRRS bump) |
+| 14.6 | pocket ceiling over the back strip and the TRRS bump |
+| 16.8 | display pocket ceiling (0.8 mm skin under the window) |
 
 Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm around each key cell.
 
@@ -29,57 +48,93 @@ Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm aroun
 
 | Feature | worxboard rev A |
 |---|---|
-| Outline | The PCB polygon from `layout.outline(side)` offset by 3.5 mm (0.5 clearance + 3.0 wall), with the reference corner radii per vertex class and r6 at the TRRS bump. The photo-measured `CASE_*` constants are gone. |
-| Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get plate stabiliser cut-outs. |
+| Outline | The PCB polygon from `layout.outline(side)` offset by 3.5 mm (0.5 clearance + 3.0 wall). Short PCB corner chamfers collapse into one filleted corner. Radii by vertex class: back corners r8 (r10 left too little cavity clearance), front-outer r12, thumb r8, concave r6 / r14, TRRS bump r5 (deviations WS3-1, WS3-2). The cavity keeps ≥ 0.3 mm to the PCB everywhere. |
+| Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get plate stabiliser cut-outs. The key well is clipped to keep 2.0 mm of wall at the T0/T3 cap corners (WS3-4). |
 | Screws | 8 × M2.5 on the ErgoDox pattern, with hole 7 moved to (88.0, 37.135) for the display. |
-| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to Z 16.8, through the spacer and plate, and a 26 × 12 mm viewing window (r1, 0.5 mm chamfer) through the top. The window is centred at (72.39, 60.0) (deviation WS0-2). `display_check()` asserts the window is inside the pocket. |
-| USB-C | On **both** halves: a 9.4 × 3.6 mm notch (r1.6) in the back wall at x 186.0 (right frame), Z centre 10.2, with a 13 × 8 mm outside recess 1.8 mm deep so a plug seats fully. |
-| TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis; `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The bump has a bezel pocket with 6 mm headroom. |
-| Back strip | A relief pocket over the whole Z_BACK zone (ceiling 14.6), and Ø3 pin holes through the top skin over BOOT (176, 50) and RESET (180, 50). |
+| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to Z 16.8, through the spacer and plate, and a 26 × 12 mm viewing window (r1, 0.5 mm chamfer) through a 0.8 mm skin. The window is centred at (72.39, 60.0) (deviation WS0-2), 1.0 mm from the C6R1 key well. `display_check()` asserts the window is inside the pocket. The pocket opens a 1.1 mm strip of the C6R1 well floor, which the module fills to within 0.5 mm (WS3-5). |
+| USB-C | On **both** halves: a 9.4 × 3.6 mm notch (r1.6) in the back wall at x 186.0 (right frame), Z centre 10.2, with a 13 × 8 mm outside recess 1.8 mm deep so a plug seats fully. The recess continues 0.8 mm into the tray. |
+| TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis (Z 11.1); `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The bump pocket leaves 0.5 mm over a 5.5 mm jack body (gate G2). |
+| Back strip | A relief pocket over Z_BACK and Z_TRRS (ceiling 14.6), with a 1 mm wall kept to the key well (WS3-6), and Ø3 pin holes through the top over BOOT (176, 50) and RESET (180, 50). |
+| Legs | The three stock positions on the derived walls; M3 drill 5.5 mm at the outer and thumb legs (≥ 5.0 checked), 7.5 mm at the inner leg (WS3-3). |
 | Removed | The EZ's capacitor pocket, LED windows and reset hole, and the back-wall jack notches. |
-| Halves | `build_top(side)` / `build_bottom(side)` build each half from the mirrored layout, with an engraved `L` / `R` under the tray. |
+| Halves | `build_top(side)` / `build_bottom(side)` build each half from the mirrored layout, with an engraved `L` / `R` under the tray. The model asserts left = mirror(right). |
+
+Coordinates are in the right-half KiCad frame; [`overlay.png`](../case/renders/overlay.png) draws
+the case over the PCB layout.
 
 ## Files
+
+`just model` writes these to `case/exports/` (git-ignored); the `case` workflow uploads them as the
+`worxboard-case` artifact, together with the renders and the order package.
 
 | File | What it is |
 |---|---|
 | `worxboard_{left,right}_{top,bottom}.step` / `.stl` | case parts |
 | `worxboard_{left,right}_spacer.step` / `.stl` | plate spacers (print or mill) |
-| `worxboard_leg.step` / `.stl`, `worxboard_leg_cap.stl` | tent leg and TPU foot cap |
+| `worxboard_leg.step` / `.stl`, `worxboard_leg_cap.step` / `.stl` | tent leg and TPU foot cap |
+| `worxboard_right_assembly_with_legs.step` / `.stl` | the right half with its legs, for previews |
 | `worxboard_{left,right}_fitcheck.dxf` | 1:1 drawing with the outline, window, USB and TRRS notches, holes and switch cut-outs |
-| `plates/worxboard-plate-{left,right}.dxf` | the plate face as a DXF, to cut a separate 1.5 mm FR4 or aluminium plate (for a printed or third-party case) |
+| `order/` (`just order`) | per-part STEP + PDF drawing with thread tables, `hole_table.csv`, the plates and [`ORDER_NOTES.md`](../case/ORDER_NOTES.md) |
+| [`plates/worxboard-plate-{left,right}.dxf`](../plates/) | the plate face, to cut a separate 1.5 mm FR4 or aluminium plate (committed; CI fails if they change) |
 
 ## Build it
 
 ```sh
 just setup      # .venv with build123d 0.13.0, shapely, ezdxf
-just model      # STEP/STL/DXF into case/exports/
-just renders    # preview images
-just fitcheck   # interference check against the PCB STEP (build/<side>/worxboard-<side>.step)
+just model      # STEP/STL/DXF into case/exports/, plates/*.dxf; prints the build report
+just fitcheck   # interference against build/<side>/worxboard-<side>.step
+just renders    # case/renders/*.png
+just order      # PDF drawings + CNC order package in case/exports/order
 ```
 
-`case/check_fit.py` loads the PCB STEP from the PCB pipeline when it exists and requires 0 mm³ of
-interference with the top and bottom parts. Until then it checks against the `layout` component
-zones and prints a warning.
+`just model` prints the screw-to-switch clearances, every case check (outline, legs, webs, display,
+jacks, spacer, mirror) and each part's volume, mass and validity, and exits non-zero if a check
+fails. `case/check_fit.py` places the KiCad STEP by matching the board outline and requires
+0 mm³ of interference with the top and bottom. Without a STEP it checks the `layout` component
+zones instead and prints a warning: run `just pcb-fab left` and `just pcb-fab right` first. The
+STEP leaves out the DNP display socket J3 (deviation WS2c-5), so the display stack itself is gate
+G1's job. `fitcheck` also prints the boss webs that top-side PCB parts must stay off.
 
 ## Fasteners
 
-Per half: 8 × M2.5 countersunk screws (ISO 10642) from below, on the original ErgoDox hole pattern.
-The reference case uses M2.5 × 14 on the bezel and edge bosses and M2.5 × 12 on the two bosses
-under the key well; the build report printed by `just model` gives the lengths for this case.
-4 × Ø10 mm rubber feet in 0.6 mm recesses.
+Per half: 8 × M2.5 countersunk screws (ISO 10642) from below, on the original ErgoDox hole
+pattern. The six bezel and edge bosses take **M2.5 × 14** (7.0 tray + 1.6 PCB + up to 6.0 thread),
+the two bosses under the key well (holes 0 and 4) take **M2.5 × 12** (3.9 mm thread, 1.1 mm skin
+left). 4 × Ø10 mm rubber feet in 0.6 mm recesses.
+
+## Previews
+
+| Top shell, underside | Bottom tray |
+|---|---|
+| ![](../case/renders/right_top_underside.png) | ![](../case/renders/right_bottom_tray.png) |
+
+| Back wall: USB-C notch | Plate spacer |
+|---|---|
+| ![](../case/renders/right_back_usb.png) | ![](../case/renders/spacer.png) |
+
+Sections through the key columns, the display pocket, the back-edge screws, the USB-C notch and the
+TRRS row:
+
+![Sections](../case/renders/section.png)
+
+The case over the PCB layout: red the case outline, green the PCB, blue the key well, purple the
+display pocket and window, yellow the component zones, magenta the holes:
+
+![Overlay](../case/renders/overlay.png)
 
 ## Before machining
 
-The outline now comes from the PCB, not from photos, but print a test fit anyway:
+The outline comes from the PCB, not from photos, but print a test fit anyway:
 
 1. 3D-print the top, bottom and spacer of one half.
 2. Fit the assembled PCB, the display and a few switches.
-3. Check the USB-C plug seats fully, the TRRS plug goes all the way in, the window shows the display's
-   active area (gate G1), and the BOOT/RESET pin holes reach the buttons.
+3. Check the USB-C plug seats fully, the TRRS plug goes all the way in, the window shows the
+   display's active area (gate G1), and the BOOT/RESET pin holes reach the buttons.
 
-The reference project's [machining guide](https://github.com/w0rxbend/ergodox/blob/main/docs/machining.md)
-and [JLCCNC order guide](https://github.com/w0rxbend/ergodox/blob/main/docs/jlccnc-order.md) apply to
-this case too: the same setups, internal-corner radii, materials and finishes.
+`just order` builds the CNC order package; [`case/ORDER_NOTES.md`](../case/ORDER_NOTES.md) has the
+form settings, the remarks to paste and the answers to engineering questions. The reference
+project's [machining guide](https://github.com/w0rxbend/ergodox/blob/main/docs/machining.md) and
+[JLCCNC order guide](https://github.com/w0rxbend/ergodox/blob/main/docs/jlccnc-order.md) apply too:
+the same setups, internal-corner radii, materials and finishes.
 
 Tent legs: [legs.md](legs.md).

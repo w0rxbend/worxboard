@@ -21,17 +21,19 @@ worxboard builds on the work below. The licence terms and where each piece is us
 | [Raspberry Pi: Hardware design with RP2040](https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf) and the [RP2040 datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) | Crystal, flash, decoupling and USB recommendations |
 | [ceoloide/ergogen-footprints](https://github.com/ceoloide/ergogen-footprints) `switch_mx` (MIT) | Cross-check of the Kailh MX hot-swap footprint geometry |
 | [nice!view](https://nicekeyboards.com/nice-view/) by Nice Keyboards | The display module format (Sharp LS011B7DH03 memory LCD) and its pinout |
-| [KiCad](https://www.kicad.org/) and its [libraries](https://gitlab.com/kicad/libraries) (CC-BY-SA-4.0 with the library exception) | Schematic and PCB tools; stock symbols, footprints and 3D models |
-| [Freerouting](https://github.com/freerouting/freerouting) (GPL-3.0) | Autorouter, run as a tool |
-| [KiKit](https://github.com/yaqwsx/KiKit) (MIT) | JLCPCB fabrication outputs |
+| [KiCad](https://www.kicad.org/) 10.0.7 and its [libraries](https://gitlab.com/kicad/libraries) (CC-BY-SA-4.0 with the library exception) | Schematic and PCB tools (`kicad-cli`, the `pcbnew` Python API, the official `kicad/kicad` Docker images); stock symbols, footprints and 3D models |
+| [kicad-sch-api](https://github.com/circuit-synth/kicad-sch-api) 0.5.6 (MIT) | Writes the schematics from `pcb/scripts/design.py` |
+| [Freerouting](https://github.com/freerouting/freerouting) 2.5.0 (GPL-3.0) | Autorouter, run as a tool in an `eclipse-temurin` container |
+| [KiKit](https://github.com/yaqwsx/KiKit) 1.8.1 (MIT) | JLCPCB fabrication outputs (gerbers, BOM, CPL) |
+| [JLCPCB](https://jlcpcb.com) / [LCSC](https://www.lcsc.com) part pages | Part numbers, stock and basic/extended status in [bom.md](bom.md) |
 
 ## Firmware
 
 | Source | What it gave this project |
 |---|---|
-| [ZMK Firmware](https://github.com/zmkfirmware/zmk) (MIT) | The firmware, wired split, ZMK Studio, the board conventions and the `build-user-config.yml` CI workflow |
+| [ZMK Firmware](https://github.com/zmkfirmware/zmk) (MIT) | The firmware, wired split, ZMK Studio, the board conventions, the `zmk-build-arm` build image and the `build-user-config.yml` workflow that the firmware CI mirrors |
 | [ZMK documentation](https://zmk.dev/docs) | New-board (HWMv2) guide, physical layouts and the `sharp,ls0xx` display setup |
-| [Zephyr RTOS](https://www.zephyrproject.org/) (Apache-2.0) | RP2040 support, the PIO SPI driver |
+| [Zephyr RTOS](https://www.zephyrproject.org/) (Apache-2.0) | RP2040 support, the PIO SPI driver, the `sharp,ls0xx` display driver and LVGL |
 
 ## Tools
 
@@ -41,6 +43,10 @@ worxboard builds on the work below. The licence terms and where each piece is us
 | [Shapely](https://github.com/shapely/shapely) (BSD-3-Clause) | 2D geometry in `layout/` and `case/` |
 | [ezdxf](https://github.com/mozman/ezdxf) (MIT) | DXF export |
 | [three.js](https://threejs.org/) (MIT) | The microsite's 3D viewer |
+| [NumPy](https://numpy.org/) (BSD-3-Clause) | STL statistics in the site builder |
+| [trimesh](https://github.com/mikedh/trimesh), [Matplotlib](https://matplotlib.org/), [Pillow](https://python-pillow.org/) | Case render, section and overlay images (`just renders`) |
+| [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/) | Python environments and the build recipes |
 | [lychee](https://github.com/lycheeverse/lychee) | Link checking of these docs |
 
-Trademarks (ErgoDox EZ, nice!view, Cherry MX, Kailh, Raspberry Pi) belong to their owners.
+Trademarks (ErgoDox EZ, nice!view, Cherry MX, Kailh, Raspberry Pi, JLCPCB) belong to their owners.
+worxboard is not affiliated with or endorsed by any of them.

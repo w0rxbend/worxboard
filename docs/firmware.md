@@ -6,10 +6,11 @@ on-board RP2040 per half and ZMK's **wired split** over the TRRS cable. The firm
 ZMK's `build-user-config.yml` workflow can build it directly (spec §11).
 
 > [!NOTE]
-> **In progress (WS1).** ZMK is pinned in `firmware/zmk/config/west.yml` to `main` @
-> `4dd95d7840eb3d5a3f59bb29fbf1ab054715ef85` (Zephyr `v4.1.0+zmk-fixes`). The firmware workflow and
-> `just fw` build every `build.yaml` row with the same script, `firmware/zmk/scripts/fw_build.py`.
-> CI mirrors ZMK's `build-user-config.yml` instead of calling it (deviation WS1-1).
+> **Built, not yet tested on hardware.** ZMK is pinned in `firmware/zmk/config/west.yml` to `main` @
+> `4dd95d7840eb3d5a3f59bb29fbf1ab054715ef85` (Zephyr `v4.1.0+zmk-fixes`). All six `build.yaml` rows
+> build, locally with `just fw` and in the [firmware workflow](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml),
+> with the same script, `firmware/zmk/scripts/fw_build.py`. CI mirrors ZMK's `build-user-config.yml`
+> instead of calling it (deviation WS1-1). See [known issues](#known-issues) before flashing a real board.
 
 ## Builds
 
@@ -22,19 +23,23 @@ ZMK's `build-user-config.yml` workflow can build it directly (spec §11).
 | `worxboard2_left_EXPERIMENTAL`, `worxboard2_right_EXPERIMENTAL` | `worxboard2_*/rp2350a/m33/zmk` | RP2350A target for a future rev B; no hardware | firmware only |
 
 A row stays in `build.yaml` only if `just fw` builds it locally. A row that fails is removed and
-listed under [future work](#future-work).
+listed under [future work](#future-work). No row has been removed: all six build.
 
 ## Get the firmware
 
 - **CI**: every push runs the [firmware workflow](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml).
-  Download the `worxboard-firmware` artifact; it holds one `.uf2` per row.
-- **Release**: tagged releases attach the same `.uf2` files.
+  Download the `worxboard-firmware` artifact from a green run; it holds one `<artifact>.uf2` per row
+  (six files, under 1 MB zipped). The workflow also checks the layout dtsi, the keymap and the right
+  peripheral (see below), and that the checked-out ZMK matches the pin.
+- **Release**: tagged `v*-revA` releases will attach the same `.uf2` files (the release workflow is
+  part of WS5 and not written yet).
 - **Locally**: `just fw` builds every row (or `just fw <artifact>…` the named ones) in Docker
   (`zmkfirmware/zmk-build-arm:stable`) into `build/fw/`. The west workspace lives in `build/fw-ws/`,
   outside the source tree (deviation WS1-2); `just fw-west` refreshes it only when `west.yml` changes.
 - **Checks**: `just fw-keymap-check` (3 layers × 74 bindings, base layer equals the `layout.json`
-  legends), `just fw-layouts-check` (generated dtsi up to date) and `just fw-check` (no BLE symbols in
-  the right peripheral, flash growth within budget).
+  legends), `just fw-layouts-check` (generated dtsi up to date) and `just fw-check` (no `zmk_ble_` or
+  battery symbols in the right peripheral, and its flash use at most 40 KB above the seed build).
+  `just fw` runs all three. `just fw-clean` removes `build/fw/` and keeps the west workspace.
 
 ## Flash
 
@@ -90,8 +95,15 @@ physical layout and the keymap order cannot drift. CI regenerates it and fails o
 | `worxboard-layouts.dtsi` | **Generated**: the 6×14 transform and the physical layout |
 | `worxboard_left_rp2040_zmk.dts` | Left half: the shared definition as is |
 | `worxboard_right_rp2040_zmk.dts` | Right half: `col-gpios` reversed (GP20…GP14) and `col-offset = <7>`, so both PCBs share one matrix netlist |
-| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, LVGL/ls0xx defaults, the custom status screen on the right |
+| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, LVGL/ls0xx defaults, HID indicators forwarded on both halves (deviation WS1-4), the custom status screen on the right |
+| `*_defconfig` | RP2040 SoC, USB on the left only (`CONFIG_ZMK_USB` is not set on the right) |
 | `worxboard.zmk.yml` | ZMK metadata: features keys, display and studio |
+
+The module root is [`zephyr/module.yml`](../zephyr/module.yml): it points cmake, Kconfig and
+`board_root` at `firmware/zmk`, whose [`Kconfig`](../firmware/zmk/Kconfig) adds
+`WORXBOARD_STATUS_SCREEN` (on when the custom screen is chosen on a right board) and whose
+`CMakeLists.txt` compiles `src/worx_status_screen.c` only then. `worxboard2/` is the experimental
+RP2350A copy and includes the same generated layouts file.
 
 ## Displays
 
@@ -102,12 +114,28 @@ send LSB-first). The stock `nice_view` shield is not used, because it does not b
 - **Left**: the ZMK built-in status screen (active layer, output).
 - **Right**: a custom LVGL screen (`firmware/zmk/src/worx_status_screen.c`) with a `worxboard` logo,
   the Caps / Num / Scroll lock indicators (forwarded from the central; HID indicators are on for
-  both halves, deviation WS1-4) and a static `wired` label. It uses
-  no Bluetooth or battery symbols.
+  both halves, deviation WS1-4) and a static `wired` label. It uses no Bluetooth or battery
+  symbols (`just fw-check` checks the link map).
+
+## Known issues
+
+- **Nothing has run on hardware yet**: the displays, the wired split, the forwarded lock indicators
+  and the `*_EXPERIMENTAL` role-swap pair are untested.
+- **Display orientation.** The module is mounted vertically (portrait, header at the back), but both
+  screens, the built-in one on the left and the custom one on the right, are laid out for a
+  160 × 68 landscape panel. On the board the text will probably read rotated by 90°. A rotation
+  (LVGL or the `ls0xx` driver) is to be added once gate G1 confirms the module's orientation.
+- **worxboard2 (RP2350A)**: Zephyr forces `FLASH_PAGE_LAYOUT`, `NVS` and `FLASH_MAP` off for this
+  target at the pinned revision, so keymap edits from ZMK Studio would not persist there. The seed
+  build had the same warnings; the target is experimental and has no hardware.
+- The board-folder `worxboard.conf` files are not read when `ZMK_CONFIG` is set (they document the
+  defaults only); the options that count are in `firmware/zmk/config/worxboard.conf`.
+- The build image is the floating `zmkfirmware/zmk-build-arm:stable` tag, as in ZMK's own
+  `build-user-config.yml`; the ZMK source itself is pinned.
 
 ## Future work
 
 - RP2350A hardware (rev B, needs the A4 stepping).
 - TRRS detect on GP21 (`detect-gpios`), and runtime role swap.
 - RGB on GP22, encoders, a TFT display on TP1–TP3.
-- Rows removed from `build.yaml` because they did not build locally are listed here by WS1.
+- No `build.yaml` row has been removed so far; any row that stops building is listed here.

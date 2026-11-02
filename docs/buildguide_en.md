@@ -6,8 +6,10 @@ including the RP2040, the USB-C and TRRS connectors, the hot-swap sockets and th
 hand-solder the display socket.
 
 > [!IMPORTANT]
-> Rev A has **not been built yet**. Gates G1–G3 in [bom.md](bom.md#gates) must pass before you order
-> boards. Read [electrical.md](electrical.md) once before you start.
+> Rev A has **not been built yet**. The boards are routed and pass DRC, the firmware and the case
+> build, but nothing has been tested on hardware. Gates G1–G3 in [bom.md](bom.md#gates) are still
+> open and must pass before you order boards. Read [electrical.md](electrical.md) once before you
+> start.
 
 > [!WARNING]
 > - **Plug the host into the LEFT half.** The left half is the ZMK central. The right USB-C gives power
@@ -44,7 +46,7 @@ For one keyboard (both halves). Part numbers and the assembled parts are in [bom
 | 2u plate-mount stabilisers | 4 | thumb keys T4 and T5 on each half |
 | Keycaps | 74 | 1.5u × 8 (outer column), vertical 1.5u × 4 (inner column), 2u × 4 (thumbs), 1u × 58 |
 | Case: top shell, bottom tray and plate spacer per half | 1 set | [case.md](case.md); CNC aluminium or 3D-printed |
-| M2.5 countersunk screws | 16 | 8 per half; lengths in [case.md](case.md#fasteners) |
+| M2.5 countersunk screws, ISO 10642 | 16 | per half 6 × M2.5 × 14 and 2 × M2.5 × 12 ([case.md](case.md#fasteners)) |
 | Rubber feet, Ø10 mm | 8 | 4 per half |
 | Tent legs, foot caps, stock ErgoDox EZ M3 spring thumbscrews | 6 each | [legs.md](legs.md) |
 | TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm |
@@ -52,22 +54,33 @@ For one keyboard (both halves). Part numbers and the assembled parts are in [bom
 
 ## Tools
 
-- Soldering iron and solder (only for J3).
+- Soldering iron and solder (only for J3, and to re-bridge JP1).
 - Flush cutters, tweezers.
 - A multimeter, for the power-mode and continuity checks.
 - A Ø2.5 mm or smaller pin (paper clip) to reach the BOOT and RESET buttons through the case.
 - A 1.5 mm hex key or a Phillips #0, depending on the M2.5 screws you buy.
+- Optional: a Raspberry Pi Debug Probe (or any SWD probe) for the SWD test pads.
 
 ## 1. Check the assembled PCBs
 
-Lay out both boards and compare them with the renders in [`docs/images/`](images/):
+Lay out both boards and compare them with the KiCad renders of the committed boards:
 
-- The **top side** (F.Cu) carries the RP2040 (U1), flash (U2), crystal (Y1), regulator (U3), the
-  USB-C receptacle (J1) at the back edge, the BOOT and RESET buttons, and the TRRS jack (J2) in the
-  bump on the inner edge.
-- The **bottom side** (B.Cu) carries the 37 Kailh hot-swap sockets and the 37 diodes.
-- The silkscreen next to the jack reads `DO NOT HOT-PLUG TRRS` and `HOST → LEFT`. The board label
-  reads `worxboard L rev A` or `worxboard R rev A`.
+| | Top | Bottom |
+|---|---|---|
+| Left | [pcb-left-top.png](images/pcb-left-top.png) | [pcb-left-bottom.png](images/pcb-left-bottom.png) |
+| Right | [pcb-right-top.png](images/pcb-right-top.png) | [pcb-right-bottom.png](images/pcb-right-bottom.png) |
+
+- The **top side** carries, all in the strip along the back edge: the USB-C receptacle (J1), the
+  RP2040 (U1), flash (U2), crystal (Y1), regulator (U3), USB ESD (U4), the Schottky diode (D1),
+  the polyfuse (F1) and solder jumper (JP1), the BOOT (SW1) and RESET (SW2) buttons, the test pads
+  and the empty J3 footprint at the inner end. The TRRS jack (J2), its ESD part (U5) and resistors
+  sit in the bump on the inner edge.
+- The **bottom side** carries the 37 Kailh hot-swap sockets (SK101–SK137) and their 37 diodes
+  (D101–D137).
+- The silkscreen next to the jack reads `DO NOT HOT-PLUG TRRS` and `HOST → LEFT`; next to JP1 it
+  reads `JP1: cut = split power`. The board label reads `worxboard L rev A` or `worxboard R rev A`.
+- Every part's position is in [pinout.md](pinout.md#part-positions). The left RP2040 is turned
+  180° compared with the right one; that is intended (deviation WS2b-1).
 
 Look for solder bridges on the QFN and the USB-C pins with a loupe. Check that every socket sits
 flat.
@@ -90,7 +103,9 @@ Test each board on its own, before anything is fitted, so any fault is easy to r
    - **double-tap RESET**, or
    - **hold BOOT, tap RESET, release BOOT**.
 
-   `RPI-RP2` appears again. On the keyboard, `&bootloader` on layer 2 does the same.
+   `RPI-RP2` appears again. On the keyboard, `&bootloader` on layer 2 does the same. If the
+   board never shows `RPI-RP2`, the SWD pads TP8 (SWCLK), TP9 (SWDIO) and TP10 (GND) take a
+   debug probe.
 5. Test the left board on its own: open a key tester, plug the board in, and short each socket's two
    pads with tweezers. Each position must type its key. The right board alone types nothing: it is
    the peripheral and sends its keys over TRRS.
@@ -99,8 +114,10 @@ Test each board on its own, before anything is fitted, so any fault is easy to r
 
 ## 3. Choose the power mode (JP1)
 
-JP1 is a solder jumper next to the TRRS jack. It joins the half's own supply (VSYS) to the cable's
-power wire (VLINK, on Ring2) through a 250 mA polyfuse (F1). It is **bridged by default**.
+JP1 is a solder jumper on the top side, in the back strip next to F1 and the USB-C receptacle
+(silkscreen `JP1: cut = split power`). It joins the half's own supply (VSYS) to the cable's power
+wire (VLINK, on Ring2) through a 250 mA polyfuse (F1). It is **bridged by default**. The case top
+covers it, so choose the mode **before** you assemble the case.
 
 | Mode | JP1 on both halves | Cables | Behaviour |
 |---|---|---|---|
@@ -131,10 +148,15 @@ the display area, so it can be removed.
 Plug the board in again. The left display shows the ZMK status screen (layer and output); the right
 display shows the `worxboard` logo, the lock indicators and `wired`.
 
+> [!NOTE]
+> Both screens are laid out for a landscape panel, but the module is mounted upright. Until the
+> firmware gets a rotation, expect the text to read turned by 90° ([firmware known issues](firmware.md#known-issues)).
+
 ## 5. Prepare the case
 
-The case files are built by `just model` ([case.md](case.md)). If you machine aluminium, 3D-print a
-test fit first and check it against your PCB:
+The case files are built by `just model` ([case.md](case.md)) and checked against the PCB STEP by
+`just fitcheck` (0 mm³ interference on both halves). If you machine aluminium, 3D-print a test fit
+first and check it against your PCB:
 
 - The display sits under the window in the top shell and its pocket clears the header.
 - The USB-C notch on the back wall lines up with J1 on **both** halves.
@@ -147,8 +169,9 @@ test fit first and check it against your PCB:
 2. Lay the PCB, top side up, on the posts of the bottom tray.
 3. Lay the plate spacer over the PCB: each switch goes through its own opening.
 4. Put the top shell on, so its bosses meet the PCB. Feed the display module through its pocket.
-5. Fit the 8 M2.5 countersunk screws from below. Tighten them gently: they clamp the PCB between the
-   tray posts and the shell bosses.
+5. Fit the 8 M2.5 countersunk screws from below: the 2 × M2.5 × 12 go into the two bosses under
+   the key well (holes 0 and 4 in [pinout.md](pinout.md#mounting-holes)), the 6 × M2.5 × 14 into the
+   others. Tighten them gently: they clamp the PCB between the tray posts and the shell bosses.
 
 ## 7. Switches, stabilisers and keycaps
 
@@ -182,10 +205,12 @@ on layer 2.
 
 | Symptom | Check |
 |---|---|
-| No `RPI-RP2` drive | Use a data cable (not charge-only). Hold BOOT and tap RESET. Measure 3.3 V on the 3V3 net. |
+| No `RPI-RP2` drive | Use a data cable (not charge-only). Hold BOOT and tap RESET. Measure 3.3 V on the 3V3 net (C3 or C4). Plug the left half in for the host; the right one does not enumerate as a keyboard. |
 | Left half types, right half does nothing | Was the cable plugged in while powered? Unplug everything and reconnect TRRS first. Is the cable straight 4-pole? Is the right half flashed with the **peripheral** firmware? |
 | Right half dark in split-powered mode | JP1 is cut, so the right half needs its own USB-C. |
-| One key dead | Re-seat the switch; check the socket's two pads and the diode next to it. |
+| Right half dark with one cable | Check JP1 is bridged on **both** halves and F1 has not tripped (unplug for a minute). |
+| One key dead | Re-seat the switch; check the socket's two pads and the diode next to it ([matrix.md](matrix.md#sockets-and-diodes) gives the SK/D references). |
 | A whole row or column dead | See [matrix.md](matrix.md) for the GPIO of that row or column and check that pin on the RP2040. |
 | Display blank | Re-seat the module in J3 and check the pin order against [pinout.md](pinout.md#display-header-j3). |
+| Display text sideways | Known firmware issue, see [firmware.md](firmware.md#known-issues). |
 | Wrong characters on the right half | The left half needs the **central** firmware, the right half the **peripheral** firmware. |

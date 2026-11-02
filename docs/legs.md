@@ -6,8 +6,8 @@ measurements behind it). Each half has **three** mounts at the stock ErgoDox EZ 
 mount takes the same custom leg, clamped by the stock EZ M3 spring thumbscrew.
 
 > [!NOTE]
-> **In progress (WS3).** The values below are the reference design that `case/worxboard_case.py`
-> keeps. The build report of `just model` prints the as-built thread depths.
+> The values below are the as-built model (`case/worxboard_case.py`); `just model` prints them in
+> its build report and fails if a leg check does not hold. No leg has been made yet.
 
 ## The mount
 
@@ -16,7 +16,7 @@ spring thumbscrew presses the leg's flat hub onto the boss, so the leg holds any
 
 | Feature | Value | Parameter |
 |---|---|---|
-| Thread | M3, tap drill Ø2.5, up to 7.5 mm deep from the boss face | `LEG_TAP_D`, `LEG_DEPTH` |
+| Thread | M3, tap drill Ø2.5, 5.5–7.5 mm deep from the boss face (at least 5.0 is checked) | `LEG_TAP_D`, `LEG_DEPTH`, `LEG_MIN_DRILL` |
 | Thread axis height | Z 12.0 | `LEG_Z` |
 | Boss | Ø10, 2.7 mm proud of the wall, flat face; spans Z 7.0–17.0 on the top part | `LEG_BOSS_D`, `LEG_BOSS_H` |
 | Pad behind the wall | 10 mm along the wall, up to 6 mm deep, clear of the switch housings and the key well | `LEG_PAD` |
@@ -24,16 +24,19 @@ spring thumbscrew presses the leg's flat hub onto the boss, so the leg holds any
 
 ## Positions
 
-In the right-half frame (the left half is the mirror image):
+In the right-half frame (the left half is the mirror image). The positions are the stock EZ ones,
+measured along the walls of the derived outline (deviation WS3-3):
 
-| Mount | Position | Note |
-|---|---|---|
-| Outer | outer wall, y = 64 | stock EZ position |
-| Inner | inner wall, y = 64 | stock EZ position; its pad is **clamped to 5.0 mm** deep (x ≤ 63.6) so it stays at least 1.2 mm clear of the display pocket |
-| Thumb | thumb-cluster end wall, v = 0.56 u | stock EZ position |
+| Mount | Boss face at | Pad depth | M3 drill depth | Note |
+|---|---|---|---|---|
+| Outer | (209.4, 64.0), outer wall | 6.00 | 5.50 | the drill stops short of the key well floor; the wall is 3.1 mm from the well |
+| Inner | (55.6, 64.0), inner wall | 5.00 | 7.50 | pad **clamped to 5.0 mm** (x ≤ 63.6), 1.29 mm clear of the display pocket |
+| Thumb | (27.2, 158.5), thumb-cluster end wall, v = 0.56 u | 1.75 | 5.50 | the pad is limited by the T0 switch housing |
 
 The inner leg sits right beside the display. Its position is unchanged from the EZ (the spec rejected
-moving it); only the pad behind the wall is shallower.
+moving it); only the pad behind the wall is shallower. The outer and thumb threads are shorter than
+the reference's 7.5 mm, because the derived walls sit closer to the key well; 5.5 mm is still more
+than 1.5 × the M3 diameter of engagement.
 
 ## The leg
 

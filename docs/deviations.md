@@ -594,3 +594,30 @@ what changed, why, and who consumes it.
   locked (about 5 mm of XOUT, no via). A B.Cu rule area over Y1's courtyard + 0.25 mm forbids tracks and
   vias, so both pours stay solid under the crystal; F.Cu cannot pass between its pads. `checks.py`
   fails on any B.Cu track or via under Y1. The left C6 moves 0.5 mm out to keep its courtyard clear.
+
+## ELEC: parts, power path and display socket for a turnkey JLCPCB order (`pcb/scripts/design.py`, `netcmp.py`, `stage_d.sh`, `pcb/lib/`, `tests/integration/stock.py`)
+
+Stock and library data below are from the JLC component-detail and LCSC product endpoints on
+2026-11-02 23:35 UTC (`tests/integration/stock.py` reproduces them). For 5 + 5 boards every line
+now has more than 50 at JLC and covers the order with JLC's attrition.
+
+### ELEC-1. Discontinued and low-stock parts replaced (§7, gate G3)
+
+- **Problem:** the hot-swap socket C2803348 (Kailh CPG151101S11) is discontinued: 0 at JLC and
+  LCSC, LCSC `stop_product`, JLC "no longer manufactured". JLC flags the flash C113767 "no longer
+  manufactured" (163 left, LCSC 0). The crystal C91749 is down to 19 at JLC against 10 needed.
+- **Change** (`design.py`, same footprints, values and nets):
+
+  | Ref | Was | Now | JLC | Stock JLC / LCSC | Why it fits |
+  |---|---|---|---|---|---|
+  | SK101–SK137 | C2803348 | **C41430893** HanElectricity CPG151101S11-16 | extended, SMT | 231 751 / 168 680 | drawing: Ø3.00 holes 6.35 × 2.54 apart, pads 2.55 × 2.5, terminals 14.5 mm, body 1.85 mm: the `SW_MX_Hotswap_Kailh` land pattern. Second source **C49352235** (CPG151101S11-2, 30 973) |
+  | U2 | C113767 | **C97521** Winbond W25Q128JVSIQ | **basic**, SMT | 76 588 / 865 | the same chip in the same SOIC-8 208 mil package |
+  | Y1 | C91749 | **C49304726** YXC XL2EL89CRI-111YLC-12M | extended, SMT | 13 833 / 13 790 | 12 MHz 3225, CL 18 pF (the 27 pF caps give 13.5 pF + about 4 pF stray), ±10 ppm, ESR 80 Ω max (was 100 Ω), pins 1/3 crystal and 2/4 GND as `Crystal_GND24`. Basic fallback **C9002** (CL 20 pF: tens of ppm, far inside USB's ±2500 ppm) |
+
+- **Checked, unchanged:** every other line (C2040 7 062, C51118 6 190, C95562 5 743 are the
+  thinnest). Basic: C1525, C11702, C25744, C52923, C25905, C8598, C15525, C81598 and now C97521;
+  everything else is extended. In Standard PCBA JLC charges the same feeder fee for basic and
+  extended parts, so the swaps buy stock, not fees.
+- **Not checked by a build:** that JLC solders C41430893 cleanly (no field report of this copy).
+- **Consumers:** FAB (the corrections for `SW_MX_Hotswap_Kailh`, SOIC-8 and the 3225 crystal apply
+  unchanged), DOCS (`bom.md`, `ordering-jlcpcb.md`, verification G3).

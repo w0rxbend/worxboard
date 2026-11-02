@@ -36,6 +36,12 @@ STAB_FP = "worxboard:Stab_MX_2u"
 LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744"}
 LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C15525", "27p": "C1557"}
 LCSC_F1 = "C70069"        # nSMD025-24V: 1206 PTC, 250 mA hold, 24 V (WS2 choice, spec §7 F1)
+# Replacements for discontinued / low-stock parts (docs/deviations.md ELEC-1), JLC stock 2026-11-02
+LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket (Kailh C2803348 discontinued);
+                            # second source C49352235 (CPG151101S11-2), same land pattern
+LCSC_FLASH = "C97521"       # W25Q128JVSIQ SOIC-8 208 mil, JLC basic (C113767 no longer manufactured)
+LCSC_XTAL = "C49304726"     # YXC XL2EL89CRI-111YLC-12M: 12 MHz 3225, CL 18 pF (27 pF caps), ESR 80 ohm
+                            # (C91749 down to 19 at JLC); basic fallback C9002, CL 20 pF
 
 # Matrix references: SK<n> socket + D<n> diode, n = KEY_REF0 + index in layout.keys()
 # (the spec's SK_xx / D_xx names are not valid KiCad references; deviation WS2a-1)
@@ -113,11 +119,11 @@ def _mcu() -> list[Part]:
     parts = [
         Part("U1", "MCU_RaspberryPi:RP2040", "RP2040", "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm",
              "C2040", u1, g),
-        Part("U2", "Memory_Flash:W25Q128JVS", "W25Q128JVSIQ", "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm", "C113767",
+        Part("U2", "Memory_Flash:W25Q128JVS", "W25Q128JVSIQ", "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm", LCSC_FLASH,
              {"~{CS}": "QSPI_SS", "CLK": "QSPI_SCLK", "DI/IO_{0}": "QSPI_SD0", "DO/IO_{1}": "QSPI_SD1",
               "~{WP}/IO_{2}": "QSPI_SD2", "~{HOLD}/~{RESET}/IO_{3}": "QSPI_SD3", "VCC": "3V3", "GND": "GND"}, g),
         C("C5", "100n", "3V3", g),
-        Part("Y1", "Device:Crystal_GND24", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm", "C91749",
+        Part("Y1", "Device:Crystal_GND24", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm", LCSC_XTAL,
              {"1": "XIN", "3": "XTAL_OUT", "G": "GND"}, g),
         R("R7", "1k", "XTAL_OUT", "XOUT", g),
         C("C6", "27p", "XIN", g),
@@ -173,7 +179,7 @@ def _matrix(side: str) -> list[Part]:
     parts = []
     for n, k in enumerate(layout.keys(side), KEY_REF0):
         key = {"Key": k.id}
-        parts.append(Part(f"SK{n}", "worxboard:SW_Push_MX", "MX", MX_FP, "C2803348",
+        parts.append(Part(f"SK{n}", "worxboard:SW_Push_MX", "MX", MX_FP, LCSC_SOCKET,
                           {"1": f"COL{k.col}", "2": switch_net(k.id)}, g, key=k.id, extra=key))
         parts.append(Part(f"D{n}", "Diode:1N4148W", "1N4148W", SOD123, "C81598",
                           {"A": switch_net(k.id), "K": f"ROW{k.row}"}, g, key=k.id, extra=key))

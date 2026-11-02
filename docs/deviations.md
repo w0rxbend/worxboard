@@ -656,3 +656,60 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   clamps and nothing reaches a USB connector); two hosts at once still meet only behind their own D1.
 - **Consumers:** PCB (re-route U4 pin 5 to VSYS and keep it short: ST asks for a short track from
   the rail to the VBUS pin, and the nearest VSYS parts today, D1, C1 and C2, are 11–20 mm from it), DOCS (`electrical.md` power path, the VBUS note).
+
+### ELEC-3. J3 is JLC-assembled: a 5.0 mm THT socket, with its own 3D model (§4 G1, §7; amends WS2c-1, supersedes WS2c-5)
+
+- **Spec:** J3 is a low-profile 1×5 socket, DNP, hand-soldered by the builder.
+- **Problem:** a turnkey order leaves nothing to solder on the PCB. JLC hand-solders THT parts
+  (THT, `manualWeld`). Its 1×5 2.54 mm THT female sockets in stock are 5.0 mm (C27985230), 5.7 mm
+  (C46061764, C55218875) and 8.5 mm (C50950, C54876727); there is no 3.5 mm part, so the G1 stack
+  of 6.0–6.3 mm under today's case cannot be met with a stock male header.
+- **Choice:** **C27985230**, Hong Cheng HC-PM254-5.0H-1x5PZ (extended, THT, 6 399 at JLC): 5.0 ±0.15
+  mm tall, square contacts for 0.64 mm pins, 3.0 mm tails, Ø1.02 recommended hole (the footprint's
+  1.0 mm drill fits the 0.64 × 0.4 tail). The nice!view ships with a 5-pin socket **5 mm** tall and a
+  male header that adds 2 mm, "a height of 7mm" (nicekeyboards.com, typeractive.xyz "5-Pin Sockets":
+  "the same sockets that come with the nice!view"). So a stock nice!view with its own header soldered
+  on, unmodified, plugs into J3 and sits as its maker intends. Fallback C46061764 (5.7 mm, stack
+  +0.7 mm). The lowest-stack option was chosen because every extra millimetre has to come out of
+  the case top over the display.
+- **Change:**
+  - `design.py`: J3 `dnp=False`, LCSC C27985230, value `HC-PM254-5.0H-1x5PZ` (the BOM comment JLC
+    sees), footprint **`worxboard:PinSocket_1x05_P2.54mm_Vertical_H5.0mm`**. Reference, symbol,
+    pins and nets are unchanged.
+  - `pcb/lib/worxboard.pretty/PinSocket_1x05_P2.54mm_Vertical_H5.0mm.kicad_mod`: KiCad's
+    `PinSocket_1x05_P2.54mm_Vertical` with identical pads, silk, courtyard and origin (pin 1, pins
+    along +y at 0°), only the name and the 3D model differ. `place.py` loads it like the other
+    `worxboard` footprints; the JLC CPL correction found for the stock footprint (X 0, Y 5.08,
+    rotation 270) applies to it unchanged.
+  - `pcb/lib/worxboard.3dshapes/PinSocket_1x05_P2.54mm_Vertical_H5.0mm.step`, written by
+    `pcb/lib/gen_models.py` (build123d, deterministic): body 13.4 × 2.55 × 5.15 mm and 0.64 × 0.4
+    tails 3.2 mm below the PCB top, the drawing's upper tolerances, so the fit check sees the
+    largest socket JLC can fit. Referenced as `${KIPRJMOD}/../lib/worxboard.3dshapes/…`.
+  - `stage_d.sh`: J3 leaves `NOT_ASSEMBLED` and must be in both `bom.csv` and `pos.csv`; the STEP
+    must carry `PinSocket_1x05_P2.54mm_Vertical_H5.0mm` and must not carry KiCad's 8.5 mm
+    `PinSocket_1x05_P2.54mm_Vertical`. `--no-dnp` stays (no DNP part is left).
+- **Checked** on a scratch copy (stages 1–9, then stage 13–14 on the placed, unrouted left board):
+  `bom.csv` has 22 lines (21 LCSC numbers) with `HC-PM254-5.0H-1x5PZ,J3,…,C27985230`, `pos.csv` 119
+  parts with J3, `--missingError` passes, and the STEP's J3 body spans 13.4 × 2.55 mm around pin 3 at
+  Z 0–5.15 mm above the PCB top. The committed boards still carry the old J3 until the re-placement.
+- **Display stack** (PCB top = case Z 8.6), for the case pocket and window:
+
+  | Item | Above the PCB top | Case Z |
+  |---|---|---|
+  | J3 body top | 5.0 (model 5.15) | 13.6 (13.75) |
+  | module PCB underside: 5 mm socket + stock header | 7.0 nominal (vendor), 7.5 with a 2.5 mm carrier | 15.6–16.1 |
+  | lowest module parts (1.0 below its PCB) | 6.0–6.5: above the plate top (5.0) | 14.6–15.1 |
+  | module PCB top | 8.0–8.5 | 16.6–17.1 |
+  | glass top (0.9) | **8.9 nominal, 9.4 with a 2.5 mm carrier, 9.75 at full tolerance** | 17.5–18.35 |
+
+  The pocket ceiling must be at least **Z 18.4** (9.8 above the PCB top), 1.6 mm above today's 16.8
+  and 0.8 mm above `Z_TOP` (17.6): the case top needs a raised bezel over the display (or the window
+  opened to the glass). The module now clears the plate, so only the J3 body (13.4 × 2.55, Z up to
+  13.75) has to pass through the plate and spacer. Two G1 items still apply: the header's soldered
+  pin tips can stand up to about 2 mm above the module PCB over the header row unless they are
+  trimmed flush, and the module far end must stay inside the pocket (G1 open item 2, J3 row to y 39.925),
+  because past y 75.125 it reaches over the edge of the C6R1 keycap.
+- **Consumers:** PCB (J3 footprint name; G1 items 1 and 2 when re-placing), FAB (`jlc_rotations.csv`
+  row `^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$` → 0, 5.08, 270), CASE (the stack
+  above; `check_fit.py`'s J3 + module envelope), DOCS (`bom.md` and `site/gen_docs.py` list J3 as
+  not assembled; build guide: no socket to solder).

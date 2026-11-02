@@ -42,6 +42,10 @@ LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket 
 LCSC_FLASH = "C97521"       # W25Q128JVSIQ SOIC-8 208 mil, JLC basic (C113767 no longer manufactured)
 LCSC_XTAL = "C49304726"     # YXC XL2EL89CRI-111YLC-12M: 12 MHz 3225, CL 18 pF (27 pF caps), ESR 80 ohm
                             # (C91749 down to 19 at JLC); basic fallback C9002, CL 20 pF
+# J3: JLC-assembled THT 1x5 2.54 mm female socket, 5.0 mm tall: with the nice!view's own 5-pin male
+# header the module sits 7.0 mm above the PCB, as on its stock 5 mm socket (docs/deviations.md ELEC-3)
+LCSC_J3 = "C27985230"       # Hong Cheng HC-PM254-5.0H-1x5PZ; 5.7 mm fallback C46061764 (stack 7.7 mm)
+J3_FP = "worxboard:PinSocket_1x05_P2.54mm_Vertical_H5.0mm"   # stock pads, 5.0 mm 3D model
 
 # Matrix references: SK<n> socket + D<n> diode, n = KEY_REF0 + index in layout.keys()
 # (the spec's SK_xx / D_xx names are not valid KiCad references; deviation WS2a-1)
@@ -62,7 +66,7 @@ class Part:
     pins: dict[str, str | None]    # pin number or name -> net (None = no connect)
     group: str
     in_bom: bool = True            # False: JP1, test pads, holes (spec §7)
-    dnp: bool = False              # True: J3, hand-soldered by the builder
+    dnp: bool = False              # True: on the board but not fitted by JLC (no such part on rev A)
     key: str = ""                  # layout key id of a matrix SK/D part (also its "Key" field)
     extra: dict[str, str] = field(default_factory=dict)   # further symbol fields
 
@@ -166,8 +170,7 @@ def _display() -> list[Part]:
     g = "DISPLAY"
     pins = dict(zip(map(str, range(1, 6)), ("DISP_MOSI", "DISP_SCK", "3V3", "GND", "DISP_CS")))
     return [
-        Part("J3", "Connector_Generic:Conn_01x05", "nice!view", "Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical",
-             "", pins, g, dnp=True),
+        Part("J3", "Connector_Generic:Conn_01x05", "HC-PM254-5.0H-1x5PZ", J3_FP, LCSC_J3, pins, g),
         TP("TP1", "DISP_DC", g), TP("TP2", "DISP_RST", g), TP("TP3", "DISP_BL", g),
     ]
 

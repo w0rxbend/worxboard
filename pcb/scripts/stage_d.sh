@@ -11,14 +11,17 @@ SCH="pcb/$SIDE/worxboard-$SIDE.kicad_sch"
 OUT="build/$SIDE"
 IMAGES="docs/images"
 
-# Not assembled: excluded by their footprint attributes (exclude_from_bom/pos, J3 dnp), not by
-# kikit --ignore, which deletes footprints and corrupts the board under KiCad 10 (deviations WS2c-1)
-NOT_ASSEMBLED='^"?(JP1|J3|TP[0-9]+|H[0-9]+|STAB_[A-Z0-9]+)"?$'
-DNP_MODEL="PinSocket_1x05_P2.54mm_Vertical"   # J3: must not reach the STEP (deviations WS2c-5)
-# KiCad -> JLC CPL rotation corrections (kikit pattern file, footprint regex -> degrees). Values from
-# the JLCKicadTools cpl_rotations_db.csv of 2024-09 (SOT-23 -90, QFN / SOIC 270, HRO TYPE-C-31-M-12
-# 180); the community tables disagree over time, so JLC's placement preview is still the check
-# (docs/ordering-jlcpcb.md, deviations REVIEW-FIX-5)
+# Not assembled: copper or drill only, excluded by their footprint attributes (exclude_from_bom/pos),
+# not by kikit --ignore, which deletes footprints and corrupts the board under KiCad 10 (deviations
+# WS2c-1). Everything else, J3 included, is fitted by JLC (deviations ELEC-3)
+NOT_ASSEMBLED='^"?(JP1|TP[0-9]+|H[0-9]+|STAB_[A-Z0-9]+)"?$'
+# Fitted by hand at JLC (THT): must be in both bom.csv and pos.csv
+ASSEMBLED_THT=(J3)
+# J3's STEP body: the 5.0 mm socket model of pcb/lib, never KiCad's 8.5 mm one (deviations ELEC-3)
+J3_MODEL="PinSocket_1x05_P2.54mm_Vertical_H5.0mm"
+STOCK_SOCKET_MODEL="PinSocket_1x05_P2.54mm_Vertical"
+# KiCad -> JLC CPL corrections (kikit pattern file: footprint regex -> X, Y, rotation); JLC's
+# placement preview is still the final check (docs/ordering-jlcpcb.md)
 ROTATIONS="pcb/scripts/jlc_rotations.csv"
 RENDER_W=1600
 RENDER_H=1000
@@ -42,17 +45,27 @@ if grep -Eq "${NOT_ASSEMBLED}" <<<"$designators"; then
     grep -E "${NOT_ASSEMBLED}" <<<"$designators" >&2
     exit 1
 fi
+bom_refs="$(cut -d, -f2- "$OUT/jlc/bom.csv" | tr ',\r"' '\n\n\n')"
+pos_refs="$(cut -d, -f1 "$OUT/jlc/pos.csv" | tr -d '\r"')"
+for ref in "${ASSEMBLED_THT[@]}"; do
+    grep -qx "$ref" <<<"$bom_refs" || { echo "$ref is missing from $OUT/jlc/bom.csv" >&2; exit 1; }
+    grep -qx "$ref" <<<"$pos_refs" || { echo "$ref is missing from $OUT/jlc/pos.csv" >&2; exit 1; }
+done
 
-# 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models. The STEP leaves out
-# DNP parts: J3's stock model is an 8.5 mm socket, not the low-profile one gate G1 sizes the
-# display pocket for, and the case fit check reads this file (deviations WS2c-5)
+# 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models. The case fit check
+# reads this STEP, so J3 must carry the 5.0 mm socket it is ordered with (deviations ELEC-3); DNP
+# parts (none on rev A) stay out of it
 for view in top bottom; do
     kicad-cli pcb render --side "$view" --width "$RENDER_W" --height "$RENDER_H" --quality basic \
         -o "$IMAGES/pcb-$SIDE-$view.png" "$PCB"
 done
 kicad-cli pcb export dxf --mode-single --output-units mm --layers Edge.Cuts -o "$OUT/edge.dxf" "$PCB"
 kicad-cli pcb export step --subst-models --no-dnp -f -o "$OUT/worxboard-$SIDE.step" "$PCB"
-if grep -q "PRODUCT('$DNP_MODEL'" "$OUT/worxboard-$SIDE.step"; then
-    echo "$OUT/worxboard-$SIDE.step still carries the DNP $DNP_MODEL body" >&2
+if ! grep -q "PRODUCT('$J3_MODEL'" "$OUT/worxboard-$SIDE.step"; then
+    echo "$OUT/worxboard-$SIDE.step lacks the J3 body $J3_MODEL" >&2
+    exit 1
+fi
+if grep -q "PRODUCT('$STOCK_SOCKET_MODEL'" "$OUT/worxboard-$SIDE.step"; then
+    echo "$OUT/worxboard-$SIDE.step carries KiCad's 8.5 mm $STOCK_SOCKET_MODEL body" >&2
     exit 1
 fi

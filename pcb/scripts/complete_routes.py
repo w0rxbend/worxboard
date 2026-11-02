@@ -284,6 +284,8 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
                               (dear if dr else soft if ripable else blocked)[l])
             grid.mark(index.dilated(it, key, HOLE_CLEARANCE + vr + quant),
                       via_dear if dr else via_soft if ripable else via_bad)
+        elif it.pad and it.hole is None and it.net == net:
+            grid.mark(index.dilated(it, key, vr + quant), via_bad)     # no via in an SMD pad
         elif it.net != net and not it.pour:
             ripable = soft_ok and it.ref is not None
             dr = ripable and it.net in PROTECT
@@ -443,6 +445,30 @@ def emit(board, net_item, path, width: float) -> list[Item]:
             run.append(step)
     flush(run)
     return new
+
+
+THERMAL_PADS = (("U1", "57"),)   # the RP2040 exposed pad carries its locked thermal via array
+
+
+def vias_in_pads(board: pcbnew.BOARD, exempt=THERMAL_PADS) -> list[tuple[pcbnew.PCB_VIA, str]]:
+    """Vias whose copper overlaps an SMD pad of any net (open vias wick solder out of the joint;
+    JLC flags drill hits on SMD pads): (via, "REF.pad") pairs."""
+    pads = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.HasHole() or (fp.GetReference(), pad.GetNumber()) in exempt:
+                continue
+            for l in LAYERS:
+                if pad.IsOnLayer(l):
+                    pads.append((f"{fp.GetReference()}.{pad.GetNumber()}", poly(pad.GetEffectivePolygon(l, pcbnew.ERROR_INSIDE))))
+    tree = shapely.STRtree(np.array([g for _, g in pads], dtype=object))
+    out = []
+    for v in board.GetTracks():
+        if v.Type() != pcbnew.PCB_VIA_T:
+            continue
+        disc = Point(xy(v.GetPosition())).buffer(pcbnew.ToMM(v.GetWidth(pcbnew.F_Cu)) / 2)
+        out += [(v, pads[i][0]) for i in tree.query(disc, predicate="intersects")]
+    return out
 
 
 def pour_copper(board: pcbnew.BOARD) -> list[Item]:
@@ -668,6 +694,9 @@ def path_clear(index: "Index", keepouts, net: int, path, width: float, side: str
                 STATS["unclear"] = ("keepout", g.centroid.coords[0])
                 return False
         for it, key in index.near(g.buffer(max(CLEARANCE, HOLE_CLEARANCE))):
+            if is_via and it.pad and it.hole is None and key in it.geoms and g.intersects(it.geoms[key]):
+                STATS["unclear"] = ("via in pad", it.geoms[key].centroid.coords[0])
+                return False
             if it.pour or it.net == net and key != "hole":
                 continue
             if key == "hole":

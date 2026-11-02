@@ -5,7 +5,12 @@
 
 - USB: each line's copper path from the U1 pin to the nearest J1 pin of its net (through
   R3/R4 and the U4 pass-through) is <= USB_MAX_MM, and D+ / D- differ by <= USB_SKEW_MM;
-- Y1: its courtyard lies within Y1_MAX_MM of the U1 XIN / XOUT pads;
+- Y1: its courtyard lies within Y1_MAX_MM of the U1 XIN / XOUT pads, and no B.Cu track or via
+  runs under it (its keepout);
+- decoupling (spec §6.4): every RP2040 supply pin reaches a cap of its net within PIN_CAP_MAX_MM
+  of copper, every supply cap (C8-C19) reaches a U1 supply pin within CAP_PIN_MAX_MM, and each
+  cap's GND pad has a via within CAP_GND_VIA_MM;
+- no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
 """
@@ -24,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pcbnew  # noqa: E402
 from shapely.geometry import Point, Polygon  # noqa: E402
 
+from complete_routes import vias_in_pads  # noqa: E402
 from place import layout_side  # noqa: E402
 
 USB_MAX_MM = 25.0
@@ -34,6 +40,14 @@ SNAP = 1e-3                  # mm, track end-point identity
 USB_LINES = {"D+": (("USB_DP", "USB_C_DP"), "47"), "D-": (("USB_DM", "USB_C_DM"), "46")}
 XTAL_PINS = ("20", "21")   # RP2040 XIN, XOUT
 SERIES = ("R3", "R4")        # series resistors: their two pads count as joined
+SUPPLY_NETS = ("3V3", "1V1")
+U1_CAPS = tuple(f"C{n}" for n in range(8, 20))   # design._mcu: IOVDD, USB/ADC, DVDD, VREG caps
+# Copper path limits (pad centre to pad centre). The IOVDD pins 10, 22 and 33 and VREG_VOUT 45 are
+# joined to an exit inside the pad ring, so their caps sit at that exit (deviations WS2b-5,
+# REVIEW-FIX-2); pin 22 is the furthest, around the east moat.
+PIN_CAP_MAX_MM = 12.0
+CAP_PIN_MAX_MM = 7.0
+CAP_GND_VIA_MM = 1.0
 
 
 def mm_xy(v) -> tuple[float, float]:
@@ -106,6 +120,107 @@ def dijkstra(graph, starts, goals) -> float:
     return math.inf
 
 
+def copper_graph(board: pcbnew.BOARD, code: int):
+    """Copper of one net as a graph: track ends (joined where an end lies in another track's,
+    a via's or a pad's copper, T-junctions split by length), vias and pads (keyed REF.pad)."""
+    from shapely.geometry import LineString
+    graph: dict[object, list[tuple[object, float]]] = defaultdict(list)
+
+    def edge(a, b, w):
+        graph[a].append((b, w))
+        graph[b].append((a, w))
+    segs, vias = [], []
+    for t in board.GetTracks():
+        if t.GetNetCode() != code:
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            vias.append((("via", len(vias)), Point(mm_xy(t.GetPosition())), pcbnew.ToMM(t.GetWidth(pcbnew.F_Cu)) / 2))
+        else:
+            a, b = mm_xy(t.GetStart()), mm_xy(t.GetEnd())
+            segs.append((a, b, t.GetLayer(), LineString([a, b]).buffer(pcbnew.ToMM(t.GetWidth()) / 2 + SNAP)))
+    pads = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetNetCode() == code:
+                layers = [l for l in (pcbnew.F_Cu, pcbnew.B_Cu) if pad.IsOnLayer(l)]
+                pads.append((f"{fp.GetReference()}.{pad.GetNumber()}", mm_xy(pad.GetPosition()), layers,
+                             pad_poly(pad).buffer(SNAP)))
+    for i, (a, b, layer, _) in enumerate(segs):
+        edge(("s", i, 0), ("s", i, 1), math.dist(a, b))
+        for end, p in ((0, a), (1, b)):
+            q = Point(p)
+            for j, (c, d, lj, gj) in enumerate(segs):
+                if j != i and lj == layer and gj.contains(q):
+                    s = LineString([c, d]).project(q)
+                    edge(("s", i, end), ("s", j, 0), s)
+                    edge(("s", i, end), ("s", j, 1), math.dist(c, d) - s)
+            for key, c, r in vias:
+                if c.distance(q) <= r + SNAP:
+                    edge(("s", i, end), key, 0.0)
+            for name, c, layers, poly in pads:
+                if layer in layers and poly.contains(q):
+                    edge(("s", i, end), name, math.dist(p, c))
+    for i, (a, b, layer, _) in enumerate(segs):           # pads and vias a track runs through
+        line = LineString([a, b])
+        for name, c, layers, poly in pads:
+            if layer in layers and line.intersects(poly):
+                s = line.project(Point(c))
+                edge(name, ("s", i, 0), s + line.distance(Point(c)))
+                edge(name, ("s", i, 1), line.length - s + line.distance(Point(c)))
+        for key, c, r in vias:
+            if line.distance(c) <= r:
+                s = line.project(c)
+                edge(key, ("s", i, 0), s)
+                edge(key, ("s", i, 1), line.length - s)
+    for key, c, r in vias:
+        for name, pc, _, poly in pads:
+            if poly.contains(c):
+                edge(key, name, math.dist(pc, (c.x, c.y)))
+    return graph
+
+
+def decoupling(board: pcbnew.BOARD) -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
+    """Copper path pin -> nearest cap and cap -> nearest U1 pin per supply net, and cap GND pad ->
+    nearest GND via (straight distance)."""
+    u1 = board.FindFootprintByReference("U1")
+    pin_cap, cap_pin = {}, {}
+    for name in SUPPLY_NETS:
+        code = board.FindNet(name).GetNetCode()
+        graph = copper_graph(board, code)
+        pins = [f"U1.{p.GetNumber()}" for p in u1.Pads() if p.GetNetCode() == code]
+        caps = [f"{c}.1" for c in U1_CAPS
+                if any(p.GetNumber() == "1" and p.GetNetCode() == code for p in board.FindFootprintByReference(c).Pads())]
+        for p in sorted(pins, key=lambda p: int(p[3:])):
+            pin_cap[f"{name} {p}"] = dijkstra(graph, [p], set(caps))
+        for c in caps:
+            cap_pin[c[:-2]] = dijkstra(graph, [c], set(pins))
+    gnd = board.FindNet("GND").GetNetCode()
+    vias = [mm_xy(t.GetPosition()) for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
+    gnd_via = {}
+    for c in U1_CAPS:
+        pad = next(p for p in board.FindFootprintByReference(c).Pads() if p.GetNumber() == "2")
+        gnd_via[c] = min(math.dist(mm_xy(pad.GetPosition()), v) for v in vias)
+    return pin_cap, cap_pin, gnd_via
+
+
+def under_crystal(board: pcbnew.BOARD) -> list[str]:
+    """B.Cu tracks and any vias whose copper reaches under Y1's courtyard."""
+    from shapely.geometry import LineString
+    cy = courtyard(board.FindFootprintByReference("Y1"))
+    out = []
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T:
+            g = Point(mm_xy(t.GetPosition())).buffer(pcbnew.ToMM(t.GetWidth(pcbnew.F_Cu)) / 2)
+        elif t.GetLayer() == pcbnew.B_Cu:
+            g = LineString([mm_xy(t.GetStart()), mm_xy(t.GetEnd())]).buffer(pcbnew.ToMM(t.GetWidth()) / 2)
+        else:
+            continue
+        if g.intersects(cy):
+            out.append(f"{t.GetNetname()} {'via' if t.Type() == pcbnew.PCB_VIA_T else 'B.Cu track'} at "
+                       f"({g.centroid.x:.2f}, {g.centroid.y:.2f})")
+    return out
+
+
 def courtyard(fp: pcbnew.FOOTPRINT) -> Polygon:
     sps = fp.GetCourtyard(pcbnew.F_CrtYd)
     o = sps.Outline(0)
@@ -173,6 +288,22 @@ def main(argv: list[str]) -> int:
     y1 = y1_distance(board)
     results.append((f"Y1 courtyard {y1:.2f} mm from XIN/XOUT",
                     [f"{y1:.2f} mm > {Y1_MAX_MM}"] if y1 > Y1_MAX_MM else []))
+    results.append(("nothing on B.Cu or in vias under Y1", under_crystal(board)))
+    pin_cap, cap_pin, gnd_via = decoupling(board)
+    worst_pin, worst_cap, worst_via = (max(d, key=d.get) for d in (pin_cap, cap_pin, gnd_via))
+    errs = [f"{p} is {v:.2f} mm of copper from a cap > {PIN_CAP_MAX_MM}" for p, v in pin_cap.items() if v > PIN_CAP_MAX_MM]
+    errs += [f"{c} is {v:.2f} mm of copper from a U1 supply pin > {CAP_PIN_MAX_MM}" for c, v in cap_pin.items()
+             if v > CAP_PIN_MAX_MM]
+    errs += [f"{c} GND pad {v:.2f} mm from a GND via > {CAP_GND_VIA_MM}" for c, v in gnd_via.items() if v > CAP_GND_VIA_MM]
+    results.append((f"decoupling: pins <= {pin_cap[worst_pin]:.2f} mm from a cap ({worst_pin}), caps <= "
+                    f"{cap_pin[worst_cap]:.2f} mm from a pin ({worst_cap}), GND vias <= {gnd_via[worst_via]:.2f} mm",
+                    errs))
+    for net in SUPPLY_NETS:
+        print(f"     {net} U1 pin -> nearest cap, mm: " + ", ".join(
+            f"{k.split('.')[1]} {v:.1f}" for k, v in pin_cap.items() if k.startswith(net)))
+    results.append(("no via in an SMD pad", [f"{v.GetNetname()} via at ({pcbnew.ToMM(v.GetPosition().x):.3f}, "
+                                              f"{pcbnew.ToMM(v.GetPosition().y):.3f}) in {pad}"
+                                              for v, pad in vias_in_pads(board)]))
     results.append(("Edge.Cuts equals layout", check_edges(board, side)))
     results.append(("DRC: 0 unconnected, 0 errors", check_drc(ROOT / "build" / side / "drc.json")))
     failed = 0

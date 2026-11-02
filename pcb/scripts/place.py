@@ -53,6 +53,7 @@ ZONE_TOL = 0.02                  # courtyard vs zone check slack (mm)
 SILK_TEXT = (1.0, 0.15)          # size, thickness
 SKIP_FIELDS = ("Footprint", "Datasheet", "Description", "Reference", "Value")
 DIODE_OFFSET = (0.0, 5.0)        # B.Cu diode centre in the key frame (below the switch centre)
+STAB_ROT_DIGITS = 3              # stabiliser rotation from layout.json's rounded stab_dir
 
 # U1 (x, y, rot) per half. The RP2040 cannot be mirrored: the left one is turned 180 deg so its
 # USB pins face J1, and sits 1.5 mm further back (docs/deviations.md WS2b)
@@ -76,14 +77,21 @@ U1_ROT = {s: p[2] for s, p in U1_POSE.items()}
 
 # MCU cluster in the U1 frame (x, y, rot), mm from the U1 centre; the same on both halves
 CLUSTER = {
-    "Y1": (-0.37, 8.9, -90), "R7": (2.6, 10.42, 0),
+    "Y1": (-1.07, 8.9, -90), "R7": (1.4, 8.4, 90),                   # XOUT -> R7 beside the crystal
     "R3": (6.5, -5.125, 180), "R4": (6.5, -4.075, 180),              # USB 27R, in the pair
-    "C14": (2.2, -6.4, 0), "C15": (2.2, -7.6, 0), "C17": (4.3, -6.4, 0), "C16": (4.3, -7.6, 0),
-    "C19": (6.0, -7.4, 90),                                          # beside the pins 48-50 escapes
+    # decoupling at the exits of the pins they serve (spec §6.4, docs/deviations.md REVIEW-FIX-2);
+    # route_critical.decoupling() joins each one to its exit and to a GND via with locked copper
+    "C14": (1.2, -6.08, 90), "C15": (2.4, -6.08, 90), "C13": (3.6, -6.08, 90),
+    "C10": (4.8, -6.08, 90),                                         # north bus: USB_VDD 48, IOVDD 49
+    "C18": (5.8, -2.12, 270), "C11": (7.3, -2.12, 270), "C12": (8.8, -2.12, 270),   # east bus: 42-44
+    "C8": (-5.454, -4.3, 180), "C9": (-5.454, -5.6, 180),            # west: pin 1 (and 10 on the moat)
+    "C16": (-1.05, -7.6, 90), "C19": (0.05, -7.6, 90),               # 1V1 at the pin-50 fan end (45, 50)
+    "C17": (2.45, 8.4, 270),                                         # 1V1 below the pin-23 fan end,
+                                                                     # clear of the SWCLK lane (pin 24)
 }
 CLUSTER_SIDE = {
     "right": {"C6": (-1.0, 12.2, 0), "C7": (1.2, 12.2, 0)},
-    "left": {"C6": (-2.8, 9.0, 90), "C7": (4.2, 9.4, 90)},           # the board edge is near
+    "left": {"C6": (-3.3, 9.0, 90), "C7": (4.2, 9.4, 90)},           # the board edge is near
 }
 
 # Everything else, right frame (x, y, rot); the left half mirrors x with mirror_rot()
@@ -91,8 +99,6 @@ PLACE_R = {
     "U2": (154.6, 35.0, 0), "C5": (160.6, 33.2, 90),                 # flash beside its escapes
     "R8": (147.0, 33.4, 90), "R9": (145.8, 33.4, 90), "R13": (145.0, 46.0, 0),
     "U4": (177.5, 39.4, 0),
-    "C11": (175.0, 43.2, 0), "C12": (175.0, 44.4, 0), "C13": (177.2, 43.2, 0), "C18": (177.2, 44.4, 0),
-    "C8": (179.4, 43.2, 0), "C9": (179.4, 44.4, 0), "C10": (179.4, 45.6, 0),   # IOVDD, on the 3V3 moat
     "SW1": (176.0, 50.0, 90), "SW2": (180.0, 50.0, 90),
     "J1": (186.0, 34.25, 180),
     "R1": (189.4, 42.4, 90), "R2": (183.4, 43.2, 0), "R10": (182.6, 47.6, 90),
@@ -109,8 +115,6 @@ PLACE_R = {
 PLACE_L = {
     "J1": (74.0, 34.25, 180),
     "U2": (96.0, 53.7, 180), "C5": (90.0, 55.4, 90), "R8": (89.0, 52.6, 90), "R9": (87.8, 52.6, 90),
-    "C11": (99.8, 34.4, 0), "C12": (99.8, 33.2, 0), "C13": (101.8, 34.4, 0), "C18": (101.8, 33.2, 0),
-    "C8": (102.0, 36.4, 0), "C9": (102.0, 37.6, 0), "C10": (104.0, 37.0, 0),
     "R1": (80.5, 39.6, 0), "R2": (70.2, 43.4, 0),
     "TP11": (81.0, 33.8, 0), "TP4": (83.2, 33.8, 0), "TP5": (85.4, 33.8, 0), "TP6": (81.0, 36.0, 0),
     "TP7": (83.2, 36.0, 0), "TP8": (87.6, 34.0, 0), "TP9": (87.6, 36.2, 0), "TP10": (85.4, 36.2, 0),
@@ -252,12 +256,12 @@ def add_footprints(board: pcbnew.BOARD, side: str, net_path: Path) -> None:
         fp.Reference().SetVisible(ref.startswith(("J", "SW", "JP", "U")))
     for k in lay["keys"]:
         if "stabs" in k:
-            (x0, y0), (x1, y1) = k["stabs"]
+            dx, dy = k["stab_dir"]               # footprint +y (the Ø4.0 housing holes) -> stab_dir
             stab = load_fp("worxboard:Stab_MX_2u")
             stab.SetReference(f"STAB_{k['id']}")
             stab.Reference().SetVisible(False)
             board.Add(stab)
-            place(stab, k["x"], k["y"], math.degrees(math.atan2(-(y1 - y0), x1 - x0)))
+            place(stab, k["x"], k["y"], round(math.degrees(math.atan2(dx, dy)), STAB_ROT_DIGITS))
 
 
 def _ref_key(ref: str) -> tuple[str, int]:

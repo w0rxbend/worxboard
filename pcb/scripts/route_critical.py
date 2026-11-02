@@ -11,6 +11,8 @@
 - USB pair U1 -> R3/R4 -> U4 (pass-through) -> J1, with the receptacle's A/B ties, and the
   J1 escape vias the pair encloses on the right half. A B.Cu track keepout runs under the pair.
 - Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
+- Decoupling: every supply cap (placed at an exit by place.CLUSTER) joined to that exit, and its
+  GND pad to a via; XOUT -> R7 -> Y1 beside the crystal; a B.Cu track/via keepout under Y1.
 
 Geometry is written in the U1 frame (place.U1_ROT) where it is the same on both halves; the
 J1 end is laid per side.
@@ -71,6 +73,20 @@ JOG_TRIES = [0.0] + [s * 0.5 * i for i in range(1, 15) for s in (1, -1)]
 
 TESTEN = "19"
 
+# Decoupling (docs/deviations.md REVIEW-FIX-2): caps per exit, in bus order from the exit, and
+# the GND via of each one as an offset from its pad 2 (U1 frame; one shared via for C8 / C9)
+N_CAPS = ("C14", "C15", "C13", "C10")        # north bus: USB_VDD 48, IOVDD 49
+E_CAPS = ("C18", "C11", "C12")               # east bus: IOVDD 42 (33, 22 on the moat), ADC 43, VREG_IN 44
+W_CAPS = ("C8", "C9")                        # west: IOVDD 1 (10 on the moat)
+V11_N_CAPS = ("C16", "C19")                  # 1V1 at the pin-50 fan end: DVDD 50, VREG_VOUT 45 (moat)
+V11_S_CAP = "C17"                            # 1V1 at the pin-23 fan end: DVDD 23
+GND_VIA = {**{c: (0.0, -0.84) for c in N_CAPS}, **{c: (0.75, 0.0) for c in E_CAPS},
+           "C8": (0.0, -0.65), "C9": (0.0, 0.65), "C16": (0.0, -0.82), "C19": (0.0, -0.82),
+           V11_S_CAP: (0.75, 0.0)}
+CAP_LINK_W = 0.25            # 1V1 and crystal links (Default width)
+XOUT_PIN = "21"
+Y1_KEEPOUT_GROW = 0.25       # B.Cu track / via keepout: Y1 courtyard + this (spec §6.4)
+
 
 class Router:
     def __init__(self, board: pcbnew.BOARD, side: str):
@@ -80,6 +96,7 @@ class Router:
         c = self.u1.GetPosition()
         self.cx, self.cy = pcbnew.ToMM(c.x), pcbnew.ToMM(c.y)
         self.tracks = 0
+        self.fan_ends: dict[str, tuple[float, float]] = {}
 
     # U1 frame <-> board
     def g(self, lx: float, ly: float) -> tuple[float, float]:
@@ -195,6 +212,7 @@ class Router:
                     self.ltrack(net, [mid, end], POWER_W)
                 else:
                     self.ltrack(net, [(lx, ly), turn, end], FAN_W)
+                self.fan_ends[num] = end
                 if num in FAN_VIA_PINS:            # columns drop to B.Cu to cross under U1
                     self.via(net, self.g(*end))
                     vias_done += 1
@@ -205,6 +223,62 @@ class Router:
         y1 = self.local(*self.pad_xy("Y1", "1"))
         lx, ly = pads["20"]
         self.ltrack(self.net("U1", "20"), [(lx, ly), (lx, y1[1] - 1.5), (y1[0], y1[1] - 1.5 + abs(y1[0] - lx)), y1], FAN_W)
+
+    # --- decoupling and crystal ---------------------------------------------------------------
+    def lpad(self, ref: str, num: str) -> tuple[float, float]:
+        return self.local(*self.pad_xy(ref, num))
+
+    def decoupling(self) -> None:
+        """Locked copper from each decoupling cap to the U1 exit it serves, and from its GND pad
+        to a via, so routing can never leave a cap far from its pins (spec §6.4)."""
+        pads = self.u1_pads()
+        v33, v11 = self.net("U1", "42"), self.net("U1", "45")
+        xm = (pads["48"][0] + pads["49"][0]) / 2              # north: 48/49 exit -> pad-1 row
+        y_bus = self.lpad(N_CAPS[0], "1")[1]
+        self.ltrack(v33, [(xm, -PAD_END - 1.15), (xm, y_bus), self.lpad(N_CAPS[-1], "1")], POWER_W)
+        self.ltrack(v33, [(PAD_END + 1.45, pads["42"][1]), self.lpad(E_CAPS[-1], "1")], POWER_W)
+        end1 = self.fan_ends["1"]                             # west: down the pin-1 exit's x
+        self.ltrack(v33, [end1, (end1[0], self.lpad(W_CAPS[-1], "1")[1])], POWER_W)
+        self.ltrack(v11, [self.fan_ends["50"], *(self.lpad(c, "1") for c in V11_N_CAPS)], CAP_LINK_W)
+        (ex, ey), (cx, cy) = self.fan_ends["23"], self.lpad(V11_S_CAP, "1")
+        self.ltrack(v11, [(ex, ey), (cx, ey + cx - ex), (cx, cy)], CAP_LINK_W)   # on down the 45° lane
+        done = set()
+        for cap, (dx, dy) in GND_VIA.items():
+            px, py = self.lpad(cap, "2")
+            v = (round(px + dx, 4), round(py + dy, 4))
+            gnd = self.net(cap, "2")
+            self.ltrack(gnd, [(px, py), v], POWER_W)
+            if v not in done:
+                self.via(gnd, self.g(*v))
+                done.add(v)
+
+    def crystal(self) -> None:
+        """XOUT from its fan end down to R7 beside the crystal, R7 -> Y1 pad 3, and a B.Cu
+        track/via keepout over Y1 so the GND pour stays solid under it (spec §6.4)."""
+        r7_out, r7_in = self.lpad("R7", "2"), self.lpad("R7", "1")
+        ex, ey = self.fan_ends[XOUT_PIN]
+        self.ltrack(self.net("U1", XOUT_PIN), [(ex, ey), (r7_out[0], ey + r7_out[0] - ex), r7_out], FAN_W)
+        y3 = self.lpad("Y1", "3")
+        d = (r7_in[0] - y3[0]) / 2
+        self.ltrack(self.net("R7", "1"), [r7_in, (r7_in[0] - d, r7_in[1] + d), (y3[0] + 0.4, r7_in[1] + d)], CAP_LINK_W)
+        from shapely.geometry import Polygon
+        y1 = self.board.FindFootprintByReference("Y1").GetCourtyard(pcbnew.F_CrtYd).Outline(0)
+        poly = Polygon([self.xy(y1.CPoint(i)) for i in range(y1.PointCount())]).buffer(
+            Y1_KEEPOUT_GROW, join_style=2)
+        z = pcbnew.ZONE(self.board)
+        z.SetIsRuleArea(True)
+        z.SetLayer(pcbnew.B_Cu)
+        z.SetDoNotAllowTracks(True)
+        z.SetDoNotAllowVias(True)
+        z.SetDoNotAllowPads(False)
+        z.SetDoNotAllowZoneFills(False)
+        z.SetDoNotAllowFootprints(False)
+        z.SetZoneName("Y1_KEEPOUT")
+        o = z.Outline()
+        o.NewOutline()
+        for x, y in list(poly.exterior.coords)[:-1]:
+            o.Append(mm(x), mm(y))
+        self.board.Add(z)
 
     @staticmethod
     def fanout_nets(board: pcbnew.BOARD) -> list[str]:
@@ -488,7 +562,7 @@ def clear_locked(board: pcbnew.BOARD) -> None:
         if t.IsLocked():
             board.Delete(t)
     for z in list(board.Zones()):
-        if z.GetZoneName() == "USB_KEEPOUT":
+        if z.GetZoneName() in ("USB_KEEPOUT", "Y1_KEEPOUT"):
             board.Delete(z)
 
 
@@ -505,6 +579,8 @@ def main(argv: list[str]) -> int:
     r.qfn_inner()
     r.power_escapes()
     r.fanout()
+    r.decoupling()
+    r.crystal()
     r.keepout(r.usb())
     r.matrix(layout_side(side)["keys"])
     board.Save(str(path))

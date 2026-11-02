@@ -192,6 +192,9 @@ def main(argv: list[str]) -> int:
             and pcbnew.ToMM(t.GetWidth()) < BOARD_MIN - 1e-6]
     for t in thin:                             # Freerouting necks some down below the board minimum:
         board.Delete(t)                        # the completion router rejoins them at full width
+    in_pads = {v.m_Uuid.AsString(): v for v, _ in complete_routes.vias_in_pads(board) if not v.IsLocked()}
+    for v in in_pads.values():                 # vias in SMD pads go too; the completion router
+        board.Delete(v)                        # rejoins outside the pads (deviations REVIEW-FIX-3)
     if route_only:
         board.Save(str(path))
         print(f"{side}: imported {ses.name} (routing round)")

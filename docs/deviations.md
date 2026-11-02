@@ -449,3 +449,38 @@ what changed, why, and who consumes it.
 - **Change:** `pages.yml` runs only on `workflow_dispatch` (orchestration rule), so the site builds
   locally (`just site`) and in that workflow, but it has not been deployed. Deploying is one manual
   run from the Actions tab once Pages is enabled for the repository.
+
+## WS5: integration and release (`tests/integration/`, `.github/workflows/release.yml`, `docs/verification.md`)
+
+### WS5-1. No `v0.1.0-revA` tag and no release (§14 WS5)
+
+- **Spec:** tag `v0.1.0-revA`; acceptance "all six workflows green on the tag" and "the release
+  contains every artifact".
+- **Change:** no tag or release was created (orchestration rule), and the gates fail
+  ([verification.md](verification.md)), so a hardware tag would publish boards that cannot be
+  ordered yet. `release.yml` is written and only triggers on a `v*` tag push. It was checked with
+  actionlint and `test_release.py`, and its assembly step was run locally on a clean-clone
+  `just all`. Acceptance is measured on `main` instead: the four push workflows are green there.
+
+### WS5-2. Release assets are packed by `tests/integration/release.py`; `release.yml` builds them itself (§12, §14 WS5)
+
+- **Spec:** `release.yml` attaches the gerbers/BOM/CPL zips, UF2s and case STEP/STL; it names no
+  packing script.
+- **Change:** WS5 owns only `tests/integration/` and `release.yml`, so the packing script lives in
+  `tests/integration/` and is tested there. `firmware.yml`, `pcb.yml` and `case.yml` belong to other
+  streams and have no `workflow_call` trigger, and reading another run's artifacts would race it, so
+  `release.yml` runs the same recipes (`just fw`, `just pcb-sch` / `pcb-drc` / `pcb-fab`,
+  `just model`) in its own jobs.
+- **Assets:** `worxboard-<tag>-pcb-{left,right}.zip` (JLC `gerbers.zip`, `bom.csv`, `pos.csv` as the
+  CPL, the board STEP, the Edge DXF), the six UF2s one by one under their `build.yaml` names (the
+  names `docs/firmware.md` uses), `worxboard-<tag>-case-{step,stl}.zip` and `SHA256SUMS.txt`, as a
+  pre-release. `pcb/production/<side>/` (§9: committed on hardware tags only) is filled by
+  `release.py --production` before tagging, not by CI.
+
+### WS5-3. Gate failures are recorded as strict expected failures, not fixed here (§14 WS5)
+
+- **Spec:** G1–G3 "researched and recorded, with any fixes sent back to the owning stream".
+- **Change:** the G1 and G2 fixes need WS0 geometry, WS2 re-placement and re-routing, and WS3 case
+  changes. They are listed in [verification.md](verification.md#open-items-that-block-ordering)
+  and checked by `tests/integration/test_gates.py` as strict xfails, which turn into errors once a
+  fix lands so the marker is removed with it.

@@ -29,7 +29,8 @@ DISCONTINUED = {"stop_product"}
 
 
 def curl(*args: str) -> dict:
-    out = subprocess.run(["curl", "-sS", "--max-time", "30", *args], capture_output=True, text=True, check=True)
+    cmd = ["curl", "-sS", "--max-time", "30", *args]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
     return json.loads(out.stdout)
 
 
@@ -40,7 +41,8 @@ def lcsc(code: str) -> dict:
 def jlc(code: str) -> dict:
     body = json.dumps({"keyword": code, "currentPage": 1, "pageSize": 25})
     rows = curl("-X", "POST", JLC_API, "-H", "Content-Type: application/json", "-d", body)
-    return next((r for r in rows["data"]["componentPageInfo"]["list"] or [] if r["componentCode"] == code), {})
+    found = rows["data"]["componentPageInfo"]["list"] or []
+    return next((r for r in found if r["componentCode"] == code), {})
 
 
 def bom() -> tuple[Counter, dict[str, list[str]]]:
@@ -64,13 +66,14 @@ def main(argv: list[str]) -> int:
         need = per_board[code] * args.boards * len(SIDES)
         lc, jl = lcsc(code), jlc(code)
         stock = jl.get("stockCount") or 0
-        flags = [f for f, bad in (("SHORT", stock < need), ("DISCONTINUED", lc.get("productCycle") in DISCONTINUED))
-                 if bad]
+        gone = lc.get("productCycle") in DISCONTINUED
+        flags = [f for f, bad in (("SHORT", stock < need), ("DISCONTINUED", gone)) if bad]
         short += [f"{code} {f}" for f in flags]
         print(f"{code:10} {per_board[code]:>4} {need:>5} {jl.get('componentLibraryType', '?'):8} {stock:>10} "
               f"{lc.get('stockNumber', '?'):>10}  {lc.get('brandNameEn')} {lc.get('productModel')} "
               f"({refs[code][0]}{'...' if len(refs[code]) > 1 else ''}) {' '.join(flags)}")
-    print(f"{len(per_board)} LCSC numbers, {args.boards} boards per half: " + ("; ".join(short) or "all in stock"))
+    verdict = "; ".join(short) or "all in stock"
+    print(f"{len(per_board)} LCSC numbers, {args.boards} boards per half: {verdict}")
     return 1 if short else 0
 
 

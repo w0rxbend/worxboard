@@ -95,12 +95,11 @@ def transform_order() -> list[tuple[str, str]]:
 @pytest.mark.parametrize("side, reader, name", fw_variants())
 def test_firmware_pins_match_pins_py(side, reader, name):
     fw = load_fw(reader, name, side)
-    row_nets = [pins.gpio(f"ROW{i}") for i in range(len(pins.ROW_GPIOS))]
-    col_nets = [pins.gpio(f"COL{i}") for i in range(len(pins.COL_GPIOS))]      # COL0 outer .. COL6 inner
-    want_cols = (pins.COL_GPIOS, col_nets) if side == "left" else (pins.RIGHT_COL_GPIOS, col_nets[::-1])
-    assert [g.pin for g in fw.rows] == list(pins.ROW_GPIOS) == row_nets
+    by_net = [pins.gpio(f"COL{i}") for i in range(len(pins.COL_GPIOS))]      # COL0 outer .. COL6 inner
+    cols, by_net = (pins.COL_GPIOS, by_net) if side == "left" else (pins.RIGHT_COL_GPIOS, by_net[::-1])
+    assert [g.pin for g in fw.rows] == list(pins.ROW_GPIOS) == [pins.gpio(f"ROW{i}") for i in range(6)]
     assert all(g.flags == fwdt.PULL_DOWN for g in fw.rows), "rows: active high with pull-down (col2row)"
-    assert [g.pin for g in fw.cols] == list(want_cols[0]) == want_cols[1]
+    assert [g.pin for g in fw.cols] == list(cols) == by_net
     assert all(g.flags == 0 for g in fw.cols), "columns: plain active-high outputs"
     assert fw.col_offset == (0 if side == "left" else len(pins.COL_GPIOS))
     assert fw.uart == {"TX": pins.UART_TX, "RX": pins.UART_RX}

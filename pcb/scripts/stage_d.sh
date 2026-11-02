@@ -14,6 +14,7 @@ IMAGES="docs/images"
 # Not assembled: excluded by their footprint attributes (exclude_from_bom/pos, J3 dnp), not by
 # kikit --ignore, which deletes footprints and corrupts the board under KiCad 10 (deviations WS2c-1)
 NOT_ASSEMBLED='^"?(JP1|J3|TP[0-9]+|H[0-9]+|STAB_[A-Z0-9]+)"?$'
+DNP_MODEL="PinSocket_1x05_P2.54mm_Vertical"   # J3: must not reach the STEP (deviations WS2c-5)
 RENDER_W=1600
 RENDER_H=1000
 
@@ -37,10 +38,16 @@ if grep -Eq "${NOT_ASSEMBLED}" <<<"$designators"; then
     exit 1
 fi
 
-# 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models
+# 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models. The STEP leaves out
+# DNP parts: J3's stock model is an 8.5 mm socket, not the low-profile one gate G1 sizes the
+# display pocket for, and the case fit check reads this file (deviations WS2c-5)
 for view in top bottom; do
     kicad-cli pcb render --side "$view" --width "$RENDER_W" --height "$RENDER_H" --quality basic \
         -o "$IMAGES/pcb-$SIDE-$view.png" "$PCB"
 done
 kicad-cli pcb export dxf --mode-single --output-units mm --layers Edge.Cuts -o "$OUT/edge.dxf" "$PCB"
-kicad-cli pcb export step --subst-models -f -o "$OUT/worxboard-$SIDE.step" "$PCB"
+kicad-cli pcb export step --subst-models --no-dnp -f -o "$OUT/worxboard-$SIDE.step" "$PCB"
+if grep -q "PRODUCT('$DNP_MODEL'" "$OUT/worxboard-$SIDE.step"; then
+    echo "$OUT/worxboard-$SIDE.step still carries the DNP $DNP_MODEL body" >&2
+    exit 1
+fi

@@ -402,3 +402,22 @@ what changed, why, and who consumes it.
   or placement change leaves items unconnected, try another base seed before retuning the router.
 - **CI:** the `rebuild` job runs stages 1–12 from scratch and requires the result to equal the
   committed board (`git diff --exit-code -- pcb/<side>/`).
+
+### WS2c-5. The STEP leaves out DNP parts, so J3's stock socket stays out of the case fit check (§9 stage 14, §4 G1)
+
+- **Spec:** stage 14 exports the board STEP with its 3D models, and WS3's `fitcheck` requires
+  0 mm³ between it and the case (§14). J3 is a low-profile socket, hand-soldered and DNP (§7), and
+  socket + module + glass stay ≤ 8.2 mm above the PCB top (§4, G1).
+- **Problem:** the J3 footprint carries the stock `PinSocket_1x05_P2.54mm_Vertical` model, a
+  full-height socket 8.5 mm tall. Its top (Z 17.1) is 0.3 mm above the display-pocket ceiling
+  (Z 16.8), so `just fitcheck` failed on each half with 8.265 mm³ (`left top hits solid 28`,
+  `right top hits solid 13`). KiCad's library has no low-profile 1×5 socket model.
+- **Change:** `kicad-cli pcb export step --no-dnp`. J3 is the only DNP footprint on either board,
+  so the STEP loses exactly that body (81 → 80). The display stack's height belongs to gate G1,
+  which sizes the case pocket. `stage_d.sh` fails if the socket model still reaches the STEP. The
+  renders still show J3.
+- **Result:** `just model && just fitcheck` in a fresh clone with these STEPs: 80 bodies and
+  0.0000 mm³ on each half.
+- **CI:** the new `fit` job in `pcb.yml` downloads both STEPs from the `board` job and runs
+  `just model && just fitcheck` against them. `case.yml` has no STEP and checks the layout
+  envelopes only.

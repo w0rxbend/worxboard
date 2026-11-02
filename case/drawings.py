@@ -90,10 +90,10 @@ def top_features(right: bool) -> list[list[str]]:
                f"{E.LD.WINDOW_CHAMFER} x 45° chamfer on the top edge", *map("{:.2f}".format, E.P(wx, wy))],
         ["D1", f"display pocket {px1 - px0:.1f} x {py1 - py0:.1f}, Z {E.Z_PCB_TOP}-{E.Z_DISPLAY_TOP} "
                f"(top skin {E.Z_TOP - E.Z_DISPLAY_TOP:.1f})", *map("{:.2f}".format, E.P((px0 + px1) / 2, (py0 + py1) / 2))],
-        ["U1", f"USB-C notch {E.USB_NOTCH[0]} x {E.USB_NOTCH[1]} R{E.USB_NOTCH_R} thru back wall at Z {usb['z']:.1f}; "
+        ["J1", f"USB-C notch {E.USB_NOTCH[0]} x {E.USB_NOTCH[1]} R{E.USB_NOTCH_R} thru back wall at Z {usb['z']:.1f}; "
                f"outside recess {E.USB_RECESS[0]:.0f} x {E.USB_RECESS[1]:.0f} x {E.USB_RECESS_DEPTH} deep",
          *map("{:.2f}".format, E.P(usb["x"], usb["y"]))],
-        ["J1", f"TRRS hole Ø{E.TRRS_NOTCH_D} thru inner bump wall, axis Z {trrs['z']:.1f}",
+        ["J2", f"TRRS hole Ø{E.TRRS_NOTCH_D} thru inner bump wall, axis Z {trrs['z']:.1f}",
          *map("{:.2f}".format, E.P(trrs["x"], trrs["y"]))],
     ]
     for ref, (x, y) in zip(E.PIN_HOLES, E.pin_holes(side)):
@@ -269,7 +269,7 @@ def top_sheet1(pdf, shape, right, part, dwg, version):
         f"{2 * len(E.stab_keys(_side(right)))} stabiliser cutouts. Plate thickness 1.50 ±0.05. "
         "Plate flatness 0.2 over the part.",
         "Display window W1 and pocket D1: the pocket runs from the parting side up to 0.8 mm under the top face; "
-        "the window opens it. USB-C notch U1 and TRRS hole J1 are side operations (see table).",
+        "the window opens it. USB-C notch J1 and TRRS hole J2 are side operations (see table).",
         (f"Detent bosses L1-L3 carry {E.LEG_TEETH} radial teeth: see sheet 2. Tooth count is critical."
          if E.DETENT_TEETH else
          "Leg bosses L1-L3: plain Ø10 bosses with a FLAT face (no teeth), see sheet 2."),

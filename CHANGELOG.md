@@ -82,3 +82,6 @@ Post-integration review (deviations REVIEW-FIX-1 to -8):
   J3 has pin 1 at the wrong end and the module and window are offset from the drawing (G1); the
   PJ-320D body is longer than the case allows for (G2); the hot-swap socket C2803348 is discontinued
   (G3).
+- The completion router caches shapes by `id()`, so the left board's rebuild can differ between
+  hosts in track UUIDs; the committed left board is the CI build
+  ([verification.md](docs/verification.md#review-fixes)).

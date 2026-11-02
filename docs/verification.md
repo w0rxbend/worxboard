@@ -232,14 +232,28 @@ fixed on `main` (deviations REVIEW-FIX-1 to -8) and were re-checked on the fixed
 | COL0/COL1/XOUT on B.Cu under Y1; XOUT 13 mm with 2 vias | R7 beside Y1, locked XOUT, B.Cu keepout (REVIEW-FIX-8) | `checks.py`: nothing under Y1; XOUT 5.1 mm, no via | PASS |
 | Build guide, BOM, case, legs and README behind this page; TRRS plug-head limit and VBUS back-drive undocumented | docs | link check | PASS |
 
-Both boards were rebuilt from scratch after the fixes (placement, Freerouting, completion) and are
-byte-identical to the committed ones; DRC with schematic parity reports 0 violations, 0 unconnected
-and 0 parity issues on each, `checks.py` passes 7/7, and `layout-check`, `just model` (every case
-check) and `just fitcheck` pass. Integration tests on those outputs: **88 passed, 6 xfailed** (the 6 remaining gate findings), nothing skipped.
+Both boards were rebuilt from scratch after the fixes (placement, Freerouting, completion). The
+right board is byte-identical here and on the CI runners. The left board has the same copper on both,
+but the runners give part of its completion copper other UUIDs than this host (see the first note
+below), so the committed left board is the CI build. DRC with schematic parity reports 0 violations,
+0 unconnected and 0 parity issues on each board, `checks.py` passes 7/7, and `layout-check`,
+`just model` (every case check) and `just fitcheck` pass. Integration tests on those outputs:
+**88 passed, 6 xfailed** (the 6 remaining gate findings), nothing skipped.
 
-Not changed: unlocked track and via stubs left by the completion rip-up show up as DRC
-`track_dangling` / `via_dangling` warnings (about 90 on the left, 70 on the right); they carry no
-current and are not errors.
+Not changed:
+
+- **The completion router depends on the host.** `complete_routes.Index.dilated` caches the
+  dilated copper shapes by `id()` of the item. Items freed by a rip-up have their ids reused by new
+  ones, which then get the old shape (over 6 000 such hits in one left rebuild). Which ids are
+  reused depends on the host's memory layout, so a host can take another path through the left
+  board's rip-up negotiation: here and on the runners the end copper is the same, but the UUIDs
+  differ. Keying the cache by the item itself removes the dependence, but the left board then ends
+  with its U1-area GND pour island unconnected (3 DRC unconnected items), so the fix needs a routing
+  change around U1 (WS2). Until then the `rebuild` job reproduces the CI build, and a local
+  `just pcb left` can differ from git in track UUIDs only.
+- Unlocked track and via stubs left by the completion rip-up show up as DRC `track_dangling` /
+  `via_dangling` warnings (about 90 on the left, 70 on the right); they carry no current and are
+  not errors.
 
 ## Open items that block ordering
 

@@ -355,8 +355,17 @@ what changed, why, and who consumes it.
   and Python segfaults. Whether it fails depends on the ignore list.
 - **Change:** `place.py` already marks those footprints `exclude_from_bom exclude_from_pos_files`
   (J3 `dnp`), and kikit honours that, so stage 13 runs without `--ignore`. `--missingError` still
-  fails on any assembled part without an LCSC field. `stage_d.sh` then fails if any of JP1, J3,
-  TP*, H* or STAB_* appears in `bom.csv` or `pos.csv`.
+  fails on any assembled part without an LCSC field.
+- **Safeguard:** `stage_d.sh` then fails, naming the part, if JP1, J3, TP*, H* or STAB_* appears
+  anywhere in `bom.csv` (each name in a quoted designator list counts) or `pos.csv`. It reads the
+  designators into a variable and only then greps them. The first version piped them into
+  `grep -q`, which stops at the first match. The writer then died of SIGPIPE, and under `pipefail`
+  the pipeline returned 141, so most `bom.csv` hits went unreported (25 to 56 caught in 300 runs).
+  Test, run 300 times per case on the left stage 13 outputs: JP1 at the top of `bom.csv`, TP3
+  inside a quoted list, STAB_2U on the last line and H1 at the end of `pos.csv` each fail
+  300/300. Both real outputs pass 300/300. A second guard also applies: every not-assembled
+  schematic symbol has an empty LCSC field, so `--missingError` also fails if one reaches the BOM.
+  The STAB_* footprints exist only on the board.
 
 ### WS2c-2. Renders use the `-full` image too (§9 stage 14)
 

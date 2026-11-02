@@ -27,8 +27,14 @@ python3 -m kikit.ui fab jlcpcb --assembly --missingError --no-drc --schematic "$
 for f in gerbers.zip bom.csv pos.csv; do
     [[ -s "$OUT/jlc/$f" ]] || { echo "missing $OUT/jlc/$f" >&2; exit 1; }
 done
-if cut -d, -f2- "$OUT/jlc/bom.csv" | tr ',' '\n' | cat - <(cut -d, -f1 "$OUT/jlc/pos.csv") | grep -Eq "${NOT_ASSEMBLED}" ; then
-    echo "a not-assembled part is in bom.csv / pos.csv" >&2; exit 1
+# Every token after bom.csv's Comment column (designator lists are comma-joined) and pos.csv's
+# designators, CRs stripped. Collected first: `... | grep -q` exits on the first match, SIGPIPEs
+# the writer, and under pipefail the `if` then reads the 141 as "no match".
+designators="$(cut -d, -f2- "$OUT/jlc/bom.csv" | tr ',\r' '\n\n'; cut -d, -f1 "$OUT/jlc/pos.csv" | tr -d '\r')"
+if grep -Eq "${NOT_ASSEMBLED}" <<<"$designators"; then
+    echo "a not-assembled part is in bom.csv / pos.csv:" >&2
+    grep -E "${NOT_ASSEMBLED}" <<<"$designators" >&2
+    exit 1
 fi
 
 # 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models

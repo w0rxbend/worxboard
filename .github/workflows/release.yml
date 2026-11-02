@@ -125,6 +125,7 @@ jobs:
         run: uv sync --locked
       - name: pytest tests/integration (firmware DT vs netlist vs pins.py, release assembly; no skips)
         run: |
+          set -o pipefail
           uv run pytest tests/integration -rs | tee pytest.log
           ! grep -q SKIPPED pytest.log
       - name: Assemble the assets (tests/integration/release.py -> dist/)

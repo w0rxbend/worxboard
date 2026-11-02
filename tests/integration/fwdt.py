@@ -21,6 +21,10 @@ PINMUX_PIN_POS, PINMUX_FUNC_MASK = 5, 0x1F
 PINMUX_FUNCS = {2: "UART", 6: "PIO0", 7: "PIO1"}
 PINMUX_MACRO = re.compile(r"^(UART|PIO)(\d)_(?:\w+_)?P(\d+)$")      # UART0_TX_P0, PIO1_P2
 
+# raspberrypi,pico-spi-pio without miso-gpios: the driver's spec is {NULL, 0}, yet its 4-wire mode
+# still muxes that pin 0 to the PIO (zephyr drivers/spi/spi_rpi_pico_pio.c spi_pico_pio_configure)
+PIO_SPI_UNSET_PIN = "<&gpio0 0 0>"
+
 # RC(row, col) = row << 8 | col (zmk dt-bindings/zmk/matrix_transform.h)
 RC_ROW_SHIFT, RC_COL_MASK = 8, 0xFF
 
@@ -49,7 +53,7 @@ class FwPins:
     transform: tuple[tuple[int, int], ...]   # global (row, col) per keymap position
     uart: dict[str, int]                     # role -> GPIO of the wired-split UART0 pinctrl
     uart_input: frozenset[int]               # UART pins with input-enable
-    spi: dict[str, Gpio]                     # clk / mosi / cs of the PIO1 display SPI
+    spi: dict[str, Gpio]                     # clk / mosi / miso / cs of the PIO1 display SPI
     pio1: frozenset[int]                     # GPIOs muxed to PIO1
 
 
@@ -140,7 +144,8 @@ def parse(text: str) -> FwPins:
         transform=tuple(rc),
         uart=uart,
         uart_input=frozenset(uart_input),
-        spi={k: _gpios(_prop(spi, f"{k}-gpios"))[0] for k in ("clk", "mosi", "cs")},
+        spi={k: _gpios(_prop(spi, f"{k}-gpios"))[0] for k in ("clk", "mosi", "cs")}
+        | {"miso": _gpios(_prop(spi, "miso-gpios", PIO_SPI_UNSET_PIN))[0]},
         pio1=frozenset(pio1),
     )
 

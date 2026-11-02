@@ -484,3 +484,23 @@ what changed, why, and who consumes it.
   changes. They are listed in [verification.md](verification.md#open-items-that-block-ordering)
   and checked by `tests/integration/test_gates.py` as strict xfails, which turn into errors once a
   fix lands so the marker is removed with it.
+
+## REVIEW-FIX: fixes from the post-integration review
+
+### REVIEW-FIX-1. The display SPI node names a `miso-gpios` pin (§4, §11.2)
+
+- **Spec:** `nice_view_spi` (`raspberrypi,pico-spi-pio`) with clk GP2, mosi GP3 and cs GP5.
+- **Problem:** the display is write-only, so the node had no `miso-gpios`. The pinned Zephyr driver
+  (`drivers/spi/spi_rpi_pico_pio.c`, `spi_pico_pio_configure`) still sets up a MISO pin in 4-wire
+  mode: with the property missing its spec is `{NULL, 0}`, and on the first transfer
+  (`ls0xx_init` → `ls0xx_clear`, POST_KERNEL) it muxes **GP0 to PIO1** as an input. GP0 is UART0 TX,
+  the wired-split TX line, and nothing re-applies the UART pins (no `detect-gpios`), so neither half
+  could transmit over TRRS on any of the six builds.
+- **Change:** `miso-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>` on both targets, reusing MOSI as ZMK's
+  pico-spi-pio examples do (the PIO then sets GP3 as an output, after the input). Checked in the
+  compiled `spi_pico_pio_config_0` of the right peripheral and left central: miso is now
+  `{gpio0, 3}`. `tests/integration/fwdt.py` reads a missing `miso-gpios` as GP0, the driver's
+  default, and `test_display_spi_keeps_off_uart_and_matrix` fails if any PIO SPI pin is a UART,
+  row or column pin, or if miso is neither MOSI nor a spare pin.
+- **Also:** `ZMK_KEYBOARD_NAME` now defaults to `worxboard` on both halves, so the
+  `worxboard_right_central_EXPERIMENTAL` build no longer enumerates with an empty USB product name.

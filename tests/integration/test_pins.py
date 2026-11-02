@@ -105,11 +105,42 @@ def test_firmware_pins_match_pins_py(side, reader, name):
     assert fw.uart == {"TX": pins.UART_TX, "RX": pins.UART_RX}
     assert fw.uart == {"TX": pins.gpio("UART_TX"), "RX": pins.gpio("UART_RX")}
     assert fw.uart_input == {pins.UART_RX}
-    spi = {k: g.pin for k, g in fw.spi.items()}
+    spi = {k: g.pin for k, g in fw.spi.items() if k != "miso"}
     assert spi == {"clk": pins.DISP_SCK, "mosi": pins.DISP_MOSI, "cs": pins.DISP_CS}
     assert spi == {"clk": pins.gpio("DISP_SCK"), "mosi": pins.gpio("DISP_MOSI"), "cs": pins.gpio("DISP_CS")}
     assert fw.spi["cs"].flags & fwdt.ACTIVE_LOW == 0, "the LS011B7DH03 chip select is active high"
     assert fw.pio1 == {pins.DISP_SCK, pins.DISP_MOSI}
+
+
+def check_pio_spi_pins(fw: fwdt.FwPins) -> None:
+    """The PIO SPI muxes clk, mosi and miso to PIO1 on its first transfer, after the UART and kscan
+    have claimed theirs: none of them may be a UART, row or column pin. miso is never driven, so it
+    must reuse MOSI (as ZMK's pico-spi-pio examples do) or be a spare pin with no net."""
+    taken = {pins.UART_TX: "UART_TX", pins.UART_RX: "UART_RX"} | \
+        {g: f"ROW{i}" for i, g in enumerate(pins.ROW_GPIOS)} | {g: f"COL{i}" for i, g in enumerate(pins.COL_GPIOS)}
+    for role in ("clk", "mosi", "miso"):
+        pin = fw.spi[role].pin
+        assert pin not in taken, f"PIO SPI {role} on GP{pin} takes {taken[pin]} away"
+    spare = {int(p.name[4:].split("/")[0]) for p in pins.PINS if p.net is None}
+    assert fw.spi["miso"].pin in {fw.spi["mosi"].pin} | spare
+
+
+@pytest.mark.parametrize("side, reader, name", fw_variants())
+def test_display_spi_keeps_off_uart_and_matrix(side, reader, name):
+    check_pio_spi_pins(load_fw(reader, name, side))
+
+
+@pytest.mark.parametrize("miso", [None, pins.UART_RX, pins.ROW_GPIOS[0], pins.COL_GPIOS[-1], pins.DISP_CS])
+def test_display_spi_check_rejects(miso):
+    """No miso-gpios (the driver then takes GP0, UART TX) or a miso on a used pin must fail."""
+    fw = source_fw(CORE, "left")
+    spi = {k: v for k, v in fw.spi.items() if k != "miso"}
+    text = fwdt.COMMENT.sub("", fwdt._flatten(next((BOARDS / CORE).glob("worxboard_left_*.dts"))))
+    text = re.sub(r"miso-gpios\s*=[^;]*;", "" if miso is None else f"miso-gpios = <&gpio0 {miso} 0>;", text)
+    bad = fwdt.parse(text)
+    assert {k: v for k, v in bad.spi.items() if k != "miso"} == spi
+    with pytest.raises(AssertionError):
+        check_pio_spi_pins(bad)
 
 
 @pytest.mark.parametrize("side, reader, name", fw_variants())

@@ -2,15 +2,16 @@
 
 if BOARD_WORXBOARD2_LEFT
 
-config ZMK_KEYBOARD_NAME
-    default "worxboard"
-
 config ZMK_SPLIT_ROLE_CENTRAL
     default y
 
 endif # BOARD_WORXBOARD2_LEFT
 
 if BOARD_WORXBOARD2_LEFT || BOARD_WORXBOARD2_RIGHT
+
+# Both halves: the role-swap builds enumerate with the same name
+config ZMK_KEYBOARD_NAME
+    default "worxboard"
 
 config BOARD
     default "worxboard"

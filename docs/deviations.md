@@ -793,3 +793,98 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
   XOUT. The gain the oscillator needs scales with ESR × (C0 + CL)², so with equal CL and a shunt
   capacitance of the same order it needs no more than in that proven circuit. The Pico's reference
   crystal (lower load and ESR) has more margin still but would need other load caps; not changed.
+
+### ELEC-6. The board must carry the parts it is ordered with; G3 re-checked on 2026-11-03 (§7, §9 stages 12–13)
+
+- **Problem:** both committed boards still carry C2803348 on SK101–SK137, C113767 on U2, C91749 on Y1
+  and the DNP `nice!view` J3 on the stock footprint, and nothing compared a board's part numbers with
+  `design.py`: KiCad's schematic parity checks value, footprint and DNP but not the LCSC field.
+  kikit 1.8.1 (`kikit/fab/jlcpcb.py`, `fab/common.py`) builds the order from two files. `bom.csv`
+  comes from the **schematic** (`extractComponents(schematic)`: value, footprint, LCSC, DNP,
+  in-BOM). `pos.csv`, its rotation corrections and the gerbers come from the **board**: the
+  corrections are matched on the board footprint's library id. So `just pcb-fab right` on the
+  committed board writes a correct BOM today (C41430893, C97521, C49304726, J3 as C27985230; checked
+  on a scratch clone). But it places J3 from the board's stock `PinSocket_1x05_P2.54mm_Vertical`,
+  uncorrected at 90°, over copper that still takes U4 pin 5 to VBUS. The two halves of the order
+  describe different boards, and a board that was not re-placed after an LCSC-only swap passes
+  parity.
+- **Change:**
+  - `design.py`: `RETIRED` (C2803348, C113767, C91749), moved from `tests/integration/stock.py`,
+    which imports it.
+  - `netcmp.py --board <kicad_pcb> <side> [<kikit dir>]` checks the board:
+    - every footprint is a `design.py` part with its footprint, value, LCSC number and DNP /
+      `exclude_from_bom` / `exclude_from_pos_files` flags, or a `board_only` footprint (STAB_*) with
+      no LCSC that stays out of the BOM and CPL;
+    - no retired number is on the board.
+
+    With the kikit directory, `bom.csv` and `pos.csv` must each list the 119 fitted parts exactly
+    once, and every `bom.csv` designator must have its `design.py` LCSC number. The netlist mode now
+    also fails on a retired number.
+  - `stage_d.sh` runs it on the board and kikit's output right after step 13. It replaces the
+    `NOT_ASSEMBLED` / `ASSEMBLED_THT` grep checks (WS2c safeguard, ELEC-3), which it covers.
+    `stage_c.sh` runs the board half after `checks.py`, so `pcb-finish` and the CI `rebuild` job
+    fail when a board's fields drift from `design.py`.
+  - `tests/integration/test_stock.py::test_committed_board_orders_the_design_parts` runs the same
+    check on both committed boards. Two offline tests show that it catches a stale board, and that it
+    catches a wrong kikit BOM / CPL (canned CRLF files as kikit writes them).
+- **Checked** on 2026-11-03:
+  - The committed boards fail with 7 errors per half: J3 DNP, footprint, value and LCSC;
+    SK101..SK137 on C2803348; U2 on C113767; Y1 on C91749. On a scratch clone, `just pcb-fab right`
+    on the committed board now stops at this step.
+  - The CI-rebuilt boards of run 41548543572 (b077f78, the same schematics) pass `just pcb-fab left`
+    and `just pcb-fab right` end to end. That covers the board check and bom/pos, 119 parts, plus
+    renders, DXF and STEP with the 5.0 mm J3. Stage C's call passes on both halves in the
+    `kicad/kicad:10.0.7` container (Python 3.13).
+  - Mutation runs each fail with the expected message: a retired socket in `bom.csv`; J3 missing
+    from bom/pos; JP1 in a CRLF `pos.csv`; a designator twice; SK101 DNP on the board; a STAB_ with an
+    LCSC field; C113767 in a netlist.
+  - `just pcb-sch-all`: ERC 0 and netcmp 10/10 on both halves; the schematics and `pcb/lib` are
+    unchanged.
+  - `pytest tests/integration`: 101 passed, 6 xfailed and 4 failed. The four failures are
+    `test_pins.py::test_netlist_equals_committed_board` (U4 pad 5) and the new
+    `test_committed_board_orders_the_design_parts`, on both halves. With the rebuilt boards in place
+    `test_stock.py` passes 17 of 17. Only `release.yml` runs these tests, so a release cannot ship
+    the stale boards.
+- **G3 re-checked**, `stock.py --boards 5`, 2026-11-03 01:09 UTC (JLC stock; all 21 pass, need ≥ 50):
+
+  | LCSC | Refs | JLC library | JLC stock |
+  |---|---|---|---|
+  | C1525 | C5, C8–C17 | basic | 34 934 485 |
+  | C1557 | C6, C7 | extended | 299 790 |
+  | C2040 | U1 | extended | 7 057 |
+  | C7519 | U4, U5 | extended | 39 942 |
+  | C8598 | D1 | basic | 959 043 |
+  | C11702 | R7, R9, R11, R12 | basic | 21 096 589 |
+  | C15525 | C1–C3 | basic | 9 925 980 |
+  | C25744 | R5, R6, R8, R10, R13 | basic | 16 124 475 |
+  | C25905 | R1, R2 | basic | 4 951 019 |
+  | C51118 | U3 | extended | 6 174 |
+  | C52923 | C4, C18, C19 | basic | 10 649 098 |
+  | C70069 | F1 | extended | 18 960 |
+  | C81598 | D101–D137 | basic | 3 727 207 |
+  | C95562 | J2 | extended | 5 743 |
+  | C97521 | U2 | basic | 76 364 |
+  | C165948 | J1 | extended | 175 775 |
+  | C455280 | SW1, SW2 | extended | 127 983 |
+  | C2909343 | R3, R4 | extended | 274 894 |
+  | C27985230 | J3 (THT) | extended | 6 399 |
+  | C41430893 | SK101–SK137 | extended | 231 751 |
+  | C49304726 | Y1 | extended | 13 833 |
+
+  Fallbacks: C49352235 (socket, extended, 30 873), C9002 (crystal, basic, 302 814), C46061764
+  (5.7 mm J3, extended THT, 4 487). Still retired: C2803348 (0 at JLC and LCSC, `stop_product`),
+  C113767 (163 at JLC, "no longer manufactured"), C91749 (19).
+- **CI stays red until PCB commits the re-placed boards.** No ELEC path can turn it green. The
+  `pcb` workflow's `board` jobs fail at `just pcb-drc`: four parity errors per half, ELEC-5. The
+  `rebuild` jobs fail too: the left in `checks.py` (exit 137), the right at the comparison with the
+  committed board. Both clear only with one PCB commit that holds:
+  1. both halves re-placed and re-routed from the current schematics, with G1 items 1 and 2 (J3
+     turned 180° so pin 1, MOSI, sits at high x under the module's pin 1, and the J3 row at y
+     39.925);
+  2. their renders `docs/images/pcb-<side>-{top,bottom}.png`;
+  3. `checks.py`'s `copper_graph()` edge weight clamped to `max(0.0, w)` (ELEC-5);
+  4. FAB's J3 row in `jlc_rotations.csv` (CI does not need it to pass, but without it the CPL that
+     commit builds places J3 uncorrected; neither CI nor this check tests rotations).
+
+  ELEC keeps J3 pin *n* = nice!view pin *n* (1 MOSI, 2 SCK, 3 3V3, 4 GND, 5 CS). The G1 pin order is
+  fixed by rotating the footprint, not by renumbering the pins.

@@ -967,11 +967,15 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
   C2040 7 052. Fallbacks: C49352235 30 873, C9002 302 757 (basic), C46061764 4 487 (THT). Retired,
   unchanged: C2803348 0 (discontinued at both shops), C113767 163 ("no longer manufactured"), C91749
   19.
-- **CI is still red**, for the reasons in ELEC-6, none of them in an ELEC path. The `board` jobs stop
-  at `just pcb-drc` with 4 parity errors per half. The `rebuild` jobs stop in `checks.py` (left,
-  out of memory) and at the comparison with the committed board (right). The PCB commit list of
-  ELEC-6 still applies, with two changes: item 1 (J3 turned) is now also required by stages C and D,
-  and item 4 now covers all of FAB's rows (ELEC-7).
+- **CI is still red**, for the reasons in ELEC-6, none of them in an ELEC path. Run 41563465072
+  (c2845d6): the schematic job and the layout, firmware and case workflows pass. The `board` jobs
+  stop at `just pcb-drc` with 4 parity errors per half. The left `rebuild` job is killed for memory
+  in `checks.py` (exit 137, the `copper_graph()` bug of ELEC-5). The right `rebuild` job reaches DRC
+  0 / 0 / 0 and passes `checks.py` and the board part check, then stops at this J3 check inside
+  `pcb-finish`, where it used to stop at the comparison with the committed board. Its board is
+  byte-identical to the rebuild of run 41548543572. The PCB commit list of ELEC-6 still applies,
+  with two changes: item 1 (J3 turned) is now also required by stages C and D, and item 4 now covers
+  all of FAB's rows (ELEC-7).
 - **Acceptance** (this change): `just pcb-sch-all` gives ERC 0 and netcmp 10/10 on both halves, with
   the schematics and `pcb/lib` unchanged. `pytest tests/integration` gives 101 passed, 6 xfailed and
   4 failed, the same stale-board tests as in ELEC-6.

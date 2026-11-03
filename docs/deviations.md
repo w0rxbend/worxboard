@@ -722,3 +722,74 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   (either shop), unknown or retired part (C2803348, C113767, C91749). `tests/integration/test_stock.py`
   checks offline that every part with a body is in the JLC BOM with an LCSC number, J3 included,
   none is DNP, both halves share one BOM, no retired part is back, and the verdicts on canned records.
+
+### ELEC-5. Hand-offs: the boards, the docs part table and the CPL still follow the old parts (§9, §14)
+
+ELEC-1 to ELEC-3 change only the schematic side. Three consumers must follow before CI is green
+and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
+
+- **Boards (PCB), CI is red until they are re-placed and re-routed.** `kicad-cli pcb drc
+  --schematic-parity` on both committed boards gives 0 violations, 0 unconnected and the same four
+  parity errors on each half:
+  1. U4 pad 5: `net_conflict`, VBUS on the board, VSYS in the schematic (ELEC-2);
+  2. J3 footprint: `Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical` on the board,
+     `worxboard:PinSocket_1x05_P2.54mm_Vertical_H5.0mm` in the schematic (ELEC-3);
+  3. J3 value: `nice!view` on the board, `HC-PM254-5.0H-1x5PZ` in the schematic;
+  4. J3 attributes: DNP on the board, fitted in the schematic.
+
+  So the pcb workflow's `board` jobs fail at `just pcb-drc` from 0b86596 on (one error there, four
+  from 171c62d), and the `fit` job is skipped. The `rebuild` jobs fail from f5f051d on, by design:
+  `place.seed_kiids` seeds the KIIDs from the schematic bytes, so any schematic edit, an LCSC field
+  included, changes the rebuilt board (WS2c-4). `tests/integration/test_pins.py::
+  test_netlist_equals_committed_board` fails on U4 pad 5 of both halves (only `release.yml` runs
+  it). The schematic side cannot clear any of this: both halves have to be re-placed and re-routed
+  from the current schematics, and committed with their renders (`docs/images/pcb-<side>-*.png`,
+  which the `board` job compares).
+
+  The pipeline takes the new schematics as they are. CI run 41548543572 (b077f78) rebuilt both
+  halves from scratch, and both reached `just pcb-finish`'s DRC gate with 0 violations, 0
+  unconnected and 0 parity errors (artifacts `worxboard-pcb-rebuild-left` / `-right`; Freerouting
+  left 29 / 41 connections, the completion router closed them). The right job then failed only at
+  the comparison with the committed board. The left job failed in `checks.py` first: killed for
+  memory (exit 137) after 6 minutes. That is a `checks.py` bug, not a board fault, and it can hit
+  any board: `copper_graph()` adds the edge weight `math.dist(c, d) - s`, which comes out at about
+  -3e-17 when `project()` lands on a segment end, and `dijkstra()` then loops on the negative
+  cycle and fills the heap. The rebuilt left board has 166 such edges on 3V3 (the committed one
+  62, the rebuilt right 10), and the search from C14 runs into one. Clamping the weight in `copper_graph`'s
+  `edge()` to `max(0.0, w)` fixes it: `checks.py left` then passes 7 of 7 in 1 s (USB D+ 24.73 mm,
+  D− 23.92 mm, skew 0.81). On a scratch copy with both rebuilt boards and that clamp, `just
+  pcb-drc` passes on both halves, `just pcb-fab` passes on both (`bom.csv` 22 lines with J3 as
+  C27985230, `pos.csv` 119 parts, the STEP carries the 5.0 mm J3 body) and `just fitcheck` gives
+  0 mm³ against today's case. That fit check still models the module and glass with the old
+  8.2 mm stack (`Z_DISPLAY_TOP` 16.8); the 9.75 mm one of ELEC-3 is for CASE.
+
+  In the rebuilt right board U4 pin 5 reaches VSYS over 17.6 mm of track (JP1), 21.9 mm to D1 and
+  22.5 mm to C1. U4's own TVS clamps pin 5 to GND inside the package, so this works, but a shorter
+  run is better (ELEC-2). Do G1 open items 1 (J3 turned 180°, pin 1 at high x) and 2 (J3 row at
+  y 39.925) in the same re-placement.
+- **Docs part table (DOCS).** The hand-kept `LCSC` table in `site/gen_docs.py` lacks the four new
+  numbers and `NOT_ASSEMBLED` still lists J3. Today `_check_boards()` stops `docs-gen` and
+  `docs-check` first, because J3 differs from the board. Once the boards are rebuilt,
+  `bom_assembled()` raises `KeyError: 'C97521'`, so `just docs-gen`, `just docs-check` and the
+  pages workflow (`gen_docs.py --check`) crash until the table is fixed:
+  - add, library type from JLC's record:
+    `"C97521": ("W25Q128JVSIQ, 16 MB QSPI flash", "[J]", False)` (basic),
+    `"C49304726": ("12 MHz crystal, 18 pF, 3225", "[J]", True)`,
+    `"C41430893": ("MX hot-swap socket CPG151101S11-16", "[J]", True)`,
+    `"C27985230": ("1×5 2.54 mm female socket, 5.0 mm, THT", "[J]", True)`;
+  - drop C113767, C91749 and C2803348 (no longer in the design), and the `J3` row of
+    `NOT_ASSEMBLED` (it would list J3 among the parts JLC does not fit);
+  - three existing rows say basic where JLC says extended (`componentLibraryType` `expand`):
+    C51118, C1557 and C2909343 need `True`.
+- **CPL (FAB).** `pcb/scripts/jlc_rotations.csv` needs J3's row under the new footprint name,
+  `"^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$",".*",0,5.08,270`, worked out on
+  C27985230's own EasyEDA footprint (5 of 5 pins, 0.0 mm pad error). The swaps leave the other
+  corrections as they were: worked out on each new part's own EasyEDA footprint, C41430893 and
+  C49352235 need the same correction as C2803348 on `worxboard:SW_MX_Hotswap_Kailh` (pads within
+  0.28 mm), C97521 the same as C113767 (SOIC-8, 270°) and C49304726 the same as C91749 (none).
+- **Checked while here, Y1 start-up.** The part research left the crystal's start-up margin open.
+  C49304726 has the same 18 pF load and a lower ESR (80 Ω against 100 Ω, LCSC parameters) than
+  C91749, the Corne v4.1 production crystal that §6.4 clones with the same 27 pF caps and 1 kΩ on
+  XOUT. The gain the oscillator needs scales with ESR × (C0 + CL)², so with equal CL and a shunt
+  capacitance of the same order it needs no more than in that proven circuit. The Pico's reference
+  crystal (lower load and ESR) has more margin still but would need other load caps; not changed.

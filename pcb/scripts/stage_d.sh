@@ -36,7 +36,9 @@ for f in gerbers.zip bom.csv pos.csv; do
 done
 # kikit takes bom.csv from the schematic but pos.csv, its corrections and the gerbers from the board,
 # and KiCad's parity ignores the LCSC field: the board, bom.csv and pos.csv must carry exactly
-# design.py's fitted parts and LCSC numbers, and no retired part (deviations ELEC-6)
+# design.py's fitted parts and LCSC numbers, and no retired part (deviations ELEC-6); J3 must put pad n
+# under pin n of the nice!view plugged into it (gate G1, deviations ELEC-8). It does not check the
+# rotation corrections: jlc_rotations.csv must have a row for every footprint that needs one (ELEC-7)
 python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE" "$OUT/jlc"
 
 # 14. renders (committed), Edge.Cuts DXF in mm, STEP with substituted models. The case fit check

@@ -25,12 +25,14 @@ from the board, and KiCad's schematic parity ignores the LCSC field (docs/deviat
   - every board footprint is a design.py part with its footprint, value, LCSC number and
     DNP / BOM / CPL attributes, or a board-only part (stabiliser holes) kept out of BOM and CPL
   - no retired LCSC number (design.RETIRED) is on the board
+  - J3 meets the nice!view the right way round: pad n where module pin n plugs in (gate G1)
   - with the kikit output directory: bom.csv and pos.csv list exactly the parts JLC fits, each
     bom.csv line with the design.py LCSC number of every designator on it
 """
 from __future__ import annotations
 
 import csv
+import math
 import re
 import sys
 from collections import Counter, defaultdict
@@ -43,6 +45,7 @@ sys.path.insert(0, str(ROOT))
 
 import layout  # noqa: E402
 from design import RETIRED, SUPPLY_PIN_NAMES, Part, design, switch_net  # noqa: E402
+from layout.display import HEADER_PIN_ORDER  # noqa: E402
 from layout.pins import PINS, TRRS  # noqa: E402
 
 TOKEN = re.compile(r'\(|\)|"(?:[^"\\]|\\.)*"|[^\s()]+')
@@ -331,6 +334,20 @@ class BoardPart:
     value: str
     lcsc: str
     attrs: frozenset[str]       # smd / through_hole / board_only / dnp / exclude_from_* ...
+    pads: dict[str, tuple[float, float]] = field(default_factory=dict)   # pad number -> board x, y
+
+
+def pad_positions(fp: list) -> dict[str, tuple[float, float]]:
+    """Board x, y of each numbered pad. KiCad keeps pad positions in the footprint frame; the footprint
+    angle turns them counter-clockwise on screen (y down)."""
+    x, y, *rot = map(float, find(fp, "at")[1:])
+    a = math.radians(rot[0] if rot else 0.0)
+    out = {}
+    for pad in find_all(fp, "pad"):
+        if pad[1]:
+            u, v = map(float, find(pad, "at")[1:3])
+            out[pad[1]] = (x + u * math.cos(a) + v * math.sin(a), y - u * math.sin(a) + v * math.cos(a))
+    return out
 
 
 def load_board(path: Path) -> list[BoardPart]:
@@ -339,7 +356,8 @@ def load_board(path: Path) -> list[BoardPart]:
         props = {p[1]: (p[2] if len(p) > 2 else "") for p in find_all(fp, "property")}
         attr = find(fp, "attr") or ["attr"]
         out.append(BoardPart(props.get("Reference", ""), fp[1], props.get("Value", ""),
-                             props.get("LCSC", "").strip(), frozenset(a for a in attr[1:] if isinstance(a, str))))
+                             props.get("LCSC", "").strip(), frozenset(a for a in attr[1:] if isinstance(a, str)),
+                             pad_positions(fp)))
     return out
 
 
@@ -376,6 +394,41 @@ def check_board(board: list[BoardPart], parts: list[Part]) -> list[str]:
         note = f": {retired(got)}" if attr == "LCSC" and got in RETIRED else ""
         errs.append(f"{ref_text(refs)} {attr} {got!r} on the board, {exp!r} in design.py{note}")
     return errs
+
+
+# nice!view (gate G1, docs/verification.md): seen from the LCD side with its header at the bottom, the
+# module's pins are MOSI, SCK, VCC, GND, CS from left to right (nicekeyboards.com pinout drawing), and
+# J3 pin n carries module pin n (design.py). Plugged in LCD up, the module runs from J3 over the case
+# window: turning the front view so its header-to-LCD direction (screen up) points there turns its
+# left-to-right pin direction alike, a quarter turn clockwise on screen from the header-to-LCD one.
+J3_PINS = 5
+J3_PITCH = 2.54
+PAD_TOL = 0.05
+
+
+def check_display(board: list[BoardPart], side: str) -> list[str]:
+    """J3 pad n sits where pin n of a nice!view plugged in LCD up meets the board."""
+    j3 = next((b for b in board if b.ref == "J3"), None)
+    pads = [j3.pads.get(str(n)) for n in range(1, J3_PINS + 1)] if j3 else []
+    if not pads or None in pads:
+        return [f"J3 must have pads 1-{J3_PINS} on the board"]
+    cx, cy = (sum(p[i] for p in pads) / J3_PINS for i in (0, 1))
+    wx, wy = layout.display(side)["window_centre"]
+    norm = math.hypot(wx - cx, wy - cy)
+    ux, uy = (wx - cx) / norm, (wy - cy) / norm        # header -> LCD (KiCad screen frame, y down)
+    ex, ey = -uy, ux                                   # module pin 1 -> pin 5
+    mid = (J3_PINS + 1) / 2
+    want = [(cx + (n - mid) * J3_PITCH * ex, cy + (n - mid) * J3_PITCH * ey) for n in range(1, J3_PINS + 1)]
+    if all(math.dist(p, w) <= PAD_TOL for p, w in zip(pads, want)):
+        return []
+    names = HEADER_PIN_ORDER
+    over = [i for i in range(J3_PINS) if math.dist(pads[0], want[i]) <= PAD_TOL]
+    meets = f"the nice!view's pin {over[0] + 1} ({names[over[0]]})" if over else "no nice!view pin"
+    ax, ay = pads[-1][0] - pads[0][0], pads[-1][1] - pads[0][1]
+    turn = round(math.degrees(abs(math.atan2(ax * ey - ay * ex, ax * ex + ay * ey))))
+    return [f"J3 pad 1 at ({pads[0][0]:.2f}, {pads[0][1]:.2f}) meets {meets}; its pin 1 ({names[0]}) is at "
+            f"({want[0][0]:.2f}, {want[0][1]:.2f}). Turn J3 by {turn} deg so pad n sits under module pin n "
+            f"(docs/verification.md G1 item 1)"]
 
 
 def ref_text(refs: list[str]) -> str:
@@ -436,6 +489,7 @@ def main_board(argv: list[str]) -> int:
     parts, board = design(side), load_board(path)
     ck = Checker()
     ck.section(f"{path.name} footprint/value/LCSC/DNP per design.py", check_board(board, parts))
+    ck.section("J3 pad n under nice!view pin n (G1)", check_display(board, side))
     if len(argv) == 3:
         jlc = Path(argv[2])
         n = sum(p.in_bom and not p.dnp for p in parts)

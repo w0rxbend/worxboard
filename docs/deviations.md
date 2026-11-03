@@ -936,3 +936,42 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
   re-placement commit red over a file that stream does not own. Once FAB's rows are in, that check
   belongs in `netcmp.py --board`'s kikit mode: a row for every CPL footprint, or one of the no-row
   footprints above.
+
+### ELEC-8. J3's pin-1 end is a gate in stages C and D; G3 re-checked (§4 G1, §7, §9 stages 12–13)
+
+- **Problem** (verifier, 2026-11-03): G1 item 1 (J3 pin 1 at the wrong end, so a plugged-in
+  nice!view gets SCK on GND and MOSI on CS) was only a strict xfail in `test_gates.py`, which push CI
+  does not run: nothing stopped an order.
+- **Change** (`netcmp.py --board`, run by stages C and D): `check_display()` reads
+  J3's five pads from the board. It takes the module's direction as J3 to the case window centre
+  (`layout.display`), turns the front view (header at the bottom; MOSI, SCK, VCC, GND, CS from left
+  to right) to it, and fails unless pad *n* lies within 0.05 mm of module pin *n*. So `just
+  pcb-finish` (and the CI `rebuild` jobs) and `just pcb-fab` (the CI `board` jobs) stop on a board
+  whose J3 is the wrong way round. The check covers the turn, not the row position, so G1 item 2
+  (the J3 row at y 39.925) stays open to PCB.
+  - Checked: the committed boards and the CI-rebuilt boards of run 41548543572 fail with "J3 pad 1
+    at (67.31, 40.60) meets the nice!view's pin 5 (CS); its pin 1 (MOSI) is at (77.47, 40.60).
+    Turn J3 by 180 deg…" (left 182.53 / 192.69). The same rebuilt boards with only J3 turned (pin 1
+    at x 192.69 left and 77.47 right, footprint at 270°) pass, also in the `kicad/kicad:10.0.7`
+    container. A quarter turn fails ("meets no nice!view pin … Turn J3 by 90 deg"), and so does a J3
+    without its pads.
+  - End to end on a scratch clone, `just pcb-fab` passes on both turned boards: board, J3 and
+    bom/pos sections, 119 parts, renders and the STEP checks. On the rebuilt right board as placed
+    today it stops at this check.
+  - `test_gates.py::test_g1_module_pins_land_on_their_nets` agrees: on the turned boards it XPASSes
+    on both halves, and being strict it then fails `release.yml` until its marker goes (WS5 tests).
+  - For PCB: in `place.py`, put J3's origin (pin 1) on `header_pins[-1]` at 270° (or reverse the
+    order in `layout.display()`), then re-route the display nets.
+- **G3 re-checked** with `stock.py --boards 5` on 2026-11-03 at 01:52 UTC: all 21 LCSC numbers pass, and
+  library types are as in ELEC-6. Thinnest at JLC: C95562 5 743, C51118 6 111, C27985230 6 399 (THT),
+  C2040 7 052. Fallbacks: C49352235 30 873, C9002 302 757 (basic), C46061764 4 487 (THT). Retired,
+  unchanged: C2803348 0 (discontinued at both shops), C113767 163 ("no longer manufactured"), C91749
+  19.
+- **CI is still red**, for the reasons in ELEC-6, none of them in an ELEC path. The `board` jobs stop
+  at `just pcb-drc` with 4 parity errors per half. The `rebuild` jobs stop in `checks.py` (left,
+  out of memory) and at the comparison with the committed board (right). The PCB commit list of
+  ELEC-6 still applies, with two changes: item 1 (J3 turned) is now also required by stages C and D,
+  and item 4 now covers all of FAB's rows (ELEC-7).
+- **Acceptance** (this change): `just pcb-sch-all` gives ERC 0 and netcmp 10/10 on both halves, with
+  the schematics and `pcb/lib` unchanged. `pytest tests/integration` gives 101 passed, 6 xfailed and
+  4 failed, the same stale-board tests as in ELEC-6.

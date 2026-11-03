@@ -23,4 +23,5 @@ for _ in $(seq "$CONTINUE_ROUNDS"); do             # more completion while items
 done
 drc || { python3 pcb/scripts/checks.py "$SIDE" || true; exit 1; }
 python3 pcb/scripts/checks.py "$SIDE"
-python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE"     # the LCSC fields parity ignores (ELEC-6)
+# the LCSC fields parity ignores (ELEC-6), and J3 pad n under nice!view pin n (G1, ELEC-8)
+python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE"

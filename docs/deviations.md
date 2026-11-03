@@ -1228,3 +1228,16 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   (G2, BOARD-10).
 - The JLC rules and edge distances of BOARD-7 are unchanged (same placement; the right's edge spoke
   keeps the 0.5 mm copper-to-edge rule, and DRC checks it).
+
+### BOARD-12. The committed renders are compared pixel by pixel, not byte by byte (§9 stage 14; pcb workflow)
+
+- **Problem:** on d640d7c the `board` job for the left failed at "Committed renders are current".
+  The CI render of `pcb-left-top.png` was 117 331 bytes against 117 328 committed. KiCad 10.0.7's 3D
+  raytracer is not bit-exact: rendered six times on one host, the left top view differs from run to
+  run in 0 to 4 of its 1.6 million pixels, by 1 or 2 levels. Pinning the container to one CPU
+  (`--cpuset-cpus=0`) does not change that. The right views and the left bottom view came out
+  identical each time, which is why the byte check held on earlier boards.
+- **Change:** `just pcb-render-check <side>` (`pcb/scripts/render_check.py`, run by the CI `board`
+  job after `pcb-fab`) takes the committed PNGs from HEAD. It requires the same size and at most 64
+  pixels differing by at most 8 levels per view. A changed board moves thousands of pixels.
+  `docs/images/pcb-*.png` are still regenerated and committed with every board change.

@@ -7,6 +7,7 @@
 #   just pcb-finish left     stages 10-12: SES import, completion router, pours, DRC gate, checks
 #   just pcb-drc left        stages 11-12 only, on the committed board (DRC gate, checks)
 #   just pcb-fab left        stages 13-14: JLCPCB gerbers/BOM/CPL, renders, Edge DXF, STEP
+#   just pcb-render-check left   after pcb-fab: the committed renders are current (pixel compare)
 #   just pcb left | pcb-all  everything for one / both sides
 
 pcb_image := "kicad/kicad:10.0.7"
@@ -56,6 +57,13 @@ pcb-drc side: pcb-deps
 # Container D, stages 13-14: build/<side>/{jlc/,edge.dxf,worxboard-<side>.step}, docs/images/pcb-<side>-*.png
 pcb-fab side: pcb-deps
     {{_pcb_run}} {{pcb_full}} bash pcb/scripts/stage_d.sh {{side}}
+
+# After pcb-fab: docs/images/pcb-<side>-*.png equal the committed ones up to the raytracer's run-to-run
+# noise (a few pixels by a level or two, deviations BOARD-12)
+pcb-render-check side: pcb-deps
+    mkdir -p build/{{side}}/committed
+    for v in top bottom; do git show HEAD:docs/images/pcb-{{side}}-$v.png > build/{{side}}/committed/pcb-{{side}}-$v.png; done
+    {{_pcb_docker}} python3 pcb/scripts/render_check.py {{side}}
 
 # All stages for one side (spec §9.2): schematic, layout, autoroute, finish + DRC + checks, fab outputs
 pcb side: (pcb-sch side) (pcb-place side) (pcb-route side) (pcb-finish side) (pcb-fab side)

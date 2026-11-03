@@ -51,8 +51,8 @@ jobs:
         run: just pcb-drc ${{ matrix.side }}
       - name: just pcb-fab (kikit --missingError, renders, Edge DXF, STEP)
         run: just pcb-fab ${{ matrix.side }}
-      - name: Committed renders are current
-        run: git diff --exit-code --stat -- docs/images/pcb-${{ matrix.side }}-*.png
+      - name: Committed renders are current (pixel compare, deviations BOARD-12)
+        run: just pcb-render-check ${{ matrix.side }}
       - uses: actions/upload-artifact@v4
         with:
           name: worxboard-pcb-${{ matrix.side }}

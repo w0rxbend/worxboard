@@ -619,8 +619,10 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   everything else is extended. In Standard PCBA JLC charges the same feeder fee for basic and
   extended parts, so the swaps buy stock, not fees.
 - **Not checked by a build:** that JLC solders C41430893 cleanly (no field report of this copy).
-- **Consumers:** FAB (the corrections for `SW_MX_Hotswap_Kailh`, SOIC-8 and the 3225 crystal apply
-  unchanged), DOCS (`bom.md`, `ordering-jlcpcb.md`, verification G3).
+- **Consumers:** FAB (corrected in ELEC-7: the new parts need the same correction *values* as the old
+  ones, but `jlc_rotations.csv` has no row for `worxboard:SW_MX_Hotswap_Kailh`, so all 37 sockets per
+  half go out uncorrected, 3.9 mm off and turned 180°; it needs `0.635;3.81;180`. The SOIC-8 row (270°)
+  and no row for the 3225 crystal are right), DOCS (`bom.md`, `ordering-jlcpcb.md`, verification G3).
 
 ### ELEC-2. U4's clamp reference is VSYS: the USB-C VBUS can no longer be back-driven (§6.3)
 
@@ -679,8 +681,10 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   - `pcb/lib/worxboard.pretty/PinSocket_1x05_P2.54mm_Vertical_H5.0mm.kicad_mod`: KiCad's
     `PinSocket_1x05_P2.54mm_Vertical` with identical pads, silk, courtyard and origin (pin 1, pins
     along +y at 0°), only the name and the 3D model differ. `place.py` loads it like the other
-    `worxboard` footprints; the JLC CPL correction found for the stock footprint (X 0, Y 5.08,
-    rotation 270) applies to it unchanged.
+    `worxboard` footprints. The JLC CPL correction worked out for the stock footprint (X 0, Y 5.08,
+    rotation 270) is the right value for this one too, but kikit matches rows by footprint name and
+    `jlc_rotations.csv` has no row under either name: J3 goes out uncorrected until FAB adds one
+    (corrected in ELEC-7).
   - `pcb/lib/worxboard.3dshapes/PinSocket_1x05_P2.54mm_Vertical_H5.0mm.step`, written by
     `pcb/lib/gen_models.py` (build123d, deterministic): body 13.4 × 2.55 × 5.15 mm and 0.64 × 0.4
     tails 3.2 mm below the PCB top, the drawing's upper tolerances, so the fit check sees the
@@ -781,12 +785,14 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
     `NOT_ASSEMBLED` (it would list J3 among the parts JLC does not fit);
   - three existing rows say basic where JLC says extended (`componentLibraryType` `expand`):
     C51118, C1557 and C2909343 need `True`.
-- **CPL (FAB).** `pcb/scripts/jlc_rotations.csv` needs J3's row under the new footprint name,
+- **CPL (FAB).** This bullet understated the gap; ELEC-7 lists every row. `pcb/scripts/jlc_rotations.csv`
+  needs J3's row under the new footprint name,
   `"^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$",".*",0,5.08,270`, worked out on
-  C27985230's own EasyEDA footprint (5 of 5 pins, 0.0 mm pad error). The swaps leave the other
-  corrections as they were: worked out on each new part's own EasyEDA footprint, C41430893 and
-  C49352235 need the same correction as C2803348 on `worxboard:SW_MX_Hotswap_Kailh` (pads within
-  0.28 mm), C97521 the same as C113767 (SOIC-8, 270°) and C49304726 the same as C91749 (none).
+  C27985230's own EasyEDA footprint (5 of 5 pins, 0.0 mm pad error). The swaps change no correction
+  *value*: on each new part's own EasyEDA footprint, C41430893 and C49352235 need what C2803348
+  needed on `worxboard:SW_MX_Hotswap_Kailh` (pads within 0.28 mm), C97521 what C113767 needed
+  (SOIC-8, 270°) and C49304726 what C91749 needed (none). But the table never had the socket row,
+  `0.635;3.81;180`, so every socket goes out uncorrected (ELEC-7).
 - **Checked while here, Y1 start-up.** The part research left the crystal's start-up margin open.
   C49304726 has the same 18 pF load and a lower ESR (80 Ω against 100 Ω, LCSC parameters) than
   C91749, the Corne v4.1 production crystal that §6.4 clones with the same 27 pF caps and 1 kΩ on
@@ -883,8 +889,50 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
      39.925);
   2. their renders `docs/images/pcb-<side>-{top,bottom}.png`;
   3. `checks.py`'s `copper_graph()` edge weight clamped to `max(0.0, w)` (ELEC-5);
-  4. FAB's J3 row in `jlc_rotations.csv` (CI does not need it to pass, but without it the CPL that
-     commit builds places J3 uncorrected; neither CI nor this check tests rotations).
+  4. FAB's rows in `jlc_rotations.csv`: J3, and, as ELEC-7 sets out, the hot-swap sockets and J2
+     added and U1 and J1 corrected. CI does not need them to pass, but without them the CPL that
+     commit builds misplaces 41 parts per half (U1, J1, J2, J3, SK101–SK137); neither CI nor this
+     check tests rotations.
 
   ELEC keeps J3 pin *n* = nice!view pin *n* (1 MOSI, 2 SCK, 3 3V3, 4 GND, 5 CS). The G1 pin order is
   fixed by rotating the footprint, not by renumbering the pins.
+
+### ELEC-7. The CPL corrections FAB owes, in full (§9 stage 13; corrects ELEC-1, ELEC-3, ELEC-5)
+
+- **Problem** (verifier, 2026-11-03): ELEC-1, ELEC-3 and ELEC-5 said the corrections "apply
+  unchanged" and that the swaps "leave the other corrections as they were". That holds for the values
+  only. kikit applies a `jlc_rotations.csv` row by the board footprint's library id and falls back
+  to 0, 0, 0 (`applyCorrectionPattern`). The table has no row for `worxboard:SW_MX_Hotswap_Kailh` (it
+  never had), none for J3 under either footprint name and none for the PJ-320D, and its QFN-56 and
+  USB-C rows are wrong. In the `pos.csv` that `just pcb-fab right` builds from the CI-rebuilt board
+  of run 41548543572, SK101 sits at its switch centre (191.45, −67.01, B, 0°), 3.86 mm from the
+  midpoint of its pads and turned 180° from the way its body clears the switch post. J3 sits at its
+  pin 1 (90°), U1 at 270° and J1 at 0°. 41 of the 119 parts per half would be placed wrong: U1, J1,
+  J2, J3 and SK101–SK137.
+- **The rows FAB needs.** These come from the research `corrections.json` (2026-11-02), re-derived by
+  the CPL review from the raw EasyEDA records with KiKit 1.8.1's own functions. Each ELEC part was
+  checked on its own LCSC footprint:
+
+  | kikit footprint pattern | X;Y;rotation | Refs (LCSC) | Committed table | Evidence |
+  |---|---|---|---|---|
+  | `^Package_DFN_QFN:QFN-56-1EP_7x7mm_P0\.4mm_EP3\.2x3\.2mm$` | 0;0;0 | U1 (C2040) | 270: **wrong**, U1 90° off, pin 1 on pad 43 | 57 of 57 pins agree only at 0 |
+  | `^Package_SO:SOIC-8_5\.3x5\.3mm_P1\.27mm$` | 0;0;270 | U2 (C97521) | 270: right | 8 of 8 |
+  | `^Package_TO_SOT_SMD:SOT-23-[56]$` | 0;0;−90 | U3 (C51118), U4, U5 (C7519) | −90: right | 5 of 5, 6 of 6 |
+  | `^Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12$` | 0;−1.394;0 | J1 (C165948) | 0;0;180: **wrong**, reversed and 4.4 mm off | locating pegs. The SMD pads alone give −1.572, 0.18 mm apart (a land-pattern difference). EasyEDA's footprint changed in 2026-08, so the 2024 community 180° no longer applies |
+  | `^Connector_Audio:Jack_3\.5mm_PJ320D_Horizontal$` | 0.776;0;90 | J2 (C95562) | no row: **wrong**, 90° and up to 7.3 mm off | peg holes exact |
+  | `^worxboard:SW_MX_Hotswap_Kailh$` | 0.635;3.81;180 | SK101–SK137 (C41430893, also C49352235 and C2803348) | no row: **wrong**, 3.9 mm off and 180° | holes exact, pads 0.26 mm rms. 0° and 180° fit the two pads alike; at 180° the body's notch wraps the Ø4 switch post (outline 2.64 mm from its centre, 0.73 mm at 0°) |
+  | `^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$` | 0;5.08;270 | J3 (C27985230, also the C46061764 fallback) | no row: **wrong**, 5.08 mm off | 5 of 5 pins; unchanged when J3 is turned 180° |
+  | (no row) | 0;0;0 | 0402 R and C, D1 and D101–D137 (SOD-123), Y1 (C49304726), SW1, SW2, F1 | right | pads, pin 1 and cathode agree |
+
+  For a B.Cu part kikit writes rotation 180 − θ + r and does not mirror the offset, so the
+  bottom-side sockets take +3.81. SK101 then goes to (190.83, −63.20, B, 180°), the midpoint of its
+  two pads. JLC does not document its bottom-side convention, so its placement preview of the bottom
+  side stays the final check (`docs/ordering-jlcpcb.md`). An earlier review pass gave 0° for the
+  sockets: it matched pads only, and pads alone cannot tell 0° from 180°.
+- **Why ELEC does not change the CPL itself:** FAB owns `jlc_rotations.csv`. ELEC could set the same
+  values per part through the `JLCPCB_CORRECTION` symbol field, which kikit prefers to the table,
+  but that would make a second source of corrections that silently overrides the first. A stage D
+  check that every CPL footprint has a row is also left out for now: it would turn the PCB stream's
+  re-placement commit red over a file that stream does not own. Once FAB's rows are in, that check
+  belongs in `netcmp.py --board`'s kikit mode: a row for every CPL footprint, or one of the no-row
+  footprints above.

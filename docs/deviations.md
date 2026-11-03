@@ -1241,3 +1241,41 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   job after `pcb-fab`) takes the committed PNGs from HEAD. It requires the same size and at most 64
   pixels differing by at most 8 levels per view. A changed board moves thousands of pixels.
   `docs/images/pcb-*.png` are still regenerated and committed with every board change.
+
+### BOARD-13. G2 landed: the PJ-320D envelope is the drawing size and the case relieves it (§4 G2; supersedes BOARD-10)
+
+- **Layout** (`layout/jacks.py`): `TRRS_BODY = (14.1, 6.1)`, `TRRS_HEIGHT = 5.0` (HRO drawing, LCSC
+  C95562: 2.00 barrel + 12.10 body, 6.10 wide, 5.00 tall; was 12.0 × 6.0 × 5.5). J2's body now runs
+  x 49.0–63.1 by y 99.95–106.05 (right frame; left 196.9–211.0), 0.9 mm past Z_TRRS (x 62.2), 3.57 mm
+  from the C6R1 switch housing. `layout.json` and `layout.svg` are regenerated; only the two J2 entries
+  change. The boards do not: `place.layout_seed()` leaves the jack bodies out (BOARD-3).
+- **Case cut** (`case/worxboard_case.py`, the one CASE-owned change, made here so G2 lands in one green
+  commit): `jack_relief_poly(side)` is J2's body + `J2_RELIEF_CLEAR` (0.5 mm, mitred), its corners
+  rounded to `TOOL_R` (1.0): x 48.5–63.6 by y 99.45–106.55 right frame (left x 196.4–211.5), the
+  0.5 mm clearance kept at the body corners too (0.29 mm on the diagonal). It is cut:
+  - in the **top part**, as part of `relief_poly()` (prism Z 12.09–14.6, `Z_PLATE_BOT` to
+    `Z_POCKET_CEIL`, i.e. up to PCB + 6.0): through the 1.0 mm well skin and the plate between the
+    C6R1 and C6R2 cut-outs over x 61.3–63.6. Over the well (x ≥ 62.27) the plate is gone and the well
+    is open above it; over the skin, 3.0 mm of skin stays above Z 14.6 as a bridge. The jack top is at
+    Z 13.6, flush with the plate top, 1.0 mm under the pocket ceiling (`jack_check` headroom);
+  - in the **spacer** (`spacer_face()`), which already stops 0.5 mm short of Z_TRRS; `spacer_check()`
+    now also fails if the spacer overlaps J2's body;
+  - in the **plate face** (`plate_face()`), so the stand-alone FR4 / aluminium plate DXF
+    (`plates/worxboard-plate-{left,right}.dxf`, regenerated) has the same notch as the milled plate.
+  The plate keeps ≥ 3 mm between the notch and the C6R1 / C6R2 switch cut-outs.
+- **Checks:** `just model` passes (`jack_check`: J2 body under the relief, 1.0 mm headroom; spacer,
+  mirror and web checks), `just fitcheck` 0 mm³ both against the layout envelopes alone (the `case`
+  workflow) and against the PCB STEPs + the layout J2 envelope (the `pcb` `fit` job). Before this
+  change the real body hit the top part with 16.8 mm³ and the spacer with 7.3 mm³ per half
+  (`verification.md` G2). `pytest layout`: `test_j2_inside_z_trrs` becomes
+  `test_j2_is_the_drawing_size_past_z_trrs` (drawing size, inside the PCB, exactly 0.9 mm past Z_TRRS,
+  ≥ 3.5 mm from every switch housing).
+- **Integration tests** (`tests/integration/test_gates.py`): the strict xfail on
+  `test_g2_layout_body_holds_the_jack` is removed (it passes now), and
+  `test_g2_jack_height_and_axis` checks the part height against the spec limit and the layout height
+  against the part (5.0 ≥ 5.0) instead of requiring the layout to carry the 5.5 mm spec limit.
+  `pytest tests/integration`: all pass, no xfails left.
+- **Consumers:** CASE builds on `jack_relief_poly()` and must keep it (or an equivalent cut) in the
+  top part, spacer and plate. DOCS: `verification.md` G2 (summary row, the Length and Height rows, open
+  item 4) and `docs/case.md` (the relief and plate rows) still describe the old envelope and the failure.
+  `case/renders/*.png` are regenerated.

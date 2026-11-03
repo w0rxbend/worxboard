@@ -190,10 +190,18 @@ def test_usb_clear_of_boss5():
     assert L.anchors("left")["J1"] == pytest.approx((74.0, 30.6))
 
 
-def test_j2_inside_z_trrs():
+def test_j2_is_the_drawing_size_past_z_trrs():
+    """PJ-320D (gate G2): 14.1 x 6.1 x 5.0 on the PCB; its last 0.9 mm runs past Z_TRRS (x 62.2) under
+    the plate, which the case relieves (deviations BOARD-13), and stays clear of the switch housings."""
     for s in L.SIDES:
         j2 = next(j for j in L.jacks(s) if j.ref == "J2")
-        assert L.zones(s)["Z_TRRS"].contains(box(*j2.body))
+        body = box(*j2.body)
+        x0, y0, x1, y1 = j2.body
+        assert (x1 - x0, y1 - y0, j2.height) == pytest.approx((14.1, 6.1, 5.0))
+        assert L.outline(s).contains(body)
+        past = body.difference(L.zones(s)["Z_TRRS"])
+        assert past.bounds[2] - past.bounds[0] == pytest.approx(0.9)
+        assert min(L.housing(k).distance(body) for k in L.keys(s)) >= 3.5
         assert j2.y == 103.0
         assert j2.facing == ((-1.0, 0.0) if s == "right" else (1.0, 0.0))
 

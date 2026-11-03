@@ -112,6 +112,10 @@ WEB_GAP_BOTTOM = 2.0
 # this wide; the component zones (Z_BACK, Z_TRRS) are always relieved.
 RELIEF_MIN_W = 6.0
 RELIEF_WELL_SKIN = 1.0   # well wall left between the key well and a relieved component zone
+# The PJ-320D (J2, gate G2) is 14.1 long: its last 0.9 mm runs past Z_TRRS, through the well skin and
+# under the plate between C6R1 and C6R2, and its top is flush with the plate top. Its body + this is
+# relieved in the top part (to Z_POCKET_CEIL, through the plate), the spacer and the plate DXF.
+J2_RELIEF_CLEAR = 0.5
 
 # Tent / tilt legs: reuses the stock EZ spring thumbscrews (M3), see docs/legs.md.
 DETENT_TEETH = False
@@ -494,6 +498,14 @@ def zones_poly(side: str, grow: float = 0.0):
 
 
 @lru_cache
+def jack_relief_poly(side: str):
+    """J2's body + J2_RELIEF_CLEAR (KiCad frame), corners rounded to the tool radius (gate G2,
+    deviations BOARD-13)."""
+    p = box(*JACK(side, "J2").body).buffer(J2_RELIEF_CLEAR, join_style="mitre")
+    return p.buffer(-TOOL_R).buffer(TOOL_R)
+
+
+@lru_cache
 def pocket_poly(side: str, grow: float = 0.0) -> Polygon:
     p = _rect_poly(DISPLAY(side)["pocket"])
     return p.buffer(grow, join_style="mitre") if grow else p
@@ -720,12 +732,13 @@ def detent_boss() -> Solid:
 def relief_poly(side: str):
     """Relief pocket (KiCad frame) above the plate level: inside the wall, WALL / 2 + 0.5 from the
     key well, opened to RELIEF_MIN_W; plus all of Z_BACK and Z_TRRS (spec §10.6-7), which keep
-    RELIEF_WELL_SKIN of well wall and are opened to the tool radius."""
+    RELIEF_WELL_SKIN of well wall and are opened to the tool radius; plus J2's body, which runs past
+    Z_TRRS through that skin and under the plate (jack_relief_poly)."""
     cav = cavity_poly(side)
     r = RELIEF_MIN_W / 2
     main = cav.difference(well_poly(side, WALL / 2 + 0.5)).buffer(-r).buffer(r)
     zone = zones_poly(side).difference(well_poly(side).buffer(RELIEF_WELL_SKIN, join_style="mitre"))
-    zone = zone.buffer(-TOOL_R).buffer(TOOL_R).intersection(cav)
+    zone = zone.buffer(-TOOL_R).buffer(TOOL_R).union(jack_relief_poly(side)).intersection(cav)
     return unary_union([main, zone]).intersection(cav.buffer(-0.01))
 
 
@@ -751,7 +764,8 @@ def spacer_face(side: str) -> Sketch:
     for (px, py), (nx, ny) in leg_mounts(side):
         d = WALL + leg_pad_depth(side, px, py, nx, ny) + SPACER_CLEAR
         s -= _leg_frame(px, py, nx, ny, Pos(d / 2, 0) * Rectangle(d, LEG_PAD[0] + 2 * SPACER_CLEAR))
-    for f in sp_faces(unary_union([zones_poly(side, SPACER_CLEAR), pocket_poly(side, SPACER_CLEAR)])):
+    for f in sp_faces(unary_union([zones_poly(side, SPACER_CLEAR), pocket_poly(side, SPACER_CLEAR),
+                                   jack_relief_poly(side)])):
         s -= f
     # keep the main lattice; crumbs cut off by the zones are dropped
     return Sketch() + [f for f in s.faces() if f.area > 20.0]
@@ -782,7 +796,8 @@ def spacer_check(side: str, spacer: Solid):
             if spacer.is_inside(Vector(c.X, c.Y, zmid)):
                 sys.exit(f"{side} plate spacer covers a stabiliser at ({kx:.1f},{ky:.1f})")
     sec = spacer_face(side)
-    for name, geom in (("component zones", zones_poly(side)), ("display pocket", pocket_poly(side))):
+    for name, geom in (("component zones", zones_poly(side)), ("display pocket", pocket_poly(side)),
+                       ("J2 body", box(*JACK(side, "J2").body))):
         for f in sp_faces(geom):
             if (Sketch() + f & sec).area > 1e-3:
                 sys.exit(f"{side} plate spacer overlaps the {name}")
@@ -1247,14 +1262,16 @@ def export_fitcheck_dxf(side: str, path: str):
 @lru_cache
 def plate_face(side: str) -> Sketch:
     """Switch plate island (part frame): the well + WALL / 2 + 0.5 inside the wall, minus the
-    switch and stabiliser cutouts. The integrated plate of the top part; also exported as a
-    stand-alone DXF for an FR4 / aluminium plate."""
+    switch and stabiliser cutouts and the J2 relief (its top is flush with the plate top). The
+    integrated plate of the top part; also exported as a stand-alone DXF for an FR4 / aluminium plate."""
     s = Sketch() + list(well_face(side, extra=WALL / 2 + 0.5))
     s &= inner_face(side)
     for kx, ky, w, h, rot in KEYS(side):
         s -= switch_cut(kx, ky, rot)
     for kx, ky, w, h, rot, sd in stab_keys(side):
         s -= stab_cuts(kx, ky, rot, sd)
+    for f in sp_faces(jack_relief_poly(side)):
+        s -= f
     return s
 
 

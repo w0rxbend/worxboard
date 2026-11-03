@@ -11,6 +11,9 @@
   of copper, every supply cap (C8-C19) reaches a U1 supply pin within CAP_PIN_MAX_MM, and each
   cap's GND pad has a via within CAP_GND_VIA_MM;
 - U4's VSYS clamp reference (pin 5) reaches a VSYS cap within U4_CAP_MAX_MM of copper;
+- U1 GND: every thermal via of U1's exposed pad, and the GND via of each cap route_critical joins to
+  it (GND_LINKED_CAPS), lies in the main B.Cu GND plane (the largest filled B.Cu GND area), joined to
+  it over B.Cu alone; the other U1 caps' GND vias are listed (deviations BOARD-9);
 - no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
@@ -30,8 +33,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pcbnew  # noqa: E402
 from shapely.geometry import Point, Polygon  # noqa: E402
 
+import complete_routes  # noqa: E402
 from complete_routes import vias_in_pads  # noqa: E402
 from place import layout_side  # noqa: E402
+from route_critical import GND_LINKED_CAPS  # noqa: E402
 
 USB_MAX_MM = 25.0
 USB_SKEW_MM = 1.0
@@ -208,6 +213,38 @@ def decoupling(board: pcbnew.BOARD) -> tuple[dict[str, float], dict[str, float],
     return pin_cap, cap_pin, gnd_via
 
 
+def u1_gnd(board: pcbnew.BOARD, side: str) -> tuple[int, list[str], float, list[str]]:
+    """U1's GND against the main B.Cu GND plane (the largest filled B.Cu GND area): the B.Cu copper
+    of GND only (the saved pour fill, tracks, vias, pads), joined as complete_routes.islands joins
+    it. Returns (EP vias in it, U1 caps whose GND via is in it, its area in mm2, errors)."""
+    gnd, B = board.FindNet("GND").GetNetCode(), pcbnew.B_Cu
+    items, _ = complete_routes.collect(board)
+    mine = [complete_routes.Item(it.net, {B: it.geoms[B]}, ref=it, pad=it.pad,
+                                 anchors={B: (it.anchors or {}).get(B, [])})
+            for it in items if it.net == gnd and B in it.geoms]
+    pours = [it for it in complete_routes.pour_copper(board) if it.net == gnd and B in it.geoms]
+    if not pours:
+        return 0, [], 0.0, ["no filled B.Cu GND pour"]
+    main = max(pours, key=lambda it: it.geoms[B].area)
+    group = next(g for g in complete_routes.islands(mine + pours, gnd) if any(it is main for it in g))
+    joined = {id(it.ref) for it in group if it.ref is not None}
+    vias = {it.ref.anchors[B][0]: it for it in mine if not it.pad and len(it.ref.geoms) == 2}
+    ep = pad_poly(next(p for p in board.FindFootprintByReference("U1").Pads() if p.GetNumber() == "57"))
+    ep_vias = [xy for xy in vias if ep.contains(Point(xy))]
+    ep_in = sum(id(vias[xy].ref) in joined for xy in ep_vias)
+    errs = [] if ep_vias and ep_in == len(ep_vias) else [
+        f"U1 exposed pad: {ep_in} of {len(ep_vias)} thermal vias in the main B.Cu GND plane"]
+    caps_in = []
+    for c in U1_CAPS:
+        pad = next(p for p in board.FindFootprintByReference(c).Pads() if p.GetNumber() == "2")
+        xy = min(vias, key=lambda v: math.dist(v, mm_xy(pad.GetPosition())))
+        if id(vias[xy].ref) in joined:
+            caps_in.append(c)
+        elif c in GND_LINKED_CAPS[side]:
+            errs.append(f"{c} GND via at ({xy[0]:.2f}, {xy[1]:.2f}) is not in the main B.Cu GND plane")
+    return ep_in, caps_in, main.geoms[B].area, errs
+
+
 def under_crystal(board: pcbnew.BOARD) -> list[str]:
     """B.Cu tracks and any vias whose copper reaches under Y1's courtyard."""
     from shapely.geometry import LineString
@@ -306,6 +343,11 @@ def main(argv: list[str]) -> int:
     for net in SUPPLY_NETS:
         print(f"     {net} U1 pin -> nearest cap, mm: " + ", ".join(
             f"{k.split('.')[1]} {v:.1f}" for k, v in pin_cap.items() if k.startswith(net)))
+    ep_in, caps_in, area, errs = u1_gnd(board, side)
+    off = [c for c in U1_CAPS if c not in caps_in]
+    results.append((f"U1 GND: {ep_in} EP vias and {len(caps_in)}/{len(U1_CAPS)} cap GND vias in the main B.Cu "
+                    f"GND plane ({area:.0f} mm2); gated: EP + {', '.join(GND_LINKED_CAPS[side]) or 'no caps'}"
+                    f"{'; not in it: ' + ', '.join(off) if off else ''}", errs))
     pin, net, caps = U4_REF
     ref = dijkstra(copper_graph(board, board.FindNet(net).GetNetCode()), [pin], set(caps))
     results.append((f"U4 {net} reference: {ref:.2f} mm of copper to a {net} cap",

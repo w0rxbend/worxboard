@@ -14,6 +14,9 @@
 - Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
 - Decoupling: every supply cap (placed at an exit by place.CLUSTER) joined to that exit, and its
   GND pad to a via; XOUT -> R7 -> Y1 beside the crystal; a B.Cu track/via keepout under Y1.
+- U1 GND (EP_LINK): a B.Cu GND spoke from the exposed pad's via array to the board edge on the side
+  of U1 that faces it, so routes cannot wall the pad's B.Cu off from the plane; on the right it also
+  joins the north and east caps' GND vias.
 
 Geometry is written in the U1 frame (place.U1_ROT) where it is the same on both halves; the
 J1 end is laid per side.
@@ -30,8 +33,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pcbnew  # noqa: E402
 
 from design import POWER_NETS  # noqa: E402
-from place import (U1_ROT, U4_CAP_VIA_Y, U4_L_S, U4_PIN5, U4_VIA_OUT, USB_NETS, layout_side, mm,  # noqa: E402
-                   pt, rotate, seed_kiids, usb_diagonal)
+from place import (EDGE_CLEARANCE, U1_ROT, U4_CAP_VIA_Y, U4_L_S, U4_PIN5, U4_VIA_OUT, USB_NETS,  # noqa: E402
+                   layout_side, mm, outline_points, pt, rotate, seed_kiids, usb_diagonal)
 
 FAN_W = 0.15                 # QFN stubs and inner joins
 PAIR_W = 0.25
@@ -89,6 +92,24 @@ CAP_LINK_W = 0.25            # 1V1 and crystal links (Default width)
 CAP_GND_OUT = 0.84           # C2 (U4's VSYS cap): GND via this far past its pad 2
 XOUT_PIN = "21"
 Y1_KEEPOUT_GROW = 0.25       # B.Cu track / via keepout: Y1 courtyard + this (spec §6.4)
+# U1 GND on B.Cu (docs/deviations.md BOARD-9). The exposed pad is the RP2040's only GND pin, and B.Cu
+# routes under and around U1 could ring its B.Cu copper off from the plane (the left board of 4e5fc30
+# hung it on one via). A locked 0.5 mm B.Cu GND spoke now runs from the pad's via array to the board
+# edge on the side of U1 that faces the back edge, where no fan-out runs, so no route can pass between:
+# - right ("north"): up under the 3V3 north exit (x 0.6) through the north caps' GND via row
+#   (C14 / C15 / C13 / C10, with C16 / C19 on its end) and on from C19's via to the edge; the east caps'
+#   GND vias (C18 / C11 / C12) in a row feed the GND fill under the USB pair (USB_KEEPOUT), which meets
+#   the spoke at its west end;
+# - left ("south", U1 turned 180 deg): down under XIN into the GND fill under Y1 (Y1_KEEPOUT), which
+#   reaches the back edge.
+# One spoke per half: a second one on the other side walls off the routes that cross under U1. On the
+# left the cap side faces U2 and the matrix, and the GND links to the caps tried there left nets open.
+EP_LINK = {"right": "north", "left": "south"}
+SPOKE_W = 0.5
+N_SPOKE_X = 0.6              # north spoke: under the 3V3 north exit (x 0.4), beside the USB keepout (x >= 1.0)
+SPOKE_KO_GAP = 0.05          # GND copper stops this far short of a keepout whose fill it joins, or of the
+                             # copper-to-edge clearance
+GND_LINKED_CAPS = {"right": N_CAPS + V11_N_CAPS + E_CAPS, "left": ()}   # their GND vias join the spoke
 
 
 class Router:
@@ -254,6 +275,76 @@ class Router:
             if v not in done:
                 self.via(gnd, self.g(*v))
                 done.add(v)
+
+    def ep_south(self) -> None:
+        """Left (EP_LINK "south"): locked B.Cu GND from the exposed pad's south-west via, under XIN,
+        to just short of the GND fill under Y1, whose keepout reaches the back edge (BOARD-9)."""
+        if EP_LINK[self.side] != "south":
+            return
+        cy = self.board.FindFootprintByReference("Y1").GetCourtyard(pcbnew.F_CrtYd).Outline(0)
+        top = min(self.local(*self.xy(cy.CPoint(i)))[1] for i in range(cy.PointCount())) - Y1_KEEPOUT_GROW
+        xs, (sx, sy) = self.lpad("U1", "20")[0], (min(EP_VIAS), max(EP_VIAS))
+        self.ltrack(self.net("U1", "57"), [(sx, sy), (xs, sy + (xs - sx)), (xs, top - SPOKE_W / 2 - SPOKE_KO_GAP)],
+                    SPOKE_W, pcbnew.B_Cu)
+
+    def zone_polys(self, name: str) -> list:
+        """Outlines of the rule areas called `name`, in the U1 frame."""
+        from shapely.geometry import Polygon
+        out = []
+        for z in self.board.Zones():
+            if z.GetZoneName() == name:
+                o = z.Outline().Outline(0)
+                out.append(Polygon([self.local(*self.xy(o.CPoint(i))) for i in range(o.PointCount())]))
+        return out
+
+    def stub(self, net, a: tuple[float, float], polys: list) -> None:
+        """Locked B.Cu from `a` (U1 frame) straight toward the nearest of `polys`, stopping
+        SPOKE_KO_GAP short of it, so the GND fill inside the rule area joins it."""
+        from shapely.geometry import LineString, Point
+        from shapely.ops import nearest_points, unary_union
+        area = unary_union(polys)
+        q = nearest_points(Point(a), area)[1]
+        d = math.dist(a, (q.x, q.y))
+        k = (d - SPOKE_W / 2 - SPOKE_KO_GAP) / d
+        e = (a[0] + (q.x - a[0]) * k, a[1] + (q.y - a[1]) * k)
+        if LineString([a, e]).buffer(SPOKE_W / 2).intersects(area):
+            raise SystemExit(f"GND stub from {a} cuts into a keepout")
+        self.ltrack(net, [a, e], SPOKE_W, pcbnew.B_Cu)
+
+    def to_edge(self, a: tuple[float, float], d: tuple[float, float]) -> tuple[float, float]:
+        """The point from `a` along unit direction `d` (U1 frame) where a SPOKE_W track's copper
+        reaches the copper-to-edge clearance of the outline, so no route can pass between."""
+        from shapely.geometry import LineString, Point, Polygon
+        inner = Polygon(outline_points(self.side)).buffer(-(EDGE_CLEARANCE + SPOKE_W / 2 + SPOKE_KO_GAP))
+        start = Point(self.g(*a))
+        hit = LineString([self.g(*a), self.g(a[0] + d[0] * 100.0, a[1] + d[1] * 100.0)]).intersection(inner.exterior)
+        p = min(getattr(hit, "geoms", [hit]), key=start.distance)
+        return self.local(p.x, p.y)
+
+    def ep_north(self) -> None:
+        """Right (EP_LINK "north"): locked B.Cu GND from the exposed pad's north-east via under the
+        3V3 north exit into the north caps' GND via row (C16 / C19 on its west end), on from C19's via
+        to the back edge; the east caps' GND vias in a row, fed into the GND fill under the USB pair,
+        which meets the spoke (BOARD-9). Needs USB_KEEPOUT: runs after keepout()."""
+        if EP_LINK[self.side] != "north":
+            return
+        from shapely.geometry import Point
+        gnd, B = self.net("U1", "57"), pcbnew.B_Cu
+
+        def via_of(cap: str) -> tuple[float, float]:
+            (px, py), (dx, dy) = self.lpad(cap, "2"), GND_VIA[cap]
+            return round(px + dx, 4), round(py + dy, 4)
+        north = sorted(via_of(c) for c in N_CAPS)                 # one row, x ascending
+        (x16, _), (x19, y19) = sorted(via_of(c) for c in V11_N_CAPS)
+        east = sorted({via_of(c) for c in E_CAPS})
+        strip = self.zone_polys("USB_KEEPOUT")
+        lo, hi = min(EP_VIAS), max(EP_VIAS)
+        x, yn = N_SPOKE_X, north[0][1]
+        self.ltrack(gnd, [(x16, y19), (x19, y19), (x, y19 + (x - x19)), (x, yn), north[0], north[-1]], SPOKE_W, B)
+        self.ltrack(gnd, [(hi, lo), (x, lo - (hi - x)), (x, yn)], SPOKE_W, B)
+        self.ltrack(gnd, [(x19, y19), self.to_edge((x19, y19), (0.0, -1.0))], SPOKE_W, B)
+        self.ltrack(gnd, [east[0], east[-1]], SPOKE_W, B)
+        self.stub(gnd, min(east, key=lambda v: min(p.distance(Point(v)) for p in strip)), strip)
 
     def crystal(self) -> None:
         """XOUT from its fan end down to R7 beside the crystal, R7 -> Y1 pad 3, and a B.Cu
@@ -605,8 +696,10 @@ def main(argv: list[str]) -> int:
     r.power_escapes()
     r.fanout()
     r.decoupling()
+    r.ep_south()                 # the copper order fixes the seeded KIIDs: keep it (deviations WS2c-4)
     r.crystal()
     r.keepout(r.usb())
+    r.ep_north()
     r.matrix(layout_side(side)["keys"])
     board.Save(str(path))
     print(f"{side}: {r.tracks} locked track segments")

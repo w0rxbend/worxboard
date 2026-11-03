@@ -979,3 +979,154 @@ and the docs build again. Checked on 2026-11-03, 00:10–00:50 UTC.
 - **Acceptance** (this change): `just pcb-sch-all` gives ERC 0 and netcmp 10/10 on both halves, with
   the schematics and `pcb/lib` unchanged. `pytest tests/integration` gives 101 passed, 6 xfailed and
   4 failed, the same stale-board tests as in ELEC-6.
+
+## BOARD: re-placed and re-routed boards for the turnkey order (`pcb/scripts/`, `pcb/left`, `pcb/right`, `layout/display.py`, `tools/images.lock`)
+
+Both halves were re-placed and re-routed from scratch on 2026-11-03 from the ELEC schematics (ELEC-1
+to ELEC-3: C41430893 sockets, C97521 flash, C49304726 crystal, U4 pin 5 on VSYS, J3 as the fitted
+5.0 mm C27985230 socket). The schematics and `pcb/lib` are unchanged.
+
+### BOARD-1. J3 turned 180° and moved onto the module's header row (§4 G1 items 1 and 2)
+
+- **Source:** the nice!view pinout and dimension drawings (nicekeyboards.com, re-read 2026-11-03).
+  The front view (LCD side, flex at the top, header at the bottom) reads MOSI, SCK, VCC, GND, CS from
+  left to right; the header row is 1.3 mm in from the module's short edge, its pins centred across
+  the 14 mm width (1.92 + 4 × 2.54 + 1.92).
+- **Derivation:** on both halves the module lies LCD up with its header at the back (low y): the
+  front view turned 180°, so MOSI (J3 pin 1, design.py pin n = module pin n) is at **high x** in each
+  half's own frame. The module spans y 38.625–74.625 (`layout.display.MODULE_RECT`), so its header
+  row is at 38.625 + 1.3 = **39.925**.
+- **Change:**
+  - `layout/display.py`: `HEADER` is derived from the module rectangle (y 39.925, was 40.6), and
+    `header_pins()` lists the pins in pin order, pin 1 first at high x; `layout.display()` keeps
+    that order on both halves. The window follows the header: centre y 55.865 (was 56.54).
+  - `place.py`: J3's origin (pin 1) on `header_pins[0]` at 270°, so its pins run toward −x.
+  - `layout/tests/test_layout.py`: the header position and "pin 1 at high x on both halves".
+- **Result:** J3 pad 1 (`DISP_MOSI`) at (77.47, 39.925) on the right and (192.69, 39.925) on the left,
+  pads 2–5 at −2.54 mm steps: SCK, 3V3, GND, CS. The stage C/D gate of ELEC-8 (`netcmp.py --board`)
+  passes on both. A module plugged in spans y 38.625–74.825 with the V-cut, inside the pocket
+  (38.125–75.125). `just model` and `just fitcheck` pass with today's case (`plates/` unchanged).
+- **Consumers:** CASE (window and pocket follow `layout.json`; the display stack of ELEC-3 is
+  unchanged), DOCS (`site/gen_docs.py` now gets pin 1 at high x from `header_pins`, but its J3 prose
+  still says low x; `verification.md` G1 items 1 and 2 are done), WS5 tests
+  (`test_g1_module_pins_land_on_their_nets` and `test_g1_module_fits_the_pocket` now XPASS on both
+  halves, so their strict markers must go or `release.yml` fails).
+
+### BOARD-2. The completion router no longer depends on the host (§9 stages 10–11)
+
+- **Problem** (review fixes, `verification.md`): `complete_routes.Index.dilated` cached dilated copper
+  under `id()` of the item. Once a rip-up freed an item, Python handed its id to new copper, which then
+  got the old item's shape (over 6 000 such hits in one left rebuild): the router saw ripped copper
+  where none was and missed new copper. Which ids come back depends on the allocator, so the left
+  board differed between this host and the CI runners, and the committed left board was the CI build.
+- **Change:** the cache key holds the item itself. `Item` is `eq=False`, so it hashes by identity, and
+  the cache keeps every keyed item alive for the life of the index: no id can be reused under it.
+- **Left GND island:** the review expected this fix to leave the left U1-area GND pour island open (3
+  DRC unconnected items with the old placement and seed 0x2). With the new placement the plain
+  completion and the transactional rip-up close every gap, GND included, so no routing or pour rule
+  changed. As WS2c-4 prescribes for a placement change, the left base seed was re-chosen: of 0x2, 0x3,
+  0x4 and 0x5 (all with this placement), 0x3 closed every gap first, in 9.3 min of `pcb-finish`; 0x2
+  was still negotiating after 27 min and 0x4 and 0x5 after 11 min, when they were stopped. The right
+  keeps 0x1 (0 open, 3.8 min).
+- **Check:** repeated from-scratch runs in separate clones gave byte-identical Freerouting sessions
+  and boards, and on the CI runners (run 41577492203, bf7a642) both `rebuild` jobs built boards equal
+  to the committed ones, the left included (23 min left, 20 min right).
+
+### BOARD-3. The boards are seeded from the layout data they are built from (§9 stage 7; amends WS2c-4)
+
+- **Problem:** `place.py` seeded the KIIDs with the bytes of the whole `layout.json`, so a change only
+  the case reads (a jack body, the display pocket or window) re-seeded the board, re-routed it and made
+  the committed boards stale.
+- **Change:** `place.layout_seed()` hashes only what the board uses: the keys, holes, outline, zones
+  and the J3 pins. The jack bodies and the display rectangles can change without touching the boards.
+
+### BOARD-4. Dangling copper is cleaned up after routing (§9 stage 11)
+
+- **Problem:** the rip-up of `complete_routes.negotiate()` left unlocked stubs, and Freerouting runs
+  some segments past the point where the rest of their net joins them: about 90 (left) and 70 (right)
+  `track_dangling` / `via_dangling` DRC warnings on the old boards, copper that carries no current.
+- **Change:** `pcb/scripts/prune.py`, run by `stage_c.sh` after the DRC gate, then the gate again.
+  Each round runs the DRC and, for every unlocked item it names: deletes it if its net keeps its
+  island count without it (then whatever that leaves loose); else cuts a track with one loose end back
+  to the last point where copper of its net joins it; else replaces a via that joins copper on one
+  layer only by short tracks on that layer inside its own pad. Every change is checked against the
+  net's island count (the completion router's copper model) and the pours are refilled per round.
+  It is seeded like the other stages, so the result is reproducible.
+- **Result:** left 61 deleted, 6 trimmed, 2 vias replaced; right 121 deleted, 8 trimmed, 4 replaced.
+  What KiCad still flags is locked copper from `route_critical.py`: the column vias at the keys, where
+  the column line and the socket link both run on B.Cu (WS2b-3), two column fan-out vias at U1, and a
+  few U1 fan-out stubs the router joined mid-stub (left 33 items, right 37). Plus, on the right, 2
+  unlocked items that carry a junction (a COL1 segment and a VBUS_SENSE via). DRC stays at 0
+  violations and 0 unconnected throughout.
+
+### BOARD-5. U4's VSYS reference has its own 10 µF at the pin (§6.3; ELEC-2)
+
+- **Problem** (ELEC-2, ELEC-5): with U4 pin 5 on VSYS, the nearest VSYS copper was 11–20 mm away
+  (D1, C1, C2, JP1); the CI rebuild of b077f78 reached VSYS over 17.6 mm of track. ST asks for a short
+  connection from the clamp reference to its rail.
+- **Change:** C2, one of the two 10 µF VSYS caps, moves from beside C1 to U4: `place.py` puts it in
+  U4's frame across the D+ row from the pin-5 via (`U4_CAP_Y`), pad 1 toward U4, and
+  `route_critical.u4_cap()` lays locked copper pin 5 → via → B.Cu → via → C2 pad 1, and C2 pad 2 →
+  GND via. C1 stays at D1 and U3's input (the AP2112K needs 1 µF there). VSYS keeps its 2 × 10 µF.
+- **Check:** `checks.py` measures the copper path from U4 pin 5 to a VSYS cap (≤ `U4_CAP_MAX_MM`,
+  5.0): 4.07 mm on both halves. C2 sits at (179.79, 36.00, 90°) on the right and (74.41, 44.39,
+  241.46° in the CPL) on the left.
+- **Consumers:** FAB (C2 is an 0402 like before: no correction row), DOCS (`electrical.md` still
+  groups C1/C2 at D1).
+
+### BOARD-6. `checks.py` cannot loop on a zero-length edge (§9 stage 12; ELEC-5)
+
+- `copper_graph()` clamps each edge weight to `max(0.0, w)`. `project()` on a segment end gave
+  −3e-17, a negative cycle that `dijkstra()` never left: the left CI rebuild was killed for memory
+  (exit 137). `checks.py` now runs in about 1 s on both halves.
+
+### BOARD-7. JLC fabrication and assembly rules (§9 stage 13)
+
+JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
+
+| Rule | JLC | Left | Right |
+|---|---|---|---|
+| Track | ≥ 0.10 | rule 0.127; narrowest 0.135 (2 segments), signals 0.15–0.18 | rule 0.127; narrowest 0.135 (3 segments) |
+| Clearance | ≥ 0.10 | rule 0.127, netclasses 0.2 | same |
+| Vias | ≥ 0.15 drill / 0.25 pad; no fee at 0.3 drill | 321, all 0.3 / 0.6 | 341, all 0.3 / 0.6 |
+| Via in an SMD pad | flagged by JLC DFM | none (`checks.py`; the U1 exposed-pad thermal array excepted) | none |
+| Copper to a routed edge | ≥ 0.2 | 0.5 rule | 0.5 rule |
+
+- **Component bodies near the edge.** JLC's assembly terms want bodies ≥ 2.5 mm from the board edge
+  unless the board gets rails. Courtyards closer than that (mm):
+  - right: J1 and J2 past the edge by design (USB-C and TRRS mouths), SK132 touching, SK134 and SK135
+    1.10, U2 1.50, C5 1.70, R8 and R9 1.88, SK133 2.01;
+  - left: J1 and J2 past the edge, Y1 0.40, SK132 0.83, C7 1.09, C6 1.49, SK133 2.01, R7 2.07, C17
+    2.09, SK134 and SK135 2.34.
+
+  J1, J2 and the thumb sockets cannot move (the connector mouths are the case notches, the sockets
+  sit under their switches), so placement cannot meet a 2.5 mm rule and the order needs **assembly
+  rails attached with a routed gap and mouse-bites, no V-cut, and no tab in front of J1 (back edge,
+  y 30.6, x 181.5–190.5 right / 69.5–78.5 left) or J2 (bump edge, y 99.95–106.05, x 49.0 right /
+  211.0 left)**. That holds for the parts that could move too (U2, C5, R8, R9; Y1 cannot without
+  breaking its 3 mm rule), so they stay. The rails, fiducials and tooling holes are PACKAGE's panel.
+- **Silkscreen:** about 185 `silk_over_copper` and 5 `silk_edge_clearance` warnings per half (library
+  outlines over pads, J1/J2 outlines over the edge); JLC clips silk off pads and the edge.
+
+### BOARD-8. Result
+
+| Check | Left | Right |
+|---|---|---|
+| `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
+| Freerouting 2.5.0 (30 passes), open after | 25 connections, 6.9 min | 40 connections, 11.3 min |
+| `just pcb-finish` (completion, rip-up, pours, clean-up, gates) | 8.1 min | 3.8 min |
+| DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
+| `checks.py` | 8/8: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22) | 8/8: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm |
+| `netcmp.py --board` + kikit BOM/CPL (stage D) | 3/3, 119 fitted parts | 3/3, 119 fitted parts |
+| `just model && just fitcheck` with both STEPs | 90 bodies, 0 mm³ | 90 bodies, 0 mm³ |
+
+- CI on bf7a642: `layout`, `firmware`, `case` and `pcb` (schematics, both `board` jobs with the
+  renders current, `fit`, both `rebuild` jobs) all pass, run 41577492203 for `pcb`.
+- `pytest layout`: 32 passed. `pytest tests/integration` (no firmware build): 80 passed, 25 skipped,
+  2 xfailed (G2), and 4 strict XPASSes, the G1 tests of BOARD-1. The stale-board tests of ELEC-6
+  (`test_netlist_equals_committed_board`, `test_committed_board_orders_the_design_parts`) pass.
+- **Decoupling, unchanged:** IOVDD 10, 22, 33 and VREG_VOUT 45 still reach their caps through the
+  joins inside the pad ring (REVIEW-FIX-2, worst 11.64 mm). Shortening them needs caps on B.Cu under
+  U1, fed by vias in the ring, which would cut the B.Cu GND pour under the exposed pad and the column
+  crossings there: a rev B change.
+- `tools/images.lock` now records the `kicad/kicad:10.0.7-full` digest (WS2c-2).

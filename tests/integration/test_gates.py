@@ -66,7 +66,6 @@ def test_g1_j3_pin_order_is_the_module_order(side):
     assert [j3.pads[str(n)] for n in range(1, 6)] == [J3_NETS[p] for p in NV_FRONT_PINS]
 
 
-@pytest.mark.xfail(strict=True, reason="G1: J3 pin 1 is at low x, under the module's CS pin")
 @pytest.mark.parametrize("side", SIDES)
 def test_g1_module_pins_land_on_their_nets(side):
     """LCD side up with the header at the back is the front view turned 180°: CS is at low x."""
@@ -75,7 +74,6 @@ def test_g1_module_pins_land_on_their_nets(side):
     assert [j3.pads[p] for p in by_x] == [J3_NETS[p] for p in reversed(NV_FRONT_PINS)]
 
 
-@pytest.mark.xfail(strict=True, reason="G1: the module ends 1.3 mm past the header, not 1.975")
 @pytest.mark.parametrize("side", SIDES)
 def test_g1_module_fits_the_pocket(side):
     y0, y1 = module_span(side)

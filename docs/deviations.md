@@ -1130,3 +1130,101 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   U1, fed by vias in the ring, which would cut the B.Cu GND pour under the exposed pad and the column
   crossings there: a rev B change.
 - `tools/images.lock` now records the `kicad/kicad:10.0.7-full` digest (WS2c-2).
+
+### BOARD-9. U1's exposed pad joins the main B.Cu GND plane through a locked spoke to the board edge (§6.4, §9 stages 8 and 12; corrects BOARD-2)
+
+- **Problem** (post-BOARD review of 4e5fc30): on the left board, U1's exposed pad (pad 57, the
+  RP2040's only GND pin) sat on a 57.7 mm² B.Cu GND island. That island reached the rest of GND through
+  one unlocked completion via at (89.0, 43.8), an 18.7 mm² F.Cu island and the vias at
+  (85.35 / 83.85, 43.64): with that via deleted, DRC reports 1 unconnected item. Most left cap GND vias
+  sat in small B.Cu islands (C10/C13–C15 in 3.7 mm², C11/C18 in 9.4, C16/C19 in 21.5, C8/C9 in 35.1).
+  **BOARD-2's statement that the left GND island did not reappear was wrong.** DRC's 0 unconnected
+  hid a join through a single via, and seed 0x3 was kept only because its router happened to close the
+  gap. The right half had the pad and 7 of the 12 U1 cap GND vias in its main plane, by the same luck.
+- **Cause:** B.Cu routes under and around U1 can ring the pad's B.Cu copper off from the plane. On the
+  left, U1 is turned 180° (WS2b), so its cap side faces U2 and the matrix, where the fan-out runs. On
+  the right, that side faces the back edge.
+- **Change** (`route_critical.py`, `EP_LINK`): a locked 0.5 mm B.Cu GND spoke runs from the pad's via
+  array to the board edge, on the side of U1 that faces the back edge, where no fan-out runs. It stops
+  0.05 mm short of the copper-to-edge clearance, or of a keepout whose fill reaches the edge, so no
+  route can pass between:
+  - **right** (`ep_north`): from the north-east EP via, up under the 3V3 north exit (U1 frame x 0.6),
+    into a B.Cu row through the north caps' GND vias (C14/C15/C13/C10, with C16/C19 on its west end),
+    then on from C19's via to the back edge (y 31.35). The east caps' GND vias (C18/C11/C12) are joined
+    in a row and fed into the GND fill under the USB pair (`USB_KEEPOUT`, fills allowed), which meets
+    the spoke at the keepout's west end. 22.2 mm of locked copper.
+  - **left** (`ep_south`): from the south-west EP via, down under XIN into the GND fill under Y1
+    (`Y1_KEEPOUT`), which reaches the back edge. 5.4 mm.
+
+  Freerouting and the completion router treat the spoke as fixed copper, so it is in place before any
+  route.
+- **Gate** (`checks.py`, run by stage C and by the CI `board` and `rebuild` jobs): every thermal via
+  of the exposed pad must lie in the main B.Cu GND plane (the largest filled B.Cu GND area), and so
+  must the GND via of every cap the spoke joins (`GND_LINKED_CAPS`: right C10, C11–C16, C18, C19;
+  left none). "Lie in" means joined to the plane over B.Cu alone, with no hop through an F.Cu island.
+  The other caps are listed. On 4e5fc30 the gate fails both halves: the left on its EP vias (0 of 9),
+  the right on C11, C12 and C18.
+- **Tried and dropped** (same placement, base seeds 0x1–0x4; one round is 20–80 min per half):
+  - Spokes from the pad to every cap group (north, east, west) on both halves. The left never
+    completed (COL4 open). The right lost QSPI_SD0 with the west spoke in place, and on
+    another round its whole spoked cluster was ringed off (0/9 EP vias in the plane). A spoke that stops
+    short of the edge only moves the ring outward.
+  - North and south spokes together. Then no route can cross under U1, which the columns and 1V1 need
+    (COL2–COL6 leave the south-east fan for the west; 1V1 runs from the north moat to pin 23). The left
+    left 3 to 7 nets open.
+  - On the left, also joining the north and east cap rows into the USB GND strip (short links). ROW5
+    stayed open, and the caps still did not reach the plane (2/12).
+  - A post-route pass that lays a B.Cu GND track from each walled-off island into the plane, ripping
+    and rerouting the nets in its way (the `complete_routes` rip-up machinery). The rerouted nets ring
+    the island again one step further out. It did not converge on the left (1/12 caps) and was dropped.
+- **Result:** both halves route to 0 unconnected with their old base seeds (left 0x3, right 0x1). The
+  boards are rebuilt from scratch, and the DSNs and boards are byte-identical between runs.
+  - left: all 9 EP vias are in the main B.Cu plane (14 717 mm²); none of the 12 cap GND vias is.
+  - right: EP plus 11 of 12 caps are in the main plane (14 669 mm²). C17 (DVDD 23) is not (30.4 mm²).
+- **Open, left caps:** the left's U1 cap GND vias still land in small B.Cu islands: C10/C13–C16/C19
+  in one of 60.9 mm² (9 vias to F.Cu islands), C8/C9 50.4, C11/C18 24.0, C12 23.1, C17 1.0. Every
+  island is joined to GND (DRC 0 unconnected), but the cap-to-pad return is long. On this placement any B.Cu
+  link from those vias to the pad or the plane walls in the fan-out the left's completion needs (see
+  above). Fixing it is a placement change for rev B: put the left cap rows on U1's back-edge side, or
+  stop turning the left U1.
+
+### BOARD-10. G2 (TRRS body length) is not landed: it needs CASE's relief cut in the same commit (§4 G2)
+
+- **Layout half, ready:** `layout/jacks.py` `TRRS_BODY = (14.1, 6.1)` and `TRRS_HEIGHT = 5.0` (HRO
+  drawing: 2.00 barrel + 12.10 body, 6.10 wide, 5.00 tall). `layout/tests/test_layout.py`
+  `test_j2_inside_z_trrs` becomes "J2 is the drawing size, inside the PCB, its last 0.9 mm past Z_TRRS
+  (x 62.2) and ≥ 3.5 mm from every switch housing". The real body is 3.57 mm from C6R1's housing and
+  3.93 mm from C6R2's. Then `layout.json`/`layout.svg` are regenerated. `pytest layout` passes with it
+  (32). The boards do not change: `place.layout_seed()` leaves the jack bodies out (BOARD-3), and the
+  footprint is unchanged.
+- **Why not landed:** with it, `just model` stops at `jack_check`: "J2 body is not under the relief
+  pocket". `relief_poly()` is `Z_BACK ∪ Z_TRRS` minus the key well plus 1 mm of well skin, so it ends at
+  x 61.27. The body runs to 63.1, under the plate between the C6R1 and C6R2 cut-outs (plate bottom
+  Z 12.1 = PCB + 3.5, plate top 13.6 = PCB + 5.0). The `case` and `pcb` `fit` workflows would go red,
+  and `case/` is CASE's.
+- **What CASE needs to cut** (one commit with the layout half): relieve the jack body plus clearance,
+  x 49.0–63.6 (right frame) by y 99.45–106.55, through the spacer and up to at least PCB + 5.3 in the
+  top part. Over x 61.3–63.6 that means through the 1.0 mm well skin and the plate, because the jack
+  top is flush with the plate top. `check_fit` reads the new envelope (`PART_H["J2"]` = 5.0) from the
+  layout itself. No case change was made or tried here, so whether those cuts pass `jack_check` and
+  `check_fit` is unverified.
+- **Integration tests:** `tests/integration/test_gates.py::test_g2_layout_body_holds_the_jack` is a
+  strict xfail. It XPASSes once the layout half lands, so its marker must go in that commit.
+
+### BOARD-11. Result after BOARD-9 (supersedes the BOARD-8 numbers)
+
+| Check | Left | Right |
+|---|---|---|
+| `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
+| Freerouting 2.5.0 (30 passes), open after | 30 connections, 7.8 min | 36 connections, 11.2 min |
+| `just pcb-finish` (completion, rip-up, pours, clean-up, gates) | 13.4 min | 5.4 min |
+| DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
+| `checks.py` | 9/9: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U1 GND: EP 9/9 in the plane | 9/9: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.53 mm; U1 GND: EP 9/9, caps 11/12 (C17 out) |
+| `netcmp.py --board` + kikit BOM/CPL (stage D) | 3/3, 119 fitted parts | 3/3, 119 fitted parts |
+| Copper | 2417 tracks, 320 vias (all 0.3 / 0.6), narrowest 0.135 (2 segments) | 2874 tracks, 369 vias (0.3 / 0.6), narrowest 0.135 (6) |
+| Dangling copper (`prune.py`), left by locked copper | 97 deleted, 5 trimmed, 2 vias replaced; 30 via / 6 track warnings | 150, 9, 5; 35 / 6 |
+
+- `pytest layout`: 32 passed. `pytest tests/integration` (no firmware build): 109 passed, 2 xfailed
+  (G2, BOARD-10).
+- The JLC rules and edge distances of BOARD-7 are unchanged (same placement; the right's edge spoke
+  keeps the 0.5 mm copper-to-edge rule, and DRC checks it).

@@ -60,8 +60,19 @@ STAB_ROT_DIGITS = 3              # stabiliser rotation from layout.json's rounde
 # KiCad saves items sorted by KIID, so random KIIDs reorder the board, the DSN and with them the
 # Freerouting result. Every board-writing stage seeds the generator from its inputs instead, so
 # the same inputs give a byte-identical board (with PYTHONHASHSEED=0, set by pcb.just). The
-# per-side base seeds are ones whose rebuild routes to 0 unconnected (docs/deviations.md WS2c-4).
-KIID_SEED = {"left": 0x2, "right": 0x1}
+# per-side base seeds are ones whose rebuild routes to 0 unconnected (docs/deviations.md WS2c-4,
+# BOARD-2).
+KIID_SEED = {"left": 0x3, "right": 0x1}
+
+
+def layout_seed(side: str) -> bytes:
+    """The layout data the board is built from: keys, holes, outline, zones and the J3 pins. The
+    fields only the case reads (jack bodies, display module, pocket and window) leave the board as it
+    is, so they must not reseed it either (docs/deviations.md BOARD-3)."""
+    lay = layout_side(side)
+    used = {k: lay[k] for k in ("keys", "holes", "outline", "zones")}
+    used["header_pins"] = lay["display"]["header_pins"]
+    return json.dumps(used, sort_keys=True).encode()
 
 
 def seed_kiids(side: str, *inputs: bytes) -> None:
@@ -102,7 +113,7 @@ PLACE_R = {
     "SW1": (176.0, 50.0, 90), "SW2": (180.0, 50.0, 90),
     "J1": (186.0, 34.25, 180),
     "R1": (189.4, 42.4, 90), "R2": (183.4, 43.2, 0), "R10": (182.6, 47.6, 90),
-    "D1": (193.6, 44.2, 90), "C1": (196.1, 44.2, 90), "C2": (196.1, 48.6, 90),
+    "D1": (193.6, 44.2, 90), "C1": (196.1, 44.2, 90),                # C2: beside U4 (U4_CAP)
     "U3": (199.6, 46.4, 0), "C3": (202.8, 45.2, 90), "C4": (202.8, 48.0, 90),
     "R5": (190.6, 47.6, 90), "R6": (190.6, 50.4, 90),
     "JP1": (186.6, 51.6, 0), "F1": (192.8, 52.8, 0),
@@ -124,6 +135,14 @@ PLACE_L = {
 USB_L_START = (7.8, -4.6)        # U1 frame
 USB_L_END_DY = 1.0               # end of the diagonal below the J1 pad rear ends
 U4_L_S = 8.6                     # U4 centre along the diagonal
+
+# U4's clamp reference, pin 5, is on VSYS (docs/deviations.md ELEC-2). C2, one of the two 10 uF VSYS
+# caps, sits beside the pin's via on the free D+ side, pad 1 toward U4, so the TVS reference has its
+# cap within 4 mm of copper; route_critical.u4_cap() joins them (docs/deviations.md BOARD-5). U4 frame
+U4_PIN5 = (1.1375, 0.0)          # SOT-23-6 pad 5 (VSYS); pad 2 (GND) mirrors it
+U4_VIA_OUT = 1.15                # pin-5 / pin-2 via this far out past the pad centre
+U4_CAP_Y = -3.4                  # C2 centre: across the D+ row (pins 1 / 6 at y -0.95)
+U4_CAP_VIA_Y = -2.0              # VSYS via between the D+ row and C2 pad 1
 
 # Silkscreen, right frame (text, x, y, rot)
 SILK = [("worxboard {S} rev A", 130.0, 45.0, 0),
@@ -189,9 +208,12 @@ def top_positions(side: str) -> dict[str, tuple[float, float, float]]:
         n = math.hypot(x1 - x0, y1 - y0)
         ux, uy = (x1 - x0) / n, (y1 - y0) / n
         out["U4"] = (x0 + U4_L_S * ux, y0 + U4_L_S * uy, math.degrees(math.atan2(-uy, ux)))
+    x4, y4, r4 = out["U4"]
+    dx, dy = rotate(U4_PIN5[0] + U4_VIA_OUT, U4_CAP_Y, r4)
+    out["C2"] = (x4 + dx, y4 + dy, (r4 + 90.0) % 360.0)   # footprint +x (pad 1 -> 2) along U4 -y
     lay = layout_side(side)
-    p1 = lay["display"]["header_pins"][0]             # J3 pin 1 at low x, pins along +x
-    out["J3"] = (p1[0], p1[1], 90.0)
+    p1 = lay["display"]["header_pins"][0]             # J3 pin 1 (MOSI) at high x, pins along -x
+    out["J3"] = (p1[0], p1[1], 270.0)                 # under nice!view pin n (gate G1, BOARD-1)
     return out
 
 
@@ -450,7 +472,7 @@ def main(argv: list[str]) -> int:
     net_path = ROOT / "build" / side / f"{side}.net"
     pcb_path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
     sch = pcb_path.with_suffix(".kicad_sch")    # the netlist carries an export date: seed from its source
-    seed_kiids(side, b"place", side.encode(), sch.read_bytes(), LAYOUT_JSON.read_bytes())
+    seed_kiids(side, b"place", side.encode(), sch.read_bytes(), layout_seed(side))
     board = pcbnew.BOARD()
     setup_board(board)
     add_footprints(board, side, net_path)

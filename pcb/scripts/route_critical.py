@@ -10,6 +10,7 @@
   3V3 exits necked to 0.15 mm between the pads, then 0.5 mm.
 - USB pair U1 -> R3/R4 -> U4 (pass-through) -> J1, with the receptacle's A/B ties, and the
   J1 escape vias the pair encloses on the right half. A B.Cu track keepout runs under the pair.
+  U4's VSYS reference (pin 5) runs to C2 beside it (u4_cap).
 - Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
 - Decoupling: every supply cap (placed at an exit by place.CLUSTER) joined to that exit, and its
   GND pad to a via; XOUT -> R7 -> Y1 beside the crystal; a B.Cu track/via keepout under Y1.
@@ -29,7 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pcbnew  # noqa: E402
 
 from design import POWER_NETS  # noqa: E402
-from place import U1_ROT, U4_L_S, USB_NETS, layout_side, mm, pt, rotate, seed_kiids, usb_diagonal  # noqa: E402
+from place import (U1_ROT, U4_CAP_VIA_Y, U4_L_S, U4_PIN5, U4_VIA_OUT, USB_NETS, layout_side, mm,  # noqa: E402
+                   pt, rotate, seed_kiids, usb_diagonal)
 
 FAN_W = 0.15                 # QFN stubs and inner joins
 PAIR_W = 0.25
@@ -84,6 +86,7 @@ GND_VIA = {**{c: (0.0, -0.84) for c in N_CAPS}, **{c: (0.75, 0.0) for c in E_CAP
            "C8": (0.0, -0.65), "C9": (0.0, 0.65), "C16": (0.0, -0.82), "C19": (0.0, -0.82),
            V11_S_CAP: (0.75, 0.0)}
 CAP_LINK_W = 0.25            # 1V1 and crystal links (Default width)
+CAP_GND_OUT = 0.84           # C2 (U4's VSYS cap): GND via this far past its pad 2
 XOUT_PIN = "21"
 Y1_KEEPOUT_GROW = 0.25       # B.Cu track / via keepout: Y1 courtyard + this (spec §6.4)
 
@@ -310,6 +313,7 @@ class Router:
         self.ltrack(dm, [(x_wide, yM), (b0, yM), (b0 + d, yM + d), (b0 + d + 0.5, yM + d),
                          (b0 + d + 0.5 + abs(yM + d - ry), ry), r4], PAIR_W)
         self.u4_vias()
+        self.u4_cap()
         start = [self.g(xp, yP), self.g(r3[0], (yP + yM) / 2)]
         if self.side == "right":
             return [start, *self.usb_right(dp, dm)]
@@ -325,6 +329,27 @@ class Router:
             v = (p[0] + (p[0] - c[0]) / d * 1.15, p[1] + (p[1] - c[1]) / d * 1.15)
             self.track(self.net("U4", num), [p, v], width)
             self.via(self.net("U4", num), v)
+
+    def u4_cap(self) -> None:
+        """U4's VSYS reference (pin 5): from its via on B.Cu across the D+ row to a second via, then
+        F.Cu into C2 pad 1 (10 uF, placed by place.U4_CAP_Y); C2 pad 2 to a GND via (ELEC-2, BOARD-5)."""
+        u4 = self.board.FindFootprintByReference("U4")
+        c, rot = self.xy(u4.GetPosition()), u4.GetOrientationDegrees()
+
+        def at(lx: float, ly: float) -> tuple[float, float]:
+            dx, dy = rotate(lx, ly, rot)
+            return c[0] + dx, c[1] + dy
+        x = U4_PIN5[0] + U4_VIA_OUT
+        vsys, gnd = self.net("U4", "5"), self.net("C2", "2")
+        v1, v2 = at(x, 0.0), at(x, U4_CAP_VIA_Y)
+        self.track(vsys, [v1, v2], POWER_W, pcbnew.B_Cu)
+        self.via(vsys, v2)
+        p1, p2 = self.pad_xy("C2", "1"), self.pad_xy("C2", "2")
+        self.track(vsys, [v2, p1], POWER_W)
+        d = math.dist(p1, p2)                                 # GND via straight on past pad 2
+        g = (p2[0] + (p2[0] - p1[0]) / d * CAP_GND_OUT, p2[1] + (p2[1] - p1[1]) / d * CAP_GND_OUT)
+        self.track(gnd, [p2, g], POWER_W)
+        self.via(gnd, g)
 
     def usb_right(self, dp, dm) -> list[list[tuple[float, float]]]:
         """Right half: R3/R4 -> U4 rows (rot 0) -> shallow U under the J1 pad row -> rear pads."""

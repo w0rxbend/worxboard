@@ -202,7 +202,11 @@ class Grid:
 
 
 class Index:
-    """STRtree over all copper and holes, plus a cache of dilated shapes."""
+    """STRtree over all copper and holes, plus a cache of dilated shapes.
+
+    The cache is keyed by the item itself (identity), not by id(item): an id is reused once its item
+    is freed after a rip-up, and the new item would then get the old item's shape. Which ids come
+    back depends on the host's allocator, so the routes did too (docs/deviations.md BOARD-2)."""
     def __init__(self, items: list[Item]):
         self.items = items
         self.cache: dict = {}
@@ -232,7 +236,7 @@ class Index:
         return [self.refs[i] for i in self.tree.query(area)]
 
     def dilated(self, it: Item, key, d: float):
-        k = (id(it), key, round(d, 4))
+        k = (it, key, round(d, 4))               # Item is eq=False: hashed by identity, kept alive here
         if k not in self.cache:
             self.cache[k] = (it.hole if key == "hole" else it.geoms[key]).buffer(d)
         return self.cache[k]

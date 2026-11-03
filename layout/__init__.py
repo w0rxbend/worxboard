@@ -64,7 +64,7 @@ def display(side: str) -> dict[str, Rect | tuple[float, float] | list]:
     """Module, case pocket and viewing-window rectangles, and the J3 header."""
     _check(side)
     d = _display
-    pins = sorted(_pt(side, p) for p in d.header_pins())   # pin 1 at low x on BOTH halves
+    pins = sorted((_pt(side, p) for p in d.header_pins()), reverse=True)   # pin 1 at HIGH x on BOTH halves
     return {"module": _rect(side, d.MODULE_RECT), "pocket": _rect(side, d.POCKET_RECT),
             "window": _rect(side, d.WINDOW_RECT), "window_centre": _pt(side, d.WINDOW_CENTRE),
             "header": _pt(side, d.HEADER), "header_pins": pins}
@@ -133,7 +133,7 @@ def part_rect(side: str, ref: str) -> Rect:
         if j.ref == ref:
             return j.body
     if ref == "J3":
-        (x0, y), (x1, _) = display(side)["header_pins"][0], display(side)["header_pins"][-1]
+        (x0, y), (x1, _) = display(side)["header_pins"][-1], display(side)["header_pins"][0]
         h = _display.HEADER_COURTYARD
         return (x0 - h / 2, y - h / 2, x1 + h / 2, y + h / 2)
     x, y = anchors(side)[ref]

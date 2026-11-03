@@ -162,15 +162,18 @@ def test_display_geometry_right():
     d = L.display("right")
     assert d["module"] == pytest.approx((65.39, 38.625, 79.39, 74.625), abs=1e-3)
     assert d["pocket"] == pytest.approx((64.89, 38.125, 79.89, 75.125), abs=1e-3)
-    assert d["header"] == pytest.approx((72.39, 40.6))
+    assert d["header"] == pytest.approx((72.39, 39.925))      # module edge + 1.3 (gate G1)
     assert len(d["header_pins"]) == len(HEADER_PIN_ORDER) == 5
 
 
 def test_header_pin1_not_mirrored():
-    """The module is one physical part: pin 1 is at low x on both halves."""
+    """The module is one physical part, LCD up with its header at the back: pin 1 (MOSI) is at high x
+    on both halves (gate G1)."""
     for s in L.SIDES:
         xs = [p[0] for p in L.display(s)["header_pins"]]
-        assert xs == sorted(xs)
+        assert xs == sorted(xs, reverse=True)
+    assert L.display("right")["header_pins"][0] == pytest.approx((77.47, 39.925))
+    assert L.display("left")["header_pins"][0] == pytest.approx((192.69, 39.925))
 
 
 def test_holes_equal_spec():

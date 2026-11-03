@@ -10,20 +10,22 @@ MODULE_Y1 = C6R0_CENTRE[1] + PITCH / 2    # bottom edge on the old C6R0 cell bou
 MODULE_RECT = (MODULE_CX - MODULE[0] / 2, MODULE_Y1 - MODULE[1],
                MODULE_CX + MODULE[0] / 2, MODULE_Y1)   # x0, y0, x1, y1
 
-HEADER = (72.39, 40.6)                    # J3 1x5 socket centre, pins along x
+# nice!view drawing (gate G1): the header row is 1.3 mm in from the module's header-end edge and the
+# pins are centred across its 14 mm width. The module's header end is its back (low-y) edge
+VIEW_EDGE = 1.3                           # header row -> module header-end edge
+HEADER = (MODULE_CX, round(MODULE_RECT[1] + VIEW_EDGE, 3))   # J3 1x5 socket centre (72.39, 39.925)
 HEADER_PINS = 5
 HEADER_PITCH = 2.54
 HEADER_PIN_ORDER = ("MOSI", "SCK", "VCC", "GND", "CS")   # pin 1..5 (gate G1)
 HEADER_COURTYARD = 3.3                    # socket courtyard across / beyond the end pins
 
-# nice!view drawing (gate G1): the module edge is 1.3 mm past the header row, and the LCD viewing
-# area (25.28 long) starts 4.6 mm from that edge. The window is centred on it, so it follows the
-# header and leaves a wide top-skin bar to the C6R1 well (docs/deviations.md WS0-2, REVIEW-FIX-6)
-VIEW_EDGE = 1.3                           # header row -> module header-end edge
+# The LCD viewing area (25.28 long) starts 4.6 mm from the header-end edge. The window is centred on
+# it, so it follows the header and leaves a wide top-skin bar to the C6R1 well (docs/deviations.md
+# WS0-2, REVIEW-FIX-6)
 VIEW_START = 4.6                          # module header-end edge -> viewing area
 VIEW_LEN = 25.28                          # viewing area along the module
 WINDOW = (12.0, 26.0)                     # viewing window w x h (the spec's 26 x 12, long axis y)
-WINDOW_CENTRE = (72.39, round(HEADER[1] - VIEW_EDGE + VIEW_START + VIEW_LEN / 2, 3))   # y 56.54
+WINDOW_CENTRE = (72.39, round(HEADER[1] - VIEW_EDGE + VIEW_START + VIEW_LEN / 2, 3))   # y 55.865
 WINDOW_R = 1.0
 WINDOW_CHAMFER = 0.5
 
@@ -41,6 +43,10 @@ POCKET_RECT = tuple(v + s * POCKET_GROW for v, s in zip(MODULE_RECT, (-1, -1, 1,
 
 
 def header_pins() -> list[tuple[float, float]]:
-    """J3 pin centres, pin 1 first at low x. Not mirrored: the module is the same part on both halves."""
-    x0 = HEADER[0] - (HEADER_PINS - 1) / 2 * HEADER_PITCH
-    return [(x0 + i * HEADER_PITCH, HEADER[1]) for i in range(HEADER_PINS)]
+    """J3 pin centres in pin order, pin 1 (MOSI) first at HIGH x (gate G1, docs/deviations.md BOARD-1).
+
+    The drawing's front view (LCD side, header at the bottom) reads MOSI, SCK, VCC, GND, CS from left
+    to right. On the board the module lies LCD up with its header at the back (low y): that view
+    turned 180 deg, so MOSI is at high x. Not mirrored: the module is the same part on both halves."""
+    x0 = HEADER[0] + (HEADER_PINS - 1) / 2 * HEADER_PITCH
+    return [(x0 - i * HEADER_PITCH, HEADER[1]) for i in range(HEADER_PINS)]

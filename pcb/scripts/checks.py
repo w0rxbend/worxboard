@@ -10,6 +10,7 @@
 - decoupling (spec §6.4): every RP2040 supply pin reaches a cap of its net within PIN_CAP_MAX_MM
   of copper, every supply cap (C8-C19) reaches a U1 supply pin within CAP_PIN_MAX_MM, and each
   cap's GND pad has a via within CAP_GND_VIA_MM;
+- U4's VSYS clamp reference (pin 5) reaches a VSYS cap within U4_CAP_MAX_MM of copper;
 - no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
@@ -48,6 +49,9 @@ U1_CAPS = tuple(f"C{n}" for n in range(8, 20))   # design._mcu: IOVDD, USB/ADC, 
 PIN_CAP_MAX_MM = 12.0
 CAP_PIN_MAX_MM = 7.0
 CAP_GND_VIA_MM = 1.0
+# U4's clamp reference pin 5 is on VSYS (deviations ELEC-2); C2 sits at its via (BOARD-5)
+U4_REF = ("U4.5", "VSYS", ("C1.1", "C2.1"))
+U4_CAP_MAX_MM = 5.0
 
 
 def mm_xy(v) -> tuple[float, float]:
@@ -127,7 +131,8 @@ def copper_graph(board: pcbnew.BOARD, code: int):
     graph: dict[object, list[tuple[object, float]]] = defaultdict(list)
 
     def edge(a, b, w):
-        graph[a].append((b, w))
+        w = max(0.0, w)          # project() onto a segment end gives -3e-17: a negative cycle that
+        graph[a].append((b, w))  # dijkstra() never leaves (killed for memory, ELEC-5)
         graph[b].append((a, w))
     segs, vias = [], []
     for t in board.GetTracks():
@@ -301,6 +306,10 @@ def main(argv: list[str]) -> int:
     for net in SUPPLY_NETS:
         print(f"     {net} U1 pin -> nearest cap, mm: " + ", ".join(
             f"{k.split('.')[1]} {v:.1f}" for k, v in pin_cap.items() if k.startswith(net)))
+    pin, net, caps = U4_REF
+    ref = dijkstra(copper_graph(board, board.FindNet(net).GetNetCode()), [pin], set(caps))
+    results.append((f"U4 {net} reference: {ref:.2f} mm of copper to a {net} cap",
+                    [f"{ref:.2f} mm > {U4_CAP_MAX_MM}"] if ref > U4_CAP_MAX_MM else []))
     results.append(("no via in an SMD pad", [f"{v.GetNetname()} via at ({pcbnew.ToMM(v.GetPosition().x):.3f}, "
                                               f"{pcbnew.ToMM(v.GetPosition().y):.3f}) in {pad}"
                                               for v, pad in vias_in_pads(board)]))

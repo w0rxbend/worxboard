@@ -23,3 +23,4 @@ for _ in $(seq "$CONTINUE_ROUNDS"); do             # more completion while items
 done
 drc || { python3 pcb/scripts/checks.py "$SIDE" || true; exit 1; }
 python3 pcb/scripts/checks.py "$SIDE"
+python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE"     # the LCSC fields parity ignores (ELEC-6)

@@ -46,6 +46,13 @@ LCSC_XTAL = "C49304726"     # YXC XL2EL89CRI-111YLC-12M: 12 MHz 3225, CL 18 pF (
 # header the module sits 7.0 mm above the PCB, as on its stock 5 mm socket (docs/deviations.md ELEC-3)
 LCSC_J3 = "C27985230"       # Hong Cheng HC-PM254-5.0H-1x5PZ; 5.7 mm fallback C46061764 (stack 7.7 mm)
 J3_FP = "worxboard:PinSocket_1x05_P2.54mm_Vertical_H5.0mm"   # stock pads, 5.0 mm 3D model
+# LCSC numbers this design dropped: netcmp.py fails on one in a netlist, a board or the JLC BOM, and
+# tests/integration/stock.py in the stock check (docs/deviations.md ELEC-1, ELEC-6)
+RETIRED = {
+    "C2803348": "Kailh CPG151101S11 hot-swap socket: discontinued (JLC and LCSC 0, 2026-11-02)",
+    "C113767": "W25Q128JVSIQ: no longer manufactured per JLC; same part is the basic C97521",
+    "C91749": "Epson 12 MHz crystal: 19 left at JLC on 2026-11-02",
+}
 
 # Matrix references: SK<n> socket + D<n> diode, n = KEY_REF0 + index in layout.keys()
 # (the spec's SK_xx / D_xx names are not valid KiCad references; deviation WS2a-1)

@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Check an exported KiCad netlist against design.py (spec §9 stage 6). Stdlib + layout only.
+"""Check an exported KiCad netlist, a board and its JLC BOM / CPL against design.py (spec §9
+stages 6, 12, 13). Stdlib + layout only.
 
     python3 pcb/scripts/netcmp.py build/<side>/<side>.net <side>
+    python3 pcb/scripts/netcmp.py --board pcb/<side>/worxboard-<side>.kicad_pcb <side> [build/<side>/jlc]
 
 Parses the s-expression netlist (KiCad 10, version "E") and asserts:
   - every design.py part is present with its symbol, value, footprint and LCSC, and every
@@ -14,14 +16,24 @@ Parses the s-expression netlist (KiCad 10, version "E") and asserts:
   - every RP2040 supply pin has a capacitor to GND on its net
   - the USB-C VBUS reaches only J1, D1's anode and the R5 sense divider (nothing can back-drive it),
     and the ESD arrays take their clamp reference from VSYS (U4) and VLINK (U5)
-  - every BOM part has a non-empty LCSC field
+  - every BOM part has a non-empty LCSC field, and none is a part this design retired
   - the matrix nets are identical to the other half (design.py, and its netlist when built)
+
+With --board it checks that the board agrees with design.py, as the order needs: kikit takes bom.csv
+from the schematic but pos.csv, its rotation corrections (by board footprint name) and the gerbers
+from the board, and KiCad's schematic parity ignores the LCSC field (docs/deviations.md ELEC-6):
+  - every board footprint is a design.py part with its footprint, value, LCSC number and
+    DNP / BOM / CPL attributes, or a board-only part (stabiliser holes) kept out of BOM and CPL
+  - no retired LCSC number (design.RETIRED) is on the board
+  - with the kikit output directory: bom.csv and pos.csv list exactly the parts JLC fits, each
+    bom.csv line with the design.py LCSC number of every designator on it
 """
 from __future__ import annotations
 
+import csv
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -30,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
 
 import layout  # noqa: E402
-from design import SUPPLY_PIN_NAMES, Part, design, switch_net  # noqa: E402
+from design import RETIRED, SUPPLY_PIN_NAMES, Part, design, switch_net  # noqa: E402
 from layout.pins import PINS, TRRS  # noqa: E402
 
 TOKEN = re.compile(r'\(|\)|"(?:[^"\\]|\\.)*"|[^\s()]+')
@@ -266,8 +278,14 @@ def check_power(nl: Netlist) -> list[str]:
     return errs
 
 
+def retired(code: str) -> str:
+    return f"retired {code} ({RETIRED[code]})"
+
+
 def check_lcsc(nl: Netlist) -> list[str]:
-    return [f"{c.ref} has no LCSC" for c in nl.comps.values() if c.in_bom and not c.fields.get("LCSC", "").strip()]
+    errs = [f"{c.ref} has no LCSC" for c in nl.comps.values() if c.in_bom and not c.fields.get("LCSC", "").strip()]
+    return errs + [f"{c.ref} carries {retired(c.fields['LCSC'])}" for c in nl.comps.values()
+                   if c.fields.get("LCSC", "").strip() in RETIRED]
 
 
 def matrix_of(nl: Netlist) -> dict[str, frozenset]:
@@ -301,7 +319,133 @@ def check_mirror(nl: Netlist, side: str, path: Path) -> list[str]:
     return errs
 
 
+# --- The board and the JLC BOM / CPL kikit builds from it (stages 12-13) --------------------------
+
+BOARD_FLAGS = ("dnp", "exclude_from_bom", "exclude_from_pos_files")
+
+
+@dataclass
+class BoardPart:
+    ref: str
+    footprint: str              # library id, e.g. worxboard:SW_MX_Hotswap_Kailh
+    value: str
+    lcsc: str
+    attrs: frozenset[str]       # smd / through_hole / board_only / dnp / exclude_from_* ...
+
+
+def load_board(path: Path) -> list[BoardPart]:
+    out = []
+    for fp in find_all(parse(path.read_text()), "footprint"):
+        props = {p[1]: (p[2] if len(p) > 2 else "") for p in find_all(fp, "property")}
+        attr = find(fp, "attr") or ["attr"]
+        out.append(BoardPart(props.get("Reference", ""), fp[1], props.get("Value", ""),
+                             props.get("LCSC", "").strip(), frozenset(a for a in attr[1:] if isinstance(a, str))))
+    return out
+
+
+def natural(ref: str) -> tuple[str, int]:
+    m = re.fullmatch(r"(\D*)(\d*)", ref)
+    return (m.group(1), int(m.group(2) or 0)) if m else (ref, 0)
+
+
+def check_board(board: list[BoardPart], parts: list[Part]) -> list[str]:
+    errs = [f"{r} is on the board {n} times" for r, n in Counter(b.ref for b in board).items() if n > 1]
+    want = {p.ref: p for p in parts}
+    have = {b.ref: b for b in board}
+    errs += [f"{r} missing from the board" for r in sorted(set(want) - set(have))]
+    wrong: dict[tuple[str, str, str], list[str]] = defaultdict(list)    # (attr, board, design) -> refs
+    for ref, b in sorted(have.items(), key=lambda kv: natural(kv[0])):
+        p = want.get(ref)
+        if p is None:
+            if "board_only" not in b.attrs:
+                errs.append(f"{ref} ({b.footprint}) is on the board but not in design.py")
+            elif b.lcsc or not {"exclude_from_bom", "exclude_from_pos_files"} <= b.attrs:
+                errs.append(f"{ref} is board-only: it needs no LCSC and must stay out of the BOM and CPL")
+            continue
+        for attr, exp, got in (("footprint", p.footprint, b.footprint), ("value", p.value, b.value),
+                               ("LCSC", p.lcsc, b.lcsc)):
+            if exp != got:
+                wrong[(attr, got, exp)].append(ref)
+        if b.lcsc == p.lcsc and b.lcsc in RETIRED:
+            errs.append(f"{ref} carries {retired(b.lcsc)}")
+        flags = frozenset(f for f in BOARD_FLAGS if f in b.attrs)
+        exp_flags = frozenset(f for f, on in zip(BOARD_FLAGS, (p.dnp, not p.in_bom, not p.in_bom)) if on)
+        if flags != exp_flags:
+            errs.append(f"{ref} is {flag_text(flags)} on the board, {flag_text(exp_flags)} in design.py")
+    for (attr, got, exp), refs in wrong.items():
+        note = f": {retired(got)}" if attr == "LCSC" and got in RETIRED else ""
+        errs.append(f"{ref_text(refs)} {attr} {got!r} on the board, {exp!r} in design.py{note}")
+    return errs
+
+
+def ref_text(refs: list[str]) -> str:
+    """SK101 or "SK101..SK137 (37 parts)": one error line per wrong value, not per designator."""
+    return refs[0] if len(refs) == 1 else f"{refs[0]}..{refs[-1]} ({len(refs)} parts)"
+
+
+def flag_text(flags: frozenset[str]) -> str:
+    return " ".join(f for f in BOARD_FLAGS if f in flags) or "fitted"
+
+
+def read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as f:
+        return [{k.strip(): (v or "").strip() for k, v in row.items() if k} for row in csv.DictReader(f)]
+
+
+def check_fab(jlc: Path, parts: list[Part]) -> list[str]:
+    """kikit's bom.csv (Comment, Designator, Footprint, LCSC) and pos.csv (Designator, ...)."""
+    missing = [f"{jlc / f} missing" for f in ("bom.csv", "pos.csv") if not (jlc / f).is_file()]
+    if missing:
+        return missing
+    fitted = {p.ref: p.lcsc for p in parts if p.in_bom and not p.dnp}
+    errs, bom = [], Counter()
+    wrong: dict[tuple[str, str], list[str]] = defaultdict(list)          # (bom.csv, design) -> refs
+    for row in read_csv(jlc / "bom.csv"):
+        code, refs = row.get("LCSC", ""), [r.strip() for r in row.get("Designator", "").split(",") if r.strip()]
+        if code in RETIRED:
+            errs.append(f"bom.csv line {ref_text(refs)} carries {retired(code)}")
+        for r in refs:
+            bom[r] += 1
+            if r not in fitted:
+                errs.append(f"bom.csv lists {r}, which JLC must not fit")
+            elif code != fitted[r]:
+                wrong[(code, fitted[r])].append(r)
+    errs += [f"bom.csv gives {ref_text(refs)} {code!r}, design.py {exp!r}" for (code, exp), refs in wrong.items()]
+    pos = Counter(row.get("Designator", "") for row in read_csv(jlc / "pos.csv"))
+    for name, got in (("bom.csv", bom), ("pos.csv", pos)):
+        errs += [f"{name} lists {r} {n} times" for r, n in sorted(got.items()) if n > 1]
+        errs += [f"{name} lacks {r}" for r in sorted(set(fitted) - set(got))]
+    errs += [f"pos.csv places {r}, which JLC must not fit" for r in sorted(set(pos) - set(fitted))]
+    return errs
+
+
+def report(ck: Checker, what: str) -> int:
+    for t in ck.passed:
+        print(f"PASS  {t}")
+    for e in ck.errors:
+        print(f"FAIL  {e}")
+    print(f"netcmp {what}: {len(ck.passed)} passed, {len(ck.errors)} errors")
+    return 1 if ck.errors else 0
+
+
+def main_board(argv: list[str]) -> int:
+    if len(argv) not in (2, 3) or argv[1] not in layout.SIDES:
+        print(__doc__)
+        return 2
+    path, side = Path(argv[0]), argv[1]
+    parts, board = design(side), load_board(path)
+    ck = Checker()
+    ck.section(f"{path.name} footprint/value/LCSC/DNP per design.py", check_board(board, parts))
+    if len(argv) == 3:
+        jlc = Path(argv[2])
+        n = sum(p.in_bom and not p.dnp for p in parts)
+        ck.section(f"{jlc}/bom.csv + pos.csv: the {n} parts JLC fits, design.py LCSC", check_fab(jlc, parts))
+    return report(ck, f"--board {side} ({len(board)} footprints)")
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) > 1 and argv[1] == "--board":
+        return main_board(argv[2:])
     if len(argv) != 3 or argv[2] not in layout.SIDES:
         print(__doc__)
         return 2
@@ -317,15 +461,9 @@ def main(argv: list[str]) -> int:
     ck.section("CC1/CC2 5.1k to GND", check_cc(nl))
     ck.section("RP2040 supply pins decoupled", check_decoupling(nl))
     ck.section("VBUS only J1/D1/R5; ESD references U4 VSYS, U5 VLINK", check_power(nl))
-    ck.section("LCSC on every BOM part", check_lcsc(nl))
+    ck.section("LCSC on every BOM part, none retired", check_lcsc(nl))
     ck.section("matrix nets identical left/right", check_mirror(nl, side, path))
-    for t in ck.passed:
-        print(f"PASS  {t}")
-    for e in ck.errors:
-        print(f"FAIL  {e}")
-    print(f"netcmp {side}: {len(ck.passed)} passed, {len(ck.errors)} errors "
-          f"({len(nl.comps)} symbols, {len(nl.nets)} nets)")
-    return 1 if ck.errors else 0
+    return report(ck, f"{side} ({len(nl.comps)} symbols, {len(nl.nets)} nets)")
 
 
 if __name__ == "__main__":

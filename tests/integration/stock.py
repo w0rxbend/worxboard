@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pcb/scripts"))
 
-from design import design  # noqa: E402
+from design import RETIRED, design  # noqa: E402,F401  (RETIRED: parts this design dropped, ELEC-1)
 
 LCSC_API = "https://wmsc.lcsc.com/ftps/wm/product/detail?productCode={}"
 JLC_API = "https://cart.jlcpcb.com/shoppingCart/smtGood/getComponentDetail?componentCode={}"
@@ -34,12 +34,6 @@ MIN_STOCK = 50                 # floor per LCSC number at JLC, whatever the orde
 LCSC_DISCONTINUED = {"stop_product"}
 JLC_DISCONTINUED = "no longer manufactur"      # JLC's noBuyReason text
 LIBRARY = {"base": "basic", "expand": "extended"}
-# Parts this design dropped (docs/deviations.md ELEC-1); the check fails if one comes back
-RETIRED = {
-    "C2803348": "Kailh CPG151101S11 hot-swap socket: discontinued (JLC and LCSC 0, 2026-11-02)",
-    "C113767": "W25Q128JVSIQ: no longer manufactured per JLC; same part is the basic C97521",
-    "C91749": "Epson 12 MHz crystal: 19 left at JLC on 2026-11-02",
-}
 
 
 def curl(url: str) -> dict:

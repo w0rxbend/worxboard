@@ -1,13 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Gate G3 offline: the JLC BOM that design.py gives, and the verdicts of stock.py on canned shop
-records (stock.py itself needs the network; run it on the day of ordering)."""
+"""Gate G3 offline: the JLC BOM that design.py gives, that the committed boards carry it (kikit pairs
+the schematic's bom.csv with the board's pos.csv and copper), and the verdicts of stock.py on canned
+shop records (stock.py itself needs the network; run it on the day of ordering)."""
 from __future__ import annotations
+
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
-import stock
+import stock  # first: puts pcb/scripts on sys.path
+import netcmp  # noqa: I001
 from design import design
 
+ROOT = Path(__file__).resolve().parents[2]
 SIDES = ("left", "right")
 COPPER_ONLY = ("JP", "TP", "H")          # solder jumper, test pads, mounting holes: nothing to fit
 
@@ -37,6 +43,56 @@ def test_no_retired_part_is_back():
 def test_both_halves_share_one_bom():
     lines = [sorted((p.ref, p.lcsc) for p in design(s) if p.in_bom) for s in SIDES]
     assert lines[0] == lines[1]
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_committed_board_orders_the_design_parts(side):
+    """kikit takes bom.csv from the schematic but pos.csv, its rotation corrections and the gerbers from
+    the board, and KiCad's parity ignores LCSC: the committed board must carry design.py's footprints,
+    values, LCSC numbers and DNP flags, and no retired part. Fails until both halves are re-placed
+    from the ELEC schematics (docs/deviations.md ELEC-5, ELEC-6)."""
+    errs = netcmp.check_board(netcmp.load_board(ROOT / f"pcb/{side}/worxboard-{side}.kicad_pcb"), design(side))
+    assert not errs, "\n".join(errs)
+
+
+def as_board(side: str) -> list[netcmp.BoardPart]:
+    """The board design.py asks for, with one board-only stabiliser."""
+    out = [netcmp.BoardPart(p.ref, p.footprint, p.value, p.lcsc, frozenset(
+        ["smd"] + ["dnp"] * p.dnp + ["exclude_from_bom", "exclude_from_pos_files"] * (not p.in_bom)))
+        for p in design(side)]
+    return out + [netcmp.BoardPart("STAB_T5", "worxboard:Stab_MX_2u", "Stab_MX_2u", "",
+                                   frozenset({"board_only", "exclude_from_bom", "exclude_from_pos_files"}))]
+
+
+def test_board_check_catches_a_stale_board():
+    assert netcmp.check_board(as_board("left"), design("left")) == []
+    stale = [replace(b, lcsc="C2803348") if b.ref.startswith("SK") else
+             replace(b, attrs=b.attrs | {"dnp"}) if b.ref == "J3" else b for b in as_board("left")]
+    errs = netcmp.check_board(stale, design("left"))
+    assert len(errs) == 2 and "SK101..SK137 (37 parts) LCSC 'C2803348'" in errs[1] and "retired" in errs[1]
+    assert errs[0] == "J3 is dnp on the board, fitted in design.py"
+
+
+def write_fab(path: Path, side: str, swap: dict[str, str] | None = None, extra_pos: str = "") -> Path:
+    """bom.csv / pos.csv as kikit writes them (CRLF, quoted designator lists)."""
+    swap, lines = swap or {}, {}
+    for p in design(side):
+        if p.in_bom and not p.dnp:
+            lines.setdefault((p.value, p.footprint, swap.get(p.ref, p.lcsc)), []).append(p.ref)
+    bom = ["Comment,Designator,Footprint,LCSC"] + [f'{v},"{",".join(r)}",{f},{c}' for (v, f, c), r in lines.items()]
+    pos = ["Designator,Mid X,Mid Y,Layer,Rotation"] + [f"{r},0,0,T,0" for rs in lines.values() for r in rs]
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "bom.csv").write_text("\r\n".join(bom) + "\r\n", newline="")
+    (path / "pos.csv").write_text("\r\n".join(pos + [extra_pos] * bool(extra_pos)) + "\r\n", newline="")
+    return path
+
+
+def test_fab_check_on_kikit_outputs(tmp_path):
+    assert netcmp.check_fab(write_fab(tmp_path / "ok", "right"), design("right")) == []
+    errs = netcmp.check_fab(write_fab(tmp_path / "bad", "right", {"U2": "C113767"}, "JP1,0,0,T,0"), design("right"))
+    assert errs == ["bom.csv line U2 carries retired C113767 (" + stock.RETIRED["C113767"] + ")",
+                    "bom.csv gives U2 'C113767', design.py 'C97521'",
+                    "pos.csv places JP1, which JLC must not fit"]
 
 
 GOOD = {"stockCount": 5000, "lossNumber": 2, "componentLibraryType": "expand", "assemblyProcess": "SMT"}

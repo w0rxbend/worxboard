@@ -122,6 +122,7 @@ about, and each question puts the order on hold. The same text is in each side's
 ```
 Panel by customer: 1 board in a frame, 6 mm rails, 3 fiducials per side, 4 tooling holes (2.0 mm).
 J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.
+J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens them for pin-in-paste.
 Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).
 NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
 Intended: no plating, no copper; they may break into each other.
@@ -155,8 +156,10 @@ JLC lists 22 lines (SW1 and SW2 are two lines of the same part). For each line:
 - there is no *shortage* and no *No Part Selected*.
 
 J3 (C27985230) is the only through-hole part. JLC hand-solders it, and the quote carries a
-hand-soldering fee for it. Every other part is SMT. The library type (basic or extended) does not
-change the price in Standard PCBA: every part pays the same loading fee.
+hand-soldering fee for it. Every other part is SMT. J1's four shell legs go through slots in the
+board, but the paste layer opens those slots, so they reflow with J1's SMT pins (pin-in-paste) and
+need no hand-soldering; the remark asks for them in any case. The library type (basic or extended)
+does not change the price in Standard PCBA: every part pays the same loading fee.
 
 ### 7. Check the placement preview
 
@@ -310,6 +313,7 @@ Likely questions and the answers:
 | Parts closer than 2.5 mm to the board edge (J1, J2, thumb sockets) | Intended. J1 and J2 overhang the edge into the 2 mm milled slot of the customer panel. The rails are on the frame. |
 | J1 or J2 overhangs the board outline | Intended: the connector mouths are the case openings. |
 | Tooling holes are 2.0 mm, not 1.152 mm | They follow JLC's SMT guideline of 2026-09. Add your own on the rails if you need them, but none inside the board. |
+| J1's four shell legs are through-hole slots: solder them? | Yes. The paste layer opens them for pin-in-paste, so they reflow with the SMT parts. If the stencil cannot carry them, solder them by hand: they hold the receptacle and tie its shield to GND. |
 | Bottom-side rotation of the sockets or diodes | As the CPL gives it: each socket's notch wraps the round switch-centre hole, and each diode's cathode band is at pad 1. |
 | Silkscreen over pads or past the edge | Clip it. |
 | J3 is through-hole | Yes: C27985230, hand-soldered from the top, 5 joints. |

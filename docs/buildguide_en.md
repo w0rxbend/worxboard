@@ -90,8 +90,10 @@ Lay out both boards and compare them with the KiCad renders of the committed boa
 - Every part's position is in [pinout.md](pinout.md#part-positions). The left RP2040 is turned
   180° compared with the right one; that is intended (deviation WS2b-1).
 
-Look for solder bridges on the QFN and the USB-C pins with a loupe. Check that every socket sits
-flat and that J3's five pins are soldered on the bottom side.
+Look for solder bridges on the QFN and the USB-C pins with a loupe. Check that J1's four shell
+legs are soldered: each of the four slots beside the receptacle shows solder round its leg. The
+receptacle's signal pads alone do not hold it against plugging, so solder a bare leg before you go
+on. Check that every socket sits flat and that J3's five pins are soldered on the bottom side.
 
 ## 2. Flash and test the bare boards
 

@@ -156,6 +156,8 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
             "> mouse-bite tabs (no V-cut). J1 (USB-C) overhangs the back edge by 0.5 mm and J2 (TRRS) the",
             "> bump edge: no rail or tab in front of J1/J2. Keep tooling holes and fiducials on the rails",
             "> only, no holes inside the board outline. Deliver with rails attached.",
+            "> J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens "
+            "them for pin-in-paste.",
         ] + [f"> {line}" for line in hole_remark(facts)] + [
             "",
             "Everything else (settings, preview checks, after delivery) is as in `../README.md`.",
@@ -224,7 +226,9 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "| Depanel / remove edge rails | No (break the tabs yourself, see below) |",
         "",
         "J3 (display socket, C27985230) is a through-hole part: JLC solders it by hand, so the quote carries a",
-        "small THT fee. Every other part is SMT. Nothing is left for you to solder on the board.",
+        "small THT fee. Every other part is SMT. J1's four shell legs go through plated slots, but the paste",
+        "layer opens them (pin-in-paste), so they reflow with J1's pins; the remark asks for them as well.",
+        "Nothing is left for you to solder on the board.",
         "",
         "## Remark",
         "",
@@ -234,6 +238,8 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         f"> Panel by customer: 1 board in a frame, {facts['rail_min']:g} mm rails, {len(p['fiducials_top'])} "
         f"fiducials per side, {len(p['tooling'])} tooling holes ({facts['tool_d']:.1f} mm).",
         "> J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.",
+        "> J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens them "
+        "for pin-in-paste.",
         "> Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).",
     ] + [f"> {line}" for line in hole_remark(facts)] + [
         "> Ship with the frame attached.",
@@ -250,7 +256,8 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "- **Bottom, D101-D137**: the cathode bar on the diode is at pad 1 (the ROW side).",
         "- **U1** (RP2040): the pin-1 dot at the pin-1 corner of the silkscreen.",
         "- **U2, U3, U4, U5, Y1**: pin 1 on the pin-1 pad.",
-        "- **J1** (USB-C): the two plastic pegs in the two small holes, the mouth over the back edge.",
+        "- **J1** (USB-C): the two plastic pegs in the two small holes, the four shell legs in their slots,",
+        "  the mouth over the back edge.",
         "- **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.",
         "- **J3**: on its five holes.",
         "",

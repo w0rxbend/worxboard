@@ -23,6 +23,8 @@
   U4's clamp GND (pin 2) reaches a J1 GND pad, and the flash cap C5's GND pad reaches U2's GND pin,
   within GND_PIN_MAX_MM of GND copper;
 - no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
+- pin-in-paste: J1's four through-hole shell legs are on the paste layer (pin_in_paste.py, deviations
+  ORDER-1), so JLC's stencil opens them;
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
 """
@@ -44,6 +46,7 @@ from shapely.geometry import Point, Polygon  # noqa: E402
 import complete_routes  # noqa: E402
 from complete_routes import vias_in_pads  # noqa: E402
 from place import layout_side  # noqa: E402
+import pin_in_paste  # noqa: E402
 
 USB_MAX_MM = 25.0
 USB_SKEW_MM = 1.0
@@ -610,6 +613,13 @@ def main(argv: list[str]) -> int:
     ref = dijkstra(copper_graph(board, board.FindNet(net).GetNetCode()), [pin], set(caps))
     results.append((f"U4 {net} reference: {ref:.2f} mm of copper to a {net} cap",
                     [f"{ref:.2f} mm > {U4_CAP_MAX_MM}"] if ref > U4_CAP_MAX_MM else []))
+    legs = list(pin_in_paste.pads(board))
+    results.append((f"pin-in-paste: {len(legs)} pads ({', '.join(f'{r} {n}' for r, n in pin_in_paste.PIN_IN_PASTE.items())}) "
+                    "on the paste layer",
+                    [f"{fp.GetReference()} pad {pad.GetNumber()} at ({pcbnew.ToMM(pad.GetPosition().x):.2f}, "
+                     f"{pcbnew.ToMM(pad.GetPosition().y):.2f}) has no paste"
+                     for fp, pad in legs if not pad.IsOnLayer(pin_in_paste.paste_layer(fp))]
+                    + ([] if legs else ["no pin-in-paste pads found"])))
     results.append(("no via in an SMD pad", [f"{v.GetNetname()} via at ({pcbnew.ToMM(v.GetPosition().x):.3f}, "
                                               f"{pcbnew.ToMM(v.GetPosition().y):.3f}) in {pad}"
                                               for v, pad in vias_in_pads(board)]))

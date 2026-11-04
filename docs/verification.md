@@ -13,7 +13,7 @@ docs. The gates block **ordering**, not the repository.
 | [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 111 passed, 0 expected failures, 0 skipped |
 | [CI on `main`](#ci) | **PASS**: layout, firmware, case and pcb on `f4c95bb`, every job, both from-scratch board rebuilds included |
 | [Order package](#order-package) (`pcb/production/`) | **PASS**: `jlc_check` on both halves, 119 of 119 placements per half proven against JLC's footprints, and the package rebuilds byte for byte |
-| [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 13 of 13 per half |
+| [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 14 of 14 per half |
 | [G1 display](#g1-niceview-display) | **PASS** |
 | [G2 TRRS jack](#g2-pj-320d-trrs-jack) | **PASS** |
 | [G3 parts, rules and placement](#g3-parts-stock-and-track-width) | **PASS**: every line in stock on 2026-11-04 at 05:17 UTC; re-check on the order day |
@@ -110,7 +110,7 @@ boards from scratch on every push and requires them to equal the committed ones.
 |---|---|---|
 | `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
 | DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
-| `checks.py` | 13/13: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 to VSYS 4.07 mm | 13/13: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 to VSYS 4.07 mm |
+| `checks.py` | 14/14: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 to VSYS 4.07 mm | 14/14: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 to VSYS 4.07 mm |
 | U1 cap GND return to the exposed pad (gate ≤ 20 mm) | 9.3–13.0 mm | 8.6–13.0 mm |
 | Exposed pad to the main B.Cu GND plane (gate ≤ 8 mm) | 1.6 mm (9/9 EP vias in the plane) | 1.6 mm |
 | Separate EP links ≥ 0.4 mm wide (gate ≥ 2) | 2: 27.0, 31.9 mm | 6: 32.9–38.6 mm |

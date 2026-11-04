@@ -1934,6 +1934,34 @@ Written by DOCS from the PKG commits (4396f6c, 653659a, 0c692a9, 73ec186) on 202
 The review of 2026-11-04 checked the PCB and case order packages against JLCPCB's, JLCCNC's and
 JLC3DP's published rules and the parts they hold. Each defect below was confirmed before it was fixed.
 
+### ORDER-1. J1's four shell legs are on the paste layer: pin-in-paste, and a remark (§9 stages 12–13)
+
+- **Problem:** J1 (HRO TYPE-C-31-M-12, C165948) is held by four GND shell legs in plated slots. The
+  stock footprint puts them on `*.Cu` and `*.Mask` only, so both PasteTop gerbers had no aperture
+  at the four slots (the copper and mask openings were there). JLC's stencil standard
+  (opening-process-standard-of-stencil, section 5): "the apertures for through-hole components will
+  not be open in stencil as default. Please design it on the solder paste layer correctly or leave a
+  remark when you ordering." JLC's own footprint of C165948 also makes these pads through-hole.
+  Nothing in the order asked for them, and the build guide did not check them. Unsoldered, the
+  receptacle's retention and its shield-to-GND path would rest on the 0.3 mm signal pads.
+- **Change:**
+  - **`pin_in_paste.py`** (new, stage C after `prune.py`, before the last DRC gate) adds F.Paste to
+    the four `SH` pads, so the stencil opens a 1.0 × 2.1 mm or 1.0 × 1.6 mm oval over each slot and
+    the legs reflow with J1's SMD pins. `checks.py` fails if a pad lacks paste. It runs after
+    routing on purpose. Adding the paste layer in `place.py` was tried first: the stages seed their
+    KIIDs from the board bytes, so the right board then routed differently and stage C ended with
+    QSPI_SD0 open. After routing the step changes only those four pad lines, and both boards are
+    otherwise byte-identical to their previous versions.
+  - **Remark** (`package.py`, both READMEs, `ordering-jlcpcb.md`): "J1 (USB-C, C165948): please
+    solder its 4 through-hole shell legs (GND) too. The paste layer opens them for pin-in-paste."
+    The likely-questions table answers it too.
+  - **Build guide:** check that each of the four slots shows solder round its leg, and solder a
+    bare one before going on.
+- **Result:** the PasteTop gerbers of both panels and bare boards have the four ovals at the J1
+  slots (left panel: X 23.598 / 32.238, Y −10.6 / −14.78). DRC 0 / 0 / 0 and `checks.py` 14/14 on
+  both halves. The copper, drills, BOM and CPL are unchanged. The renders change only round J1. The
+  cost table already counted the 4 legs among J1's 16 SMT joints.
+
 ### ORDER-2. The bottom-side warning names the thumb parts as the tell (§9 stage 13; amends PKG-2)
 
 - **Problem:** the warning in `ordering-jlcpcb.md` and in the generated READMEs said that, if JLC's

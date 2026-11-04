@@ -55,7 +55,9 @@ Option names follow JLC's order form, whose wording changes now and then: pick t
 | Depanel / remove edge rails | No (break the tabs yourself, see below) |
 
 J3 (display socket, C27985230) is a through-hole part: JLC solders it by hand, so the quote carries a
-small THT fee. Every other part is SMT. Nothing is left for you to solder on the board.
+small THT fee. Every other part is SMT. J1's four shell legs go through plated slots, but the paste
+layer opens them (pin-in-paste), so they reflow with J1's pins; the remark asks for them as well.
+Nothing is left for you to solder on the board.
 
 ## Remark
 
@@ -64,6 +66,7 @@ and each question puts the order on hold:
 
 > Panel by customer: 1 board in a frame, 6 mm rails, 3 fiducials per side, 4 tooling holes (2.0 mm).
 > J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.
+> J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens them for pin-in-paste.
 > Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).
 > NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
 > Intended: no plating, no copper; they may break into each other.
@@ -81,7 +84,8 @@ and each question puts the order on hold:
 - **Bottom, D101-D137**: the cathode bar on the diode is at pad 1 (the ROW side).
 - **U1** (RP2040): the pin-1 dot at the pin-1 corner of the silkscreen.
 - **U2, U3, U4, U5, Y1**: pin 1 on the pin-1 pad.
-- **J1** (USB-C): the two plastic pegs in the two small holes, the mouth over the back edge.
+- **J1** (USB-C): the two plastic pegs in the two small holes, the four shell legs in their slots,
+  the mouth over the back edge.
 - **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.
 - **J3**: on its five holes.
 

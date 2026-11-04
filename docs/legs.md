@@ -3,11 +3,13 @@
 worxboard keeps the leg design of the reference [ErgoDox CNC case](https://github.com/w0rxbend/ergodox)
 unchanged (see its [legs.md](https://github.com/w0rxbend/ergodox/blob/main/docs/legs.md) for the
 measurements behind it). Each half has **three** mounts at the stock ErgoDox EZ positions, and every
-mount takes the same custom leg, clamped by the stock EZ M3 spring thumbscrew.
+mount takes the same custom leg, clamped by an M3 thumbscrew: an M3 × 12 knurled thumbscrew with a
+friction washer, or the stock EZ spring thumbscrew once it is measured.
 
 > [!NOTE]
 > The values below are the as-built model (`case/worxboard_case.py`); `just model` prints them in
-> its build report and fails if a leg check does not hold. No leg has been made yet.
+> its build report and fails if a leg check does not hold. The legs are ordered from JLCCNC with the
+> case ([`case/production/jlccnc/`](../case/production/jlccnc/ORDER_NOTES.md)). No leg has been made yet.
 
 ## The mount
 
@@ -16,7 +18,7 @@ spring thumbscrew presses the leg's flat hub onto the boss, so the leg holds any
 
 | Feature | Value | Parameter |
 |---|---|---|
-| Thread | M3, tap drill Ø2.5, 5.5–7.5 mm deep from the boss face (at least 5.0 is checked) | `LEG_TAP_D`, `LEG_DEPTH`, `LEG_MIN_DRILL` |
+| Thread | M3, tap drill Ø2.5, blind: drill 5.5 mm (outer, thumb) or 7.5 mm (inner) from the boss face, with 4.0 / 6.0 mm of full thread (at least D/2 unthreaded at the bottom, JLCCNC's guideline; CASE-3) | `LEG_TAP_D`, `LEG_DEPTH`, `LEG_MIN_DRILL` |
 | Thread axis height | Z 12.0 | `LEG_Z` |
 | Boss | Ø10, 2.7 mm proud of the wall, flat face; spans Z 7.0–17.0 on the top part | `LEG_BOSS_D`, `LEG_BOSS_H` |
 | Pad behind the wall | 10 mm along the wall, up to 6 mm deep, clear of the switch housings and the key well | `LEG_PAD` |
@@ -27,11 +29,11 @@ spring thumbscrew presses the leg's flat hub onto the boss, so the leg holds any
 In the right-half frame (the left half is the mirror image). The positions are the stock EZ ones,
 measured along the walls of the derived outline (deviation WS3-3):
 
-| Mount | On the wall at | Bearing face (boss top, 2.7 mm out) | Pad depth | M3 drill depth | Note |
-|---|---|---|---|---|---|
-| Outer | (209.4, 64.0), outer wall | (212.1, 64.0) | 6.00 | 5.50 | the drill stops short of the key well floor; the wall is 3.1 mm from the well |
-| Inner | (55.6, 64.0), inner wall | (52.9, 64.0) | 5.00 | 7.50 | pad **clamped to 5.0 mm** (x ≤ 63.6), 1.29 mm clear of the display pocket |
-| Thumb | (27.2, 158.5), thumb-cluster end wall, v = 0.56 u | (24.8, 159.7) | 1.75 | 5.50 | the pad is limited by the T0 switch housing |
+| Mount | On the wall at | Bearing face (boss top, 2.7 mm out) | Pad depth | M3 drill / full thread | Max screw reach past the boss face | Note |
+|---|---|---|---|---|---|---|
+| Outer | (209.4, 64.0), outer wall | (212.1, 64.0) | 6.00 | 5.5 / 4.0 | 3.7 | the drill stops short of the key well floor; the wall is 3.1 mm from the well |
+| Inner | (55.6, 64.0), inner wall | (52.9, 64.0) | 5.00 | 7.5 / 6.0 | 5.7 | pad **clamped to 5.0 mm** (x ≤ 63.6), 1.29 mm clear of the display pocket |
+| Thumb | (27.2, 158.5), thumb-cluster end wall, v = 0.56 u | (24.8, 159.7) | 1.75 | 5.5 / 4.0 | 3.7 | the pad is limited by the T0 switch housing |
 
 The first column is the boss centre on the outer face of the wall; the flat bearing face the leg's
 hub sits on is `LEG_BOSS_H` = 2.7 mm further out along the wall normal. The hub then reaches another
@@ -39,8 +41,13 @@ hub sits on is `LEG_BOSS_H` = 2.7 mm further out along the wall normal. The hub 
 
 The inner leg sits right beside the display. Its position is unchanged from the EZ (the spec rejected
 moving it); only the pad behind the wall is shallower. The outer and thumb threads are shorter than
-the reference's 7.5 mm, because the derived walls sit closer to the key well; 5.5 mm is still more
-than 1.5 × the M3 diameter of engagement.
+the reference's 7.5 mm, because the derived walls sit closer to the key well.
+
+**The thumbscrew.** An M3 × 12 knurled thumbscrew (DIN 464 or DIN 653, head Ø ≥ 7 mm, bearing on the
+leg's back face) reaches 4.0 mm past the boss face through the 8.0 mm hub, 0.3 mm more than the
+outer and thumb threads allow. A 0.5–1.0 mm friction washer between the hub and the boss brings it to
+3.0–3.5 mm, so the washer is **required** with that screw. The stock ErgoDox EZ spring thumbscrew's
+length is not known: measure it before using it (`case/production/hardware.csv`).
 
 ## The leg
 
@@ -54,9 +61,12 @@ than 1.5 × the M3 diameter of engagement.
 | Length | 47 mm from the pivot to the foot tip | `LEG_LEN` |
 
 - **One part for all six positions.** The leg is symmetric. Order 6 per keyboard.
-- **Foot cap.** `worxboard_leg_cap.stl`, printed in TPU 95A. The stock EZ rubber caps may also fit.
-- **Holding the angle.** Tighten the thumbscrew to lock the leg. If it slips, add a thin friction
-  washer (rubber, cork or fibre, Ø10 × Ø3.2, up to 1 mm) between the hub and the boss.
+- **Foot cap.** TPU 95A. JLC3DP prints TPU only above 30 × 30 × 15 mm, so the caps are ordered as
+  one tree of 8 (`worxboard_leg_cap_tree.stl`, CASE-4). Snip them off at the base. The single cap
+  `worxboard_leg_cap.stl` is there to print yourself, and the stock EZ rubber caps may also fit.
+- **Holding the angle.** Tighten the thumbscrew to lock the leg. The friction washer (rubber, cork
+  or fibre, Ø10 × Ø3.2, 0.5–1.0 mm) between the hub and the boss holds the angle and keeps an
+  M3 × 12 within its thread.
 
 ## Known limitations
 

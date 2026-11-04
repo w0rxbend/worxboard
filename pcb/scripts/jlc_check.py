@@ -228,7 +228,7 @@ def panel_features(path: str) -> dict:
                             "npth": pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH})
         elif ref.startswith("KiKit_MB_"):
             bites.add(ref.split("_")[2])                # KiKit_MB_<cut>_<hole>: one cut per tab
-            holes.append(fp.GetPosition())
+            holes.append((fp.GetPosition(), pcbnew.ToMM(next(iter(fp.Pads())).GetDrillSize().x) / 2))
     # least distance from a mouse-bite hole edge to each part's courtyard (either side)
     clear = {}
     for fp in board.GetFootprints():
@@ -239,8 +239,8 @@ def panel_features(path: str) -> dict:
             ps = fp.GetCourtyard(layer)
             if ps.OutlineCount() == 0:
                 continue
-            for h in holes:
-                d = pcbnew.ToMM(math.sqrt(ps.SquaredDistance(h))) - 0.25
+            for h, r in holes:
+                d = pcbnew.ToMM(math.sqrt(ps.SquaredDistance(h))) - r
                 clear[ref] = min(clear.get(ref, math.inf), d)
     return {"w": round(x1 - x0, 3), "h": round(y1 - y0, 3), "rail_min": round(rail, 3),
             "fiducials_top": sorted(fids["top"], key=lambda f: f["at"]),

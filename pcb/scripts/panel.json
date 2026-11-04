@@ -18,9 +18,9 @@
     },
     "cuts": {
         "type": "mousebites",
-        "drill": "0.5mm",
-        "spacing": "0.8mm",
-        "offset": "-0.05mm",
+        "drill": "0.6mm",
+        "spacing": "0.95mm",
+        "offset": "-0.1mm",
         "prolong": "0mm"
     },
     "framing": {

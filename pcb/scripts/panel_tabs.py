@@ -4,7 +4,8 @@
 The panel is one board in a tight frame: a solid 6 mm-rail frame whose inside is milled out only
 along a 2 mm slot round the board, so the board is held all the way round and nothing cantilevers
 in reflow. A tab bridges the slot, square to a straight stretch of the board edge, and breaks off at
-a line of mouse-bite holes on that edge. Tabs go only where:
+a line of mouse-bite holes on that edge (panel.json: Ø0.6 mm holes 1 mm apart, a third of each hole
+in the board, as JLC's mouse-bite guide asks). Tabs go only where:
   - the board edge is straight for the tab width plus EDGE_MARGIN either side (a clean break line);
   - the tab, grown by KEEPOUT, meets no footprint courtyard and no pad on either side. That keeps
     them out of the USB-C (J1) and TRRS (J2) mouths, which overhang the edge, off the hot-swap
@@ -23,8 +24,8 @@ from kikit.plugin import TabsPlugin
 from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import unary_union
 
-TAB_WIDTH = 4.0       # mm
-TAB_PITCH = 45.0      # mm between tab centres along a stretch
+TAB_WIDTH = 5.0       # mm: 6 mouse-bite holes of 0.6 mm, 1 mm apart (JLC: 5-8 per tab)
+TAB_PITCH = 45.0      # mm between tab centres along a stretch (JLC: a set every 50-60 mm)
 EDGE_MARGIN = 1.0     # mm of straight edge beyond each side of a tab
 KEEPOUT = 1.5         # mm from a tab to any courtyard or pad
 STEP = 0.5            # mm sampling along an edge

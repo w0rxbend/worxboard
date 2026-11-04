@@ -17,7 +17,7 @@ board without the panel frame, for an order where JLC adds the rails.
 
 - One board (182.84 x 158.75 mm) in a frame (198.84 x 174.75 mm, inside JLC's 250 x 250 mm Standard PCBA panel limit). The frame is solid: only a 2.0 mm slot round the board is milled out, so the board is held all round.
 - Rails 6.0 mm wide or more on every side (JLC: at least 5 mm).
-- 14 tabs, each with a row of Ø0.5 mm mouse-bite holes on the board edge, 1.7 mm or more from any part's courtyard and 2.7 mm or more from J1 (USB-C) and J2 (TRRS), whose mouths overhang the edge into the slot.
+- 14 tabs, each with a row of Ø0.6 mm mouse-bite holes on the board edge, 1.6 mm or more from any part's courtyard and 2.1 mm or more from J1 (USB-C) and J2 (TRRS), whose mouths overhang the edge into the slot.
 - 3 fiducials on each side: Ø1.0 mm copper in a Ø2.0 mm mask opening, centres 4.00 mm or more from the panel edges (JLC: 3.85 mm).
 - 4 non-plated tooling holes Ø2.0 mm in the rail corners (JLC's SMT guideline of 2026-09: 2 mm; its older FAQ gives 1.152 mm, JLC adds its own if it needs others).
 - Panel DRC: 0 errors, 0 unconnected items.

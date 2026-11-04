@@ -48,6 +48,12 @@ endchoice
 config ZMK_DISPLAY_BLANK_ON_IDLE
     default n
 
+# The custom right screen's LVGL heap, as ZMK's nice_view shield sets it: Zephyr's default
+# (2048 B) is less than LVGL 9 needs for the display and the screen. The built-in screen keeps
+# ZMK's own 4096 B, which is defined first and so wins.
+config LV_Z_MEM_POOL_SIZE
+    default 8192 if ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+
 endif # ZMK_DISPLAY
 
 # Caps/Num/Scroll lock state is forwarded over the wired split to the right screen (§11.6)

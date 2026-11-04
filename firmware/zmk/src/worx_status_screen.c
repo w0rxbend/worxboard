@@ -72,7 +72,18 @@ static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, const char *text
 }
 
 lv_obj_t *zmk_display_status_screen(void) {
+    /* ZMK gives a custom screen no theme, and LVGL never clears an I1 draw buffer, so the screen
+     * sets its own paper and ink, as the mono theme of the left's built-in screen does (light
+     * paper, dark ink; swapped by ZMK_DISPLAY_INVERT). Without an opaque paper the text has the
+     * colour of the uncleared buffer and does not show. */
+    const bool invert = IS_ENABLED(CONFIG_ZMK_DISPLAY_INVERT);
+    const lv_color_t ink = invert ? lv_color_white() : lv_color_black();
+    const lv_color_t paper = invert ? lv_color_black() : lv_color_white();
+
     lv_obj_t *screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(screen, paper, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(screen, ink, LV_PART_MAIN);
 
     lv_obj_t *logo = label(screen, &lv_font_montserrat_16, LOGO_TEXT);
     lv_obj_align(logo, LV_ALIGN_TOP_MID, 0, 2);

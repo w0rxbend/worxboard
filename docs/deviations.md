@@ -1409,11 +1409,15 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
     (x 81.315 right frame, 178.685 left), where the wall between pocket and well is 1.425 mm thick
     and stands 6.0 mm above the key-well floor. Right frame x 62.89–81.315, y 36.125–74.023.
   - The window W1 (12 × 26, unchanged in plan) goes through the bezel skin, chamfer at Z 19.6.
-  - The pocket is 11.6 mm deep from the parting face, so JLCCNC's cutter leaves R1.5 in its corners
-    (depth / 10, `corner_r`). With 0.5 mm between the module and each wall, that fillet would come
-    within 0.09 mm of the module's corners. `pocket_cut()` relieves each corner with an R1.5
-    dog-bone (a circle of the cutter through the corner; 0.44 mm into the walls). The old pocket
-    was modelled with sharp corners.
+  - The pocket is 11.6 mm deep from the parting face. JLCCNC's CNC Machining Design Guideline asks
+    for R = H/10 + 0.5 (a tool of Ø H/5), and its tool table gives the Ø2 tool at most 10 mm of
+    reach and the Ø3 tool a Min R of 2, so the pocket's corners need **R2**. A plain R2 corner would
+    hit the module's corners, which stand 0.5 mm from both walls (√2 × (2 − 0.5) = 2.12 > 2).
+    `pocket_cut()` relieves the two back (header-end) corners with R2 dog-bones (a circle of the
+    cutter through the corner, 0.59 mm into the walls). The two front corners lie in the C6R1 key
+    well: their walls are only the plate, under the module, so they get R2 there. *Corrected in
+    CASE-8:* this entry and the 8458d1b commit first gave R1.5 from "depth / 10", which is not
+    JLCCNC's rule. The old pocket was modelled with sharp corners.
   - The top part is 12.6 mm tall (was 10.6), 140.1 g (was 139.2).
 - **Checks:** `display_check` fails if the ceiling is below the stack + 0.25, the skin is under
   1.0 mm, the pocket runs out from under the bezel (outside the well), the window comes within
@@ -1508,7 +1512,7 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
   must be identical; a STEP, STL or PDF that differs only in its bytes must hold the same volume,
   area, faces and bounding box (STEP), triangles, volume and bounding box (STL), or pages and text
   (PDF).
-- **Size:** 14 MB committed; the two top STEPs are 4.72 and 4.74 MB, under the 5 MB limit. The
+- **Size:** 14 MB committed; the two top STEPs are 4.72 and 4.74 MB (4.88 and 4.90 at A2, CASE-8), under the 5 MB limit. The
   assembly STEP (8 MB) and the printed parts' STEPs stay in the `worxboard-case` artifact.
 - **Consumers:** `tests/integration/release.py` reads `case/exports/*.step|stl` only, so the new
   `worxboard_leg_cap_tree.{step,stl}` join the case zips; nothing reads `case/exports/order`.
@@ -1539,3 +1543,136 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
   and `production-check`. On 18cd3b9 all 15 files were byte-identical to the committed ones; on
   8458d1b the two top PDFs differed in bytes only (same pages and text), which the check allows.
 - `pytest layout` 32 passed, `pytest tests/integration` passed.
+
+### CASE-8. Every internal corner meets JLCCNC's radius-for-depth rule; case revision A2 (§10; corrects CASE-1, supersedes the J2 relief radius of BOARD-13)
+
+- **Rule** (<https://jlccnc.com/help/article/CNC-Machining-Design-Guideline>, read 2026-11-04): an
+  internal corner H deep (from the face the cutter enters by) needs R ≥ H/10 + 0.5, with a tool of
+  Ø H/5; R0.5 is possible to 3 mm. The tool table gives Ø2 / Ø3 / Ø4 tools a maximum length of
+  10 / 15 / 20 mm and a Min R of 1.5 / 2 / 2.5. Its 0.8 mm minimum wall for metal also applies.
+- **Problem:** `corner_r()` took the rule to be "depth / 10, rounded up to 0.5". That put these
+  corners below JLCCNC's minimum (the key well's R1.0 at 4.0 mm and the cavity's R2 and larger
+  were already right):
+  - **D1 dog-bones** were R1.5 at 11.6 mm. Past the Ø2 tool's 10 mm the Ø3 tool cuts it, Min R 2.
+    If JLCCNC had left its R2 as a plain corner, the nice!view's two header-end corners would hit it.
+  - **Wall fillets** were R1.0 where webs and leg pads meet the wall, at 5.1–7.6 mm from the parting
+    face (the rule gives 1.01–1.26, so R1.5 with the Ø2 tool). The bottom's web fillets were R0.5 at
+    4.0 mm (rule 0.9, so R1.0).
+  - **Relief pockets above the plate** were R1.0 (`TOOL_R`) at 7.6 mm. Clipping them against the
+    cavity, the bosses and the leg pads also left sharp corners: wedge crevices of 40–167° where
+    boss T4 and the inner leg pad crossed the relief edge.
+
+  Measuring the built parts turned up two older defects as well:
+  - Boss T2 (right frame (59.7, 121.7), Z to 14.6) reached 0.67 mm into the key well. It stood
+    1.0 mm above the plate there as a 3.3 mm² crescent island.
+  - One clipped key-well corner (right frame (22.4, 137.8)) stayed sharp, because its 0.81 mm edge
+    was shorter than R1.0 and `_filleted_polygon_face()` skipped it.
+- **Change** (`case/worxboard_case.py`):
+  - **`corner_r(H)`:** R0.5 to 3 mm; to 10 mm, H/10 + 0.5 rounded up to 0.5 (R1.0 to 5 mm, R1.5 to
+    10 mm, the Ø1 / Ø2 tools); past 10 mm, the Min R of the smallest tool in `JLCCNC_TOOLS` that
+    reaches.
+
+    | Radius | Was | Now |
+    |---|---|---|
+    | Top wall fillets: webs (5.1 / 7.6 deep) and leg pads (7.6 deep) | R1.0 | R1.5 |
+    | Bottom web fillets (4.0 deep) | R0.5 | R1.0 |
+    | Leg arm-to-hub joint (6.0 thick) | R1.0 | R1.5 |
+    | `check_fit` web keep-out | 1.05 | 1.55 |
+
+    The leg boss root fillet is a floor fillet (the end mill's corner on the wall face), not a
+    vertical corner, so it stays R0.5 (`LEG_BOSS_ROOT_R`).
+  - **D1** (`pocket_corners`, `pocket_reliefs`, `pocket_footprint`, `pocket_cut`):
+    - The two back corners, walled up to the ceiling, get **R2 dog-bones** (`pocket_corner_r()`),
+      which cut 0.586 mm into each wall.
+    - The two front corners lie 1.103 mm inside the C6R1 well. They are walled only in the plate
+      (Z 12.1–13.6, below the module at Z ≥ 14.4), and get R2 fillets there. Above the plate they
+      are open into the well, so they need no dog-bones, and the C5-side wall there keeps its
+      1.425 mm.
+    - The bosses, webs and leg pads keep their clearances to the pocket including the reliefs.
+    - The fit-check DXF draws the reliefs.
+  - **Relief pockets** (`relief_poly`):
+    - The union of main relief, zones and J2 relief is clipped to the cavity.
+    - It keeps `RELIEF_ISLAND_CLEAR` = 0.3 mm off everything that stands in the band
+      (`relief_islands`: the bosses rising to Z 14.6 with their webs and fillets, and the leg pads
+      with theirs).
+    - Only then is it opened by `relief_r()` = R1.5, so every corner the clipping leaves is a
+      cutter's arc.
+    - The J2 relief is R1.5. The J2 body's corners keep 0.08 mm to it (d ≥ 0.293 R), and the fit
+      check gives 0 mm³. This changes the plate DXFs and the spacers.
+    - The relief arcs are 4 chords per quarter circle (`RELIEF_QUAD_SEGS`, 0.03 mm off a true R1.5).
+      At 16 chords the top STEPs were 5.7 MB; now they are 4.88 and 4.90 MB.
+  - **Key well:**
+    - Cut a second time after the bosses, webs and pads, up to Z 15.1 and below the bezel, so
+      nothing stands in it.
+    - `_filleted_polygon_face()` also fillets a corner whose edge is shorter than the radius when
+      R·tan(turn/2) fits in half of it.
+  - `CASE_REVISION` A2.
+- **Checks:**
+  - **`display_check`** also fails if:
+    - the pocket radius is below `corner_r(11.6)`;
+    - a corner other than the two far-end ones lies in the key well;
+    - a far corner is within `TOOL_R` of the well edge;
+    - a relief leaves less than 0.8 mm of wall to the key well or the bezel outside.
+
+    It now reports R2.0, 2 dog-bones and a 0.84 mm thinnest wall: the raised bezel on the C5 side,
+    Z 17.6–18.6, under the skin. On the built part it probes each relief open at three heights,
+    the wall behind it solid, and each far corner open over the plate and filleted in it.
+  - **New gate `case/corner_check.py`** (`just corners`, a step of the `case` workflow):
+    - Reads the five machined STEPs and finds every vertical internal corner: a concave Z-cylinder
+      face that is not a hole, a sharp concave vertical edge (turn ≥ 30°), or a vertex of a
+      polygonised arc, with its radius taken from the longer chord.
+    - Ray casts give the face it opens to, so its depth from the top face (Z 17.6) or the parting
+      face, and it fails if R < `corner_r(depth)`.
+    - Exempt and listed: the switch and stabiliser cut-outs (R0.5, a 1 mm end mill, through the
+      1.5 mm plate at the bottom of the open key well), the engraved side mark and side
+      operations (the USB-C recess).
+    - On the A1 package it fails 192 corners:
+
+      | A1 corners failed | Count |
+      |---|---|
+      | D1 R1.5 | 4 |
+      | Top fillets R1.0 | 32 |
+      | Bottom fillets R0.5 | 4 |
+      | Sharp | 18 |
+      | Relief-arc vertices at R1.0 | 134 |
+
+    - On A2 it passes. Each top: 287 / 288 arc vertices and 53 fillets pass; 180 cut-out fillets and 2
+      side-operation edges are exempt. Each bottom: 11 fillets pass, 5 engraving edges are exempt.
+      Leg: 2 fillets pass.
+  - **Fit check teeth:** a top with plain R2 pocket corners instead of the dog-bones gives
+    0.1127 mm³ against the J3 + display envelope; with the dog-bones, 0.
+- **Text:**
+  - Drawings: the D1 row, a general note listing the radii per depth (key well R1.0, reliefs and
+    wall fillets R1.5, D1 R2, exceptions), the bottom's fillets and the leg's joint.
+  - `jlccnc/ORDER_NOTES.md`: the R2 dog-bones and the corner rule in the top remarks, the "sharp
+    internal corners" and bezel-wall answers, and what changed in A2.
+  - The production README and `jlc3dp/ORDER_NOTES.md` say A2, and `just corners` is part of the
+    rebuild.
+- **Result** (both halves):
+  - **Model:** every case check passes. Parts are valid, one solid each; top mirror dV 6.4e-6.
+
+    | Part | Volume | Mass |
+    |---|---|---|
+    | Top | 52.08 cm³ | 140.6 g (was 140.1) |
+    | Bottom | | 208.2 / 208.1 g |
+    | Leg | | 4.9 g |
+
+    Leg cap tree and `hardware.csv` are unchanged.
+  - **Fit check:** 0.0000 mm³ against both PCB STEPs. The STEPs came from `just pcb-fab left` and
+    `right` on a clean `git archive` of 73ec186 (kicad/kicad:10.0.7 images): 90 bodies each, with the
+    layout envelopes. Also 0.0000 mm³ against the layout envelopes alone (CI mode).
+  - `just corners` passes. `just order production production-check`: 15 generated files are
+    identical to the committed ones.
+  - `pytest layout` 32 passed, `pytest tests/integration` 111 passed.
+  - **CI:**
+    - `case` runs 41769047882 (9d51b34) and 41769062487 (fa3f4ca, with the new `just corners` step)
+      pass. The gate gives the same counts as locally.
+    - `production-check`: 14 files are byte-identical; the right top PDF differs in bytes only
+      (same pages and text).
+    - The `pcb` workflow's fit job against the CI-built PCB STEPs passes on 9d51b34
+      (run 41769048082).
+- **Consumers:**
+  - DOCS: `case.md` should give the corner radii per depth and the relief pockets' R1.5. The
+    `corner_r` line in `design.md` §10 is still right.
+  - BOARD-13's "J2 relief rounded to `TOOL_R` (1.0)" is now R1.5.
+  - No other stream's files change: the PCB, layout and STEP envelopes are as before.

@@ -127,6 +127,20 @@ Turnkey work (ELEC, BOARD, PKG, CASE, WS1-7 to WS1-9):
 - The TRRS jack's far corners came within 0.022 mm of the case top; now 0.376 mm, gated (CASE-9).
 - `just docs-gen` crashed on the new LCSC numbers (`KeyError: 'C97521'`).
 
+Order review of the turnkey packages (deviations ORDER-1 to ORDER-9):
+
+- PCB: J1's four through-hole shell legs are on the paste layer (pin-in-paste, `pin_in_paste.py`),
+  and the remark asks JLC to solder them; the build guide checks them (ORDER-1).
+- PCB, left half: U1's ground reached the planes through one 0.15 mm track and the TESTEN via.
+  `gnd_ties.py` adds four locked GND ties, and `checks.py` gates the separate EP links and the U4
+  and U2/C5 GND paths (ORDER-4).
+- Order docs: the bottom-side warning names the 12 thumb parts as the tell for JLC's other
+  rotation reading (ORDER-2); the remark covers the two stabiliser hole pairs under JLC's 0.45 mm
+  hole spacing, which `jlc_check.py` gates (ORDER-3).
+- Case: collarless DIN 653 leg thumbscrews only (ORDER-5); a stabiliser-wire channel in the plate
+  spacers (ORDER-6); USB-C plugs with at least 8 mm of bare shell (ORDER-7); the stabilisers go in
+  before the case is closed (ORDER-8); the Strict anodize tier (ORDER-9).
+
 ### Known issues
 
 - Not built or tested on hardware: the displays (including their orientation), the wired split,

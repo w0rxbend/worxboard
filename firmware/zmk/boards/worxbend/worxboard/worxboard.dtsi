@@ -116,6 +116,13 @@
     status = "okay";
 };
 
+/* Y1 is a YXC XL2EL89CRI-111YLC-12M (LCSC C49304726, ESR 80 ohm), not the Pico's Abracon
+ * ABM8-272-T3 the Pico SDK's 1 ms XOSC start-up is tuned for: wait 64x as long (about 64 ms),
+ * as Zephyr's RP2040 boards with other crystals do (xiao_rp2040, qt_py_rp2040, kb2040). */
+&xosc {
+    startup-delay-multiplier = <64>;
+};
+
 &rtc {
     clocks = <&clocks RPI_PICO_CLKID_CLK_RTC>;
     status = "okay";

@@ -50,7 +50,7 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Case design revision, printed on the drawings and in the STEP headers of the order package
 # (case/production). Bump it with any change to the ordered geometry.
-CASE_REVISION = "A2"
+CASE_REVISION = "A3"
 CASE_REVISION_DATE = "2026-11-04"
 
 # Vertical stack, Z = 0 at the bottom face of the case
@@ -142,8 +142,15 @@ RELIEF_QUAD_SEGS = 4     # chords per quarter circle of the relief pockets' arcs
                          # and the top STEP stays under the 5 MB the repository commits (CASE-8)
 # The PJ-320D (J2, gate G2) is 14.1 long: its last 0.9 mm runs past Z_TRRS, through the well skin and
 # under the plate between C6R1 and C6R2, and its top is flush with the plate top. Its body + this is
-# relieved in the top part (to Z_POCKET_CEIL, through the plate), the spacer and the plate DXF.
-J2_RELIEF_CLEAR = 0.5
+# relieved in the top part (to Z_POCKET_CEIL, through the plate), the spacer and the plate DXF. The
+# relief's R1.5 corners (relief_r) leave a body corner r - sqrt(2) (r - c) of it: 0.44 at 0.75 (0.43 with
+# the 4-chord arcs, 0.38 in the top after relief_poly's second opening); at 0.5 it was 0.08 / 0.02 (CASE-9).
+J2_RELIEF_CLEAR = 0.75
+# Least plan clearance from a jack body (J1, J2: layout envelope, on the PCB) to the top part, the
+# spacer and the plate DXF: the case is ISO 2768-m, the jack is placed by JLC SMT, the PCB floats in
+# the cavity (0.3-0.5 mm clear) as far as its screw holes let it, and a plate edge bearing on the jack
+# loads its SMD joints (CASE-9).
+JACK_MIN_CLEAR = 0.3
 
 # Tent / tilt legs: reuses the stock EZ spring thumbscrews (M3), see docs/legs.md.
 DETENT_TEETH = False
@@ -558,7 +565,8 @@ def zones_poly(side: str, grow: float = 0.0):
 @lru_cache
 def jack_relief_poly(side: str):
     """J2's body + J2_RELIEF_CLEAR (KiCad frame), corners rounded to the relief pocket's cutter radius
-    (gate G2, deviations BOARD-13, CASE-8)."""
+    (gate G2, deviations BOARD-13, CASE-8, CASE-9). Cut as is in the spacer and the plate DXF; the top
+    cuts it as part of relief_poly, whose second opening pulls the corners 0.05 mm further in."""
     p = box(*JACK(side, "J2").body).buffer(J2_RELIEF_CLEAR, join_style="mitre")
     return p.buffer(-relief_r(), quad_segs=RELIEF_QUAD_SEGS).buffer(relief_r(), quad_segs=RELIEF_QUAD_SEGS)
 
@@ -999,8 +1007,13 @@ def spacer_check(side: str, spacer: Solid):
         for f in sp_faces(geom):
             if (Sketch() + f & sec).area > 1e-3:
                 sys.exit(f"{side} plate spacer overlaps the {name}")
+    jd = {ref: spacer.distance_to(jack_body(side, ref)) for ref in ("J1", "J2")}
+    for ref, d in jd.items():
+        if d < JACK_MIN_CLEAR:
+            sys.exit(f"{side} plate spacer is {d:.3f} mm from the {ref} body (JACK_MIN_CLEAR {JACK_MIN_CLEAR})")
     print(f"  {side:5s} plate spacer: {SPACER_T} thick, Z {Z_PLATE_BOT - SPACER_T:.1f}-{Z_PLATE_BOT:.1f}, "
-          f"{gap:.1f} mm above the PCB, {SPACER_HOLE} openings, {len(spacer.solids())} piece(s)")
+          f"{gap:.1f} mm above the PCB, {SPACER_HOLE} openings, {len(spacer.solids())} piece(s); "
+          + ", ".join(f"{ref} body {d:.3f} mm clear" for ref, d in jd.items()))
 
 
 def web_check(side: str):
@@ -1231,9 +1244,33 @@ def trrs_cut(side: str) -> Solid:
     return _wall_place(n, hole)
 
 
+def jack_body(side: str, ref: str) -> Solid:
+    """The layout envelope of a jack's body (case frame), standing on the PCB top."""
+    j = JACK(side, ref)
+    x0, y0, x1, y1 = j.body
+    return Pos(*P((x0 + x1) / 2, (y0 + y1) / 2), Z_PCB_TOP) * Box(
+        x1 - x0, y1 - y0, j.height, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
+
+def jack_clearances(side: str, ref: str) -> dict[str, float]:
+    """Plan clearance of a jack body (layout envelope) to each outline that cuts round it: the top's
+    relief pocket (relief_poly, which also follows the cavity wall at the jack mouth) and, for J2, its
+    own relief (jack_relief_poly: the spacer cut-out) and the plate DXF's notch (CASE-9)."""
+    body = box(*JACK(side, ref).body)
+    relief = relief_poly(side)
+    part = next(g for g in getattr(relief, "geoms", [relief]) if g.intersects(body))
+    out = {"top relief": part.simplify(0.01).exterior.distance(body)}
+    if ref == "J2":
+        out["J2 relief"] = jack_relief_poly(side).simplify(0.01).exterior.distance(body)
+        bf = sp_faces(body)[0]
+        out["plate DXF"] = min(f.distance_to(bf) for f in plate_face(side).faces())
+    return out
+
+
 def jack_check(side: str, top: Solid | None = None, bottom: Solid | None = None):
     """USB / TRRS notch centres equal the layout anchors within NOTCH_TOL, they fit the part they
-    cut, the jack bodies sit under the relief pocket, and (on the built part) the holes are open."""
+    cut, the jack bodies sit under the relief pocket at least JACK_MIN_CLEAR from every edge round
+    them, and (on the built part) the holes are open and the top stays JACK_MIN_CLEAR off the bodies."""
     relief = relief_poly(side)
     for ref, notch, cut, size in (("J1", usb_notch(side), usb_cuts(side)[0], USB_NOTCH),
                                   ("J2", trrs_notch(side), trrs_cut(side), (TRRS_NOTCH_D, TRRS_NOTCH_D))):
@@ -1253,7 +1290,17 @@ def jack_check(side: str, top: Solid | None = None, bottom: Solid | None = None)
             sys.exit(f"{side} {ref} body is not under the relief pocket")
         if Z_PCB_TOP + j.height > Z_POCKET_CEIL - 0.3:
             sys.exit(f"{side} {ref} is {j.height} mm tall: raise the pocket ceiling (gate G2)")
+        clear = jack_clearances(side, ref)
+        for what, d in clear.items():
+            if d < JACK_MIN_CLEAR:
+                sys.exit(f"{side} {ref} body is {d:.3f} mm from the {what} (JACK_MIN_CLEAR {JACK_MIN_CLEAR})")
+        clear_txt = ", ".join(f"{what} {d:.3f}" for what, d in clear.items())
         if top is not None:
+            # the built part: its least 3D distance to the body (plate edge, relief, wall or ceiling)
+            d3 = top.distance_to(jack_body(side, ref))
+            if d3 < JACK_MIN_CLEAR:
+                sys.exit(f"{side} top part is {d3:.3f} mm from the {ref} body (JACK_MIN_CLEAR {JACK_MIN_CLEAR})")
+            clear_txt += f", built top {d3:.3f}"
             px, py = P(notch["x"], notch["y"])
             nx, ny = notch["n"][0], -notch["n"][1]
             deep = WALL - 0.4                 # past the USB plug recess
@@ -1264,8 +1311,8 @@ def jack_check(side: str, top: Solid | None = None, bottom: Solid | None = None)
             if not top.is_inside(mid + Vector(tx, ty, 0) * (size[0] / 2 + 0.4)):
                 sys.exit(f"{side} {ref} notch is wider than modelled")
         print(f"  {side:5s} {ref} notch: centre ({kx:.2f},{ky:.2f}) Z {c.Z:.2f}, {along:+.3f} / {dz:+.3f} mm "
-              f"from layout; body {j.height} tall, {Z_POCKET_CEIL - Z_PCB_TOP - j.height:.1f} mm headroom"
-              + ("; probed open" if top is not None else ""))
+              f"from layout; body {j.height} tall, {Z_POCKET_CEIL - Z_PCB_TOP - j.height:.1f} mm headroom, "
+              f"clear (mm): {clear_txt}" + ("; probed open" if top is not None else ""))
     if bottom is not None:
         n = usb_notch(side)
         px, py = P(n["x"], n["y"])

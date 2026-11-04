@@ -1,4 +1,4 @@
-# Case order package (case revision A2)
+# Case order package (case revision A3)
 
 Everything needed to order the worxboard case for one keyboard (both halves). The files are
 generated from the model; only this page and the two `ORDER_NOTES.md` are written by hand.

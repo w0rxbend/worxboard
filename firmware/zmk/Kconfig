@@ -10,5 +10,28 @@ config WORXBOARD_STATUS_SCREEN
     select LV_FONT_MONTSERRAT_16
     select LV_FONT_MONTSERRAT_12
     help
-      Logo, Caps/Num/Scroll lock row and a static "wired" label (design.md §11.6).
-      Uses no BLE or battery symbols.
+      Logo, Caps/Num/Scroll lock column and a static "wired" label, laid out portrait
+      (design.md §11.6). Uses no BLE or battery symbols.
+
+choice WORXBOARD_DISPLAY_ROTATION
+    prompt "worxboard display orientation"
+    default WORXBOARD_DISPLAY_ROTATION_90
+    depends on ZMK_DISPLAY
+    depends on BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT || BOARD_WORXBOARD2_LEFT || BOARD_WORXBOARD2_RIGHT
+    help
+      The nice!view-class display (160 x 68) stands upright, so both halves lay their screen out
+      portrait, 68 x 160, and src/worx_display_rotation.c turns it onto the panel.
+
+config WORXBOARD_DISPLAY_ROTATION_90
+    bool "Portrait, J3 header at the back (rev A mounting)"
+    help
+      LVGL LV_DISPLAY_ROTATION_90: the module's header points away from the user, as J3 holds it
+      on both rev A boards.
+
+config WORXBOARD_DISPLAY_ROTATION_270
+    bool "Portrait, header toward the user (the stock nice!view orientation)"
+    help
+      LVGL LV_DISPLAY_ROTATION_270, the orientation ZMK's nice_view shield draws for. Turns the
+      screen by 180 degrees from the rev A setting.
+
+endchoice

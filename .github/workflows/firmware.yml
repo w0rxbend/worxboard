@@ -33,6 +33,10 @@ jobs:
           git diff --exit-code -- firmware/zmk/boards
       - name: keymap has 3 layers x 74 bindings and base = layout.json legends
         run: python3 firmware/zmk/scripts/check_keymap.py
+      - name: display portrait-to-panel pixel map (host test of src/worx_rotate.h)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I firmware/zmk/src -o /tmp/fw-rotate-test firmware/zmk/tests/rotate_test.c
+          /tmp/fw-rotate-test
 
   matrix:
     name: Fetch build matrix
@@ -88,8 +92,8 @@ jobs:
         working-directory: /tmp/zmk-ws
         run: FW_REPO="$GITHUB_WORKSPACE" python3 "$GITHUB_WORKSPACE/firmware/zmk/scripts/fw_build.py" "${{ matrix.artifact-name }}"
 
-      - name: Right peripheral checks (no BLE symbols, flash budget)
-        if: matrix.artifact-name == 'worxboard_right_peripheral'
+      - name: Core checks (portrait display; right peripheral also no BLE symbols, heap, flash budget)
+        if: matrix.artifact-name == 'worxboard_right_peripheral' || matrix.artifact-name == 'worxboard_left_central'
         run: python3 firmware/zmk/scripts/fw_check.py build/fw
 
       - name: Kconfig

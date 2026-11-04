@@ -25,14 +25,18 @@ renders:
     {{case_tools}} case/tools/zrender.py {{case_renders}}/right_with_legs.png 1100 -60 -60 \
         {{case_exports}}/worxboard_right_assembly_with_legs.stl
     {{case_tools}} case/tools/zrender.py {{case_renders}}/leg.png 800 35 30 {{case_exports}}/worxboard_leg.stl {{case_exports}}/worxboard_leg_cap.stl
+    {{case_tools}} case/tools/zrender.py {{case_renders}}/leg_cap_tree.png 700 -55 20 {{case_exports}}/worxboard_leg_cap_tree.stl
     {{case_tools}} case/tools/zrender.py {{case_renders}}/spacer.png 1000 -50 35 {{case_exports}}/worxboard_right_spacer.stl
     {{case_tools}} case/tools/section.py {{case_exports}} {{case_renders}}/section.png
     {{case_tools}} case/tools/leg_section.py {{case_exports}} {{case_renders}}/leg_section.png
     {{case_tools}} case/overlay.py {{case_renders}}/overlay.png right
 
-# PDF drawings + CNC order package in case/exports/order (needs model)
+# Order package in case/exports/order (needs model): jlccnc/ (STEP + PDF drawings, hole table, notes),
+# jlc3dp/ (printed parts, notes), hardware.csv; plus the stand-alone plate DXFs
 order:
     rm -rf {{case_exports}}/order
-    {{case_tools}} case/drawings.py {{case_exports}} {{case_exports}}/order {{quote(version)}}
-    cp case/ORDER_NOTES.md {{case_exports}}/order/ORDER_NOTES.md
-    cp plates/*.dxf {{case_exports}}/order/
+    {{case_tools}} case/drawings.py {{case_exports}} {{case_exports}}/order
+    cp case/production/README.md {{case_exports}}/order/README.md
+    cp case/production/jlccnc/ORDER_NOTES.md {{case_exports}}/order/jlccnc/ORDER_NOTES.md
+    cp case/production/jlc3dp/ORDER_NOTES.md {{case_exports}}/order/jlc3dp/ORDER_NOTES.md
+    mkdir -p {{case_exports}}/order/plates && cp plates/*.dxf {{case_exports}}/order/plates/

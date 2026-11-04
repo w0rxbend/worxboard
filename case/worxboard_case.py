@@ -5,7 +5,7 @@ Port of ergodox_case.py (w0rxbend/ergodox v0.6.1) to the worxboard layout (spec 
 
 Parts per half:
   * TOP    - shell with integrated 1.5 mm switch plate in a recessed key well, perimeter walls,
-             display pocket + viewing window, USB-C and TRRS notches, PCB clamp bosses,
+             display pocket under a raised bezel + viewing window, USB-C and TRRS notches, PCB clamp bosses,
              tent-leg bosses.
   * BOTTOM - tray: floor + low walls + PCB support posts, countersunk M2.5 holes, L / R mark.
   * SPACER - separate plate spacer between the plate and the PCB.
@@ -48,6 +48,11 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Parameters (mm)
 # --------------------------------------------------------------------------
+# Case design revision, printed on the drawings and in the STEP headers of the order package
+# (case/production). Bump it with any change to the ordered geometry.
+CASE_REVISION = "A1"
+CASE_REVISION_DATE = "2026-11-04"
+
 # Vertical stack, Z = 0 at the bottom face of the case
 FLOOR_T = 3.0            # bottom tray floor thickness
 Z_SPLIT = 7.0            # top/bottom parting plane == PCB bottom face
@@ -96,12 +101,24 @@ BACK_Y = 60.0            # convex corners above this y are "back" corners
 CONCAVE_FRONT_Y = 130.0  # concave corners below this y use R_CONCAVE_FRONT
 BUMP_X, BUMP_Y = 62.2, (80.0, 130.0)           # TRRS bump region (right frame)
 
-# Fasteners
+# Fasteners: M2.5 countersunk screws from below, through the tray and the PCB into blind tapped holes
+# in the top's bosses (deviation CASE-3). JLCCNC threaded-hole guideline: a blind hole keeps at least
+# half its diameter unthreaded at the bottom, and the effective thread is at most 3 D. Drill depth is
+# the full-diameter depth from the boss face (Z_PCB_TOP); the 118 deg drill point is modelled beyond it.
 SCREW_CLEAR_D = 2.9      # M2.5 clearance
-SCREW_CSK_D = 5.2        # ISO 10642 M2.5 head (90 deg)
+SCREW_CSK_D = 5.2        # M2.5 countersunk head (90 deg)
+M25_D = 2.5
 TAP_D = 2.05             # M2.5 tap drill
-TAP_DEPTH = 6.0          # thread depth into top bosses (bezel area)
-TAP_DEPTH_PLATE = 3.9    # for bosses under the plate (leaves ~1.1 mm skin)
+DRILL_POINT_DEG = 118.0
+TAP_UNTHREADED_MIN = M25_D / 2    # JLCCNC: >= D/2 of a blind hole unthreaded
+TAP_THREAD_MAX = 3 * M25_D        # JLCCNC: effective thread <= 3 D
+# kind -> (drill depth, min full thread, screw length): bosses in the bezel / edge area, and the two
+# under the key well, where the plate leaves 5.0 mm of material above the boss face
+TAP_HOLE = {"edge": (6.0, 4.5, 12), "plate": (3.6, 2.3, 10)}
+SCREW_HEAD_SINK = 0.2    # the countersunk head sits flush to 0.2 below the underside (bottom drawing)
+SCREW_TIP_CLEAR = 0.3    # screw tip (head at its deepest) to the end of the full thread
+SCREW_MIN_ENGAGE = 1.4   # shortest thread engagement, head flush (the bosses under the key well)
+TAP_SKIN_MIN = 0.75      # drill point to the cosmetic face above it (key-well floor or top face)
 BOSS_D = 6.5
 POST_D = 6.5
 # A boss or post closer to the wall than this is joined to it by a web as wide as the boss, so
@@ -122,7 +139,10 @@ DETENT_TEETH = False
 LEG_Z = 12.0             # thread axis; the Ø10 boss then spans Z 7.0-17.0 on the top part
 LEG_TAP_D = 2.5          # M3 tap drill
 LEG_DEPTH = 7.5          # max drill depth from the boss face
-LEG_MIN_DRILL = 5.0      # min drill depth from the boss face (M3 engagement > 1.5 D)
+LEG_MIN_DRILL = 5.0      # min drill depth from the boss face
+LEG_UNTHREADED = 1.5     # JLCCNC: >= D/2 of the blind M3 hole unthreaded (CASE-3)
+LEG_MIN_THREAD = 3.5     # min full thread (> 1 D)
+LEG_REACH_CLEAR = 0.3    # the thumbscrew must stop this far short of the end of the full thread
 LEG_PAD = (10.0, 6.0)    # pad (along wall, into case) behind the wall
 LEG_PAD_MAX = {"inner": 5.0}   # inner pad clamped clear of the display pocket (spec §10.4)
 LEG_BOSS_D = 10.0        # boss on the outer wall face
@@ -143,6 +163,15 @@ LEG_FOOT_D = 9.0         # foot cap outside diameter
 LEG_CAP_L = 8.5          # foot cap length (Ø9 cylinder + dome)
 LEG_SPIGOT = (4.5, 5.0)  # spigot for the cap (diameter, length)
 LEG_EDGE = 0.3           # edge chamfer on the hub
+# Foot caps for JLC3DP (deviation CASE-4): its only flexible material, TPU 95A, is FDM with a minimum part
+# of 30 x 30 x 10 mm (design guideline; its TPU page says 30 x 30 x 15), and one cap is 9 x 9 x 8.5. So the
+# caps are ordered as one tree: CAP_TREE_N caps standing on their open end, joined at the base by runner
+# bars, round a tag post that makes the height.
+CAP_TREE_N = 8           # 6 per keyboard + 2 spares
+CAP_TREE_PITCH = 12.5    # caps on the 8 outer places of a 3 x 3 grid, the tag post in the middle
+CAP_RUNNER = 1.6         # runner bar width and height (JLC3DP FDM TPU wall: 1.6 standard, 1.2 min)
+CAP_TAG = (8.0, 16.0)    # tag post diameter, height
+CAP_TREE_MIN = (30.0, 30.0, 15.0)   # JLC3DP FDM TPU minimum part size, the larger of its two figures
 # Stock EZ leg positions (right frame): (name, PCB edge (vertex indices of layout VERTICES),
 # anchor point and direction of the line that meets the wall). Outer / inner main walls at
 # y 64, thumb leg 0.56 key units along the thumb-cluster end wall.
@@ -152,8 +181,19 @@ LEGS = (("outer", (2, 3), (130.0, LEG_MAIN_Y), (1.0, 0.0)),
         ("inner", (12, 13), (130.0, LEG_MAIN_Y), (-1.0, 0.0)),
         ("thumb", (7, 8), thumb_pt(0, LEG_THUMB_V), (-THUMB_U[0], -THUMB_U[1])))
 
-# Display (spec §4, §10.4): pocket over the module + 0.5, window through the top
-Z_DISPLAY_TOP = LD.Z_POCKET_TOP                # 16.8: socket + module + glass <= 8.2 above PCB
+# Display (spec §4, §10.4; gate G1; deviations ELEC-3, CASE-1). J3 is a 5.0 mm socket (C27985230) and a
+# stock nice!view sits on its own male header, so the glass top is 8.9 mm above the PCB top nominally and
+# 9.75 mm at full tolerance: above Z_TOP. The pocket over the module + 0.5 rises over that stack, under
+# a raised bezel around the viewing window.
+DISPLAY_STACK_MAX = 9.75     # glass top above the PCB top, full tolerance (ELEC-3)
+DISPLAY_GLASS_CLEAR = 0.25   # pocket ceiling above the highest glass top
+Z_DISPLAY_TOP = round(Z_PCB_TOP + DISPLAY_STACK_MAX + DISPLAY_GLASS_CLEAR, 3)   # 18.6
+BEZEL_SKIN = 1.0             # skin over the pocket, through which the window opens
+Z_BEZEL_TOP = round(Z_DISPLAY_TOP + BEZEL_SKIN, 3)                             # 19.6: 2.0 proud of Z_TOP
+BEZEL_WALL = 2.0             # bezel wall around the pocket where the key well leaves room
+BEZEL_R = 2.0                # plan radius of the bezel's free corners
+BEZEL_CHAMFER = 0.5          # 45 deg chamfer on the bezel's top edges
+BEZEL_OVERLAP = 0.05         # the bezel runs this far into the key well, which then trims it flush
 DISPLAY_LEG_CLEAR = 1.2  # leg pads stay this far from the pocket
 DISPLAY_BOSS_CLEAR = 1.0  # bosses / webs stay this far from the pocket
 
@@ -181,6 +221,7 @@ FEET = [(68.0, 45.0), (198.0, 45.0), (196.0, 148.0), (45.0, 178.0)]
 SPACER_T = 3.0
 SPACER_HOLE = 15.0       # opening per switch: the 14.0 lower housing + 2 x 0.5
 SPACER_CLEAR = 0.5       # to the case walls, screw bosses, leg pads, zones and display
+SPACER_MIN_WEB = 1.0     # narrowest web left in the spacer (JLC3DP MJF PA12 wall, CASE-5)
 
 # Left == mirror(right) before the side mark: relative volume / area, and centroid / bbox in mm
 # (shapely chord approximations differ by a few µm between the two orientations)
@@ -511,6 +552,91 @@ def pocket_poly(side: str, grow: float = 0.0) -> Polygon:
     return p.buffer(grow, join_style="mitre") if grow else p
 
 
+def _area(geom) -> float:
+    """Area of the polygonal part of a shapely intersection (shared edges count 0)."""
+    return sum(g.area for g in getattr(geom, "geoms", [geom]) if g.geom_type == "Polygon")
+
+
+@lru_cache
+def bezel_rect(side: str) -> tuple[float, float, float, float]:
+    """Raised display bezel (KiCad frame x0, y0, x1, y1, deviation CASE-1): the pocket + BEZEL_WALL,
+    each edge pulled back to the key well where the well is nearer, so the bezel meets it flush: the
+    C6R1 well in front (the pocket's front strip lies in it, WS3-5) and the C5 column at the side."""
+    px0, py0, px1, py1 = DISPLAY(side)["pocket"]
+    x0, y0, x1, y1 = px0 - BEZEL_WALL, py0 - BEZEL_WALL, px1 + BEZEL_WALL, py1 + BEZEL_WALL
+    well = well_poly(side)
+
+    def hit(*b):
+        g = well.intersection(box(*b))
+        return [p for p in getattr(g, "geoms", [g]) if p.geom_type == "Polygon" and p.area > 1e-6]
+
+    front = hit(px0, py0, px1, y1)                      # in front, over the pocket's own width
+    if front:
+        y1 = min(p.bounds[1] for p in front)
+    back = hit(px0, y0, px1, py0)
+    if back:
+        y0 = max(p.bounds[3] for p in back)
+    right = hit(px1, y0, x1, y1 - 1e-3)
+    if right:
+        x1 = min(p.bounds[0] for p in right)
+    left = hit(x0, y0, px0, y1 - 1e-3)
+    if left:
+        x0 = max(p.bounds[2] for p in left)
+    return (x0, y0, x1, y1)
+
+
+def bezel_face(side: str) -> Face:
+    """Bezel outline (part frame): corners away from the key well rounded to BEZEL_R, the ones on the
+    well left sharp (they meet the well wall)."""
+    x0, y0, x1, y1 = bezel_rect(side)
+    corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    face = _up(make_face(Polyline(*[P(*c) for c in corners], close=True)).faces()[0])
+    free = [P(*c) for c in corners if well_poly(side).distance(Point(c)) > BEZEL_R + 0.5]
+    if free:
+        verts = [min(face.vertices(), key=lambda v: (v.X - c[0]) ** 2 + (v.Y - c[1]) ** 2) for c in free]
+        out = fillet(verts, BEZEL_R)
+        face = _up(out if isinstance(out, Face) else out.faces()[0])
+    return face
+
+
+def build_bezel(side: str) -> Solid:
+    """The raised bezel, standing on the top face, top edges chamfered."""
+    b = prism(bezel_face(side), Z_TOP, Z_BEZEL_TOP)
+    return chamfer(b.edges().group_by(Axis.Z)[-1], BEZEL_CHAMFER)
+
+
+def drill_point(d: float) -> float:
+    """Length of a drill's conical point beyond its full-diameter depth."""
+    return d / 2 / math.tan(math.radians(DRILL_POINT_DEG / 2))
+
+
+def tap_hole(side: str, sx: float, sy: float) -> dict:
+    """M2.5 tapped hole of the boss at (sx, sy): drill and thread depth from the boss face, the screw,
+    its engagement and deepest reach, and the skin left between the drill point and the face above."""
+    kind = "plate" if screw_under_plate(side, sx, sy) else "edge"
+    drill, thread, screw = TAP_HOLE[kind]
+    face = Z_PLATE_TOP if kind == "plate" else Z_TOP
+    tip = Z_PCB_TOP + drill + drill_point(TAP_D)
+    return dict(kind=kind, drill=drill, thread=thread, screw=screw, unthreaded=round(drill - thread, 3),
+                engage=round(screw - Z_PCB_TOP, 3), reach=round(screw + SCREW_HEAD_SINK - Z_PCB_TOP, 3),
+                tip=tip, face=face, skin=round(face - tip, 3))
+
+
+def tap_cut(side: str, sx: float, sy: float) -> Solid:
+    """Tap-drill hole as drilled: Ø TAP_D to the drill depth, then the 118 deg point."""
+    h = tap_hole(side, sx, sy)
+    cx, cy = P(sx, sy)
+    hole = Pos(cx, cy, Z_PCB_TOP - 0.01) * Cylinder(TAP_D / 2, h["drill"] + 0.01,
+                                                     align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return hole + Pos(cx, cy, 0) * Solid.make_cone(TAP_D / 2, 0, drill_point(TAP_D),
+                                                   Plane.XY.offset(Z_PCB_TOP + h["drill"]))
+
+
+def leg_thread(depth: float) -> float:
+    """Min full M3 thread in a leg hole of this drill depth (JLCCNC: >= D/2 unthreaded)."""
+    return math.floor((depth - LEG_UNTHREADED) * 10 + 1e-6) / 10
+
+
 # --------------------------------------------------------------------------
 # 3D parts
 # --------------------------------------------------------------------------
@@ -768,6 +894,10 @@ def spacer_face(side: str) -> Sketch:
                                    jack_relief_poly(side)])):
         s -= f
     # keep the main lattice; crumbs cut off by the zones are dropped
+    s = Sketch() + [f for f in s.faces() if f.area > 20.0]
+    # open it by SPACER_MIN_WEB: slivers narrower than that are dropped, so the printed part has no
+    # wall below JLC3DP's MJF minimum (deviation CASE-5); this only removes material
+    s = offset(offset(s, -SPACER_MIN_WEB / 2, kind=Kind.ARC), SPACER_MIN_WEB / 2, kind=Kind.ARC)
     return Sketch() + [f for f in s.faces() if f.area > 20.0]
 
 
@@ -825,6 +955,38 @@ def web_check(side: str):
             print(f"  {side:5s} {part:6s} web: screw ({sx:6.1f},{sy:6.1f}) joined to the wall, {web.area:.0f} mm2")
 
 
+def tap_check(side: str, top: Solid | None = None):
+    """Every M2.5 hole follows the JLCCNC threaded-hole guideline, its screw seats before it reaches
+    the end of the full thread, and the drill point leaves skin under the face above (CASE-3). On the
+    built part, the hole is open to its drill depth and solid from the drill point to the face."""
+    for i, (sx, sy) in enumerate(SCREWS(side)):
+        h = tap_hole(side, sx, sy)
+        name = f"{side} T{i + 1} ({sx:.1f},{sy:.1f})"
+        if h["unthreaded"] < TAP_UNTHREADED_MIN - 1e-9:
+            sys.exit(f"{name}: {h['unthreaded']} mm unthreaded at the bottom, JLCCNC needs {TAP_UNTHREADED_MIN}")
+        if h["thread"] > TAP_THREAD_MAX + 1e-9:
+            sys.exit(f"{name}: {h['thread']} mm of thread is more than 3 D")
+        if h["reach"] > h["thread"] - SCREW_TIP_CLEAR + 1e-9:
+            sys.exit(f"{name}: an M2.5x{h['screw']} reaches {h['reach']:.2f} mm, past the {h['thread']} mm "
+                     f"thread less {SCREW_TIP_CLEAR}: it would bottom before its head seats")
+        if h["engage"] < SCREW_MIN_ENGAGE - 1e-9:
+            sys.exit(f"{name}: an M2.5x{h['screw']} engages only {h['engage']:.2f} mm of thread")
+        if h["skin"] < TAP_SKIN_MIN - 1e-9:
+            sys.exit(f"{name}: the drill point leaves {h['skin']:.2f} mm under Z {h['face']}")
+        if top is not None:
+            cx, cy = P(sx, sy)
+            for z in (Z_PCB_TOP + 0.2, Z_PCB_TOP + h["drill"] - 0.1):
+                if top.is_inside(Vector(cx, cy, z)):
+                    sys.exit(f"{name}: the tap drill is not open at Z {z:.2f}")
+            for z in (h["tip"] + 0.05, (h["tip"] + h["face"]) / 2, h["face"] - 0.05):
+                if not top.is_inside(Vector(cx, cy, z)):
+                    sys.exit(f"{name}: no material above the drill point at Z {z:.2f}")
+        print(f"  {side:5s} T{i + 1} ({sx:6.1f},{sy:6.1f}) {h['kind']:5s}: drill {h['drill']} + point, thread "
+              f"{h['thread']} ({h['unthreaded']} unthreaded), M2.5x{h['screw']} engages {h['engage']:.1f} "
+              f"(reach <= {h['reach']:.1f}), skin {h['skin']:.2f} to Z {h['face']}"
+              + ("; probed" if top is not None else ""))
+
+
 def leg_check(side: str):
     """Each boss and pad must sit on a straight wall, inside the top part."""
     if LEG_Z - LEG_BOSS_D / 2 < Z_SPLIT - 1e-6 or LEG_Z + LEG_BOSS_D / 2 > Z_TOP:
@@ -840,8 +1002,11 @@ def leg_check(side: str):
             if not on_wall:
                 sys.exit(f"{side} {name} tent leg at {K(px, py)} runs off its straight wall")
         pad = leg_pad_depth(side, px, py, nx, ny)
-        if leg_hole_depth(side, px, py, nx, ny) < LEG_MIN_DRILL:
+        depth = leg_hole_depth(side, px, py, nx, ny)
+        if depth < LEG_MIN_DRILL:
             sys.exit(f"{side} {name} tent-leg thread is shorter than {LEG_MIN_DRILL} mm")
+        if leg_thread(depth) < LEG_MIN_THREAD:
+            sys.exit(f"{side} {name} tent-leg full thread {leg_thread(depth)} is below {LEG_MIN_THREAD} mm")
         x0, y0, x1, y1 = DISPLAY(side)["pocket"]
         pad_poly = Polygon([K(px - nx * d + tx * t, py - ny * d + ty * t)
                             for d, t in ((0, -LEG_PAD[0] / 2), (0, LEG_PAD[0] / 2),
@@ -849,8 +1014,8 @@ def leg_check(side: str):
         dclear = pad_poly.distance(box(x0, y0, x1, y1))
         kx, ky = K(px, py)
         print(f"  {side:5s} {name:5s} tent leg at ({kx:6.1f},{ky:6.1f}): pad depth {pad:4.2f}  "
-              f"M3 drill depth {leg_hole_depth(side, px, py, nx, ny):4.2f} mm from boss face, "
-              f"{dclear:.2f} mm to the display pocket")
+              f"M3 drill depth {depth:4.2f} mm from boss face, full thread {leg_thread(depth):.1f}, "
+              f"screw reach <= {leg_thread(depth) - LEG_REACH_CLEAR:.1f}, {dclear:.2f} mm to the display pocket")
         if dclear < DISPLAY_LEG_CLEAR - 1e-6:
             sys.exit(f"{side} {name} tent-leg pad is {dclear:.2f} mm from the display pocket")
 
@@ -873,18 +1038,30 @@ def pcb_check(side: str):
 
 
 def display_check(side: str, top: Solid | None = None):
-    """The window lies inside the pocket, the stack fits, and (on the built part) the window and
-    pocket are open with top skin around the window."""
+    """The window and module lie inside the pocket, the pocket ceiling clears the J3 + nice!view stack
+    under BEZEL_SKIN of bezel, the bezel covers the pocket up to the key well without running over it
+    or the top-edge fillet, and (on the built part) the window and pocket are open up to the ceiling
+    with bezel skin around the window (CASE-1)."""
     d = DISPLAY(side)
     pocket, window, module = _rect_poly(d["pocket"]), _rect_poly(d["window"]), _rect_poly(d["module"])
+    bezel, well = _rect_poly(bezel_rect(side)), well_poly(side)
     if not pocket.buffer(1e-6).contains(window):
         sys.exit(f"{side} display window is not inside the pocket")
     if not pocket.buffer(1e-6).contains(module):
         sys.exit(f"{side} display module is not inside the pocket")
-    if Z_DISPLAY_TOP - Z_PCB_TOP > 8.2 + 1e-9 or Z_DISPLAY_TOP > Z_TOP - 0.5:
-        sys.exit("display pocket ceiling leaves no top skin")
-    wclear = window.exterior.distance(Polygon(well_poly(side).exterior)) if not window.intersects(
-        well_poly(side)) else -1
+    if Z_DISPLAY_TOP - Z_PCB_TOP < DISPLAY_STACK_MAX + DISPLAY_GLASS_CLEAR - 1e-9:
+        sys.exit(f"{side} display pocket ceiling is below the J3 + nice!view stack")
+    if Z_BEZEL_TOP - Z_DISPLAY_TOP < BEZEL_SKIN - 1e-9 or Z_BEZEL_TOP < Z_TOP:
+        sys.exit(f"{side} display bezel leaves less than {BEZEL_SKIN} mm of skin")
+    if _area(pocket.difference(bezel).difference(well)) > 1e-3:
+        sys.exit(f"{side} display pocket runs out from under the bezel")
+    if not bezel.buffer(-1.0).contains(window):
+        sys.exit(f"{side} display window is less than 1.0 mm from the bezel edge")
+    if _area(bezel.intersection(well)) > 1e-3:
+        sys.exit(f"{side} display bezel runs over the key well")
+    if not outline_poly(side).buffer(-(TOP_EDGE_FILLET + 1.0)).contains(bezel):
+        sys.exit(f"{side} display bezel runs onto the top-edge fillet")
+    wclear = window.exterior.distance(Polygon(well.exterior)) if not window.intersects(well) else -1
     if wclear < 0.5:
         sys.exit(f"{side} display window is only {wclear:.2f} mm from the key well")
     for sx, sy in SCREWS(side):
@@ -892,20 +1069,27 @@ def display_check(side: str, top: Solid | None = None):
             sys.exit(f"{side} display pocket hits the boss at ({sx:.1f},{sy:.1f})")
     if top is not None:
         (wx, wy), (px0, py0, px1, _) = d["window_centre"], d["pocket"]
-        probes_open = [(wx, wy, Z_TOP - 0.2), (wx, wy, Z_DISPLAY_TOP - 0.2),
-                       ((px0 + px1) / 2, py0 + 1.0, Z_PCB_TOP + 0.5)]
         x0, y0, x1, y1 = d["window"]
-        probes_solid = [(wx, y0 - 0.8, Z_TOP - 0.3), (x0 - 0.8, wy, Z_TOP - 0.3)]
+        bx0, by0, bx1, _ = bezel_rect(side)
+        probes_open = [(wx, wy, Z_BEZEL_TOP - 0.2), (wx, wy, Z_DISPLAY_TOP - 0.2),
+                       ((px0 + px1) / 2, py0 + 1.0, Z_PCB_TOP + 0.5),
+                       (px0 + 0.3, py0 + 0.3, Z_DISPLAY_TOP - 0.05), (px1 - 0.3, wy, Z_DISPLAY_TOP - 0.05),
+                       (bx0 - 0.3, wy, Z_TOP + 0.3)]
+        probes_solid = [(wx, y0 - 0.8, Z_BEZEL_TOP - 0.3), (x0 - 0.8, wy, Z_BEZEL_TOP - 0.3),
+                        (px0 + 0.3, py0 + 0.3, Z_DISPLAY_TOP + 0.1), (bx0 + 0.3, wy, Z_BEZEL_TOP - 0.6),
+                        ((bx0 + bx1) / 2, by0 + 0.3, Z_BEZEL_TOP - 0.6)]
         for x, y, z in probes_open:
             if top.is_inside(Vector(*P(x, y), z)):
                 sys.exit(f"{side} display window / pocket is not open at ({x:.1f},{y:.1f},{z:.1f})")
         for x, y, z in probes_solid:
             if not top.is_inside(Vector(*P(x, y), z)):
-                sys.exit(f"{side} no top skin next to the display window at ({x:.1f},{y:.1f})")
+                sys.exit(f"{side} no bezel skin or wall at ({x:.1f},{y:.1f},{z:.1f})")
+    b = bezel_rect(side)
     print(f"  {side:5s} display: pocket x {d['pocket'][0]:.2f}-{d['pocket'][2]:.2f} y {d['pocket'][1]:.3f}-"
-          f"{d['pocket'][3]:.3f} Z {Z_PCB_TOP}-{Z_DISPLAY_TOP}; window {d['window'][2] - d['window'][0]:.0f}x"
-          f"{d['window'][3] - d['window'][1]:.0f} at {d['window_centre']}, {wclear:.2f} mm from the well"
-          + ("; probed open" if top is not None else ""))
+          f"{d['pocket'][3]:.3f} Z {Z_PCB_TOP}-{Z_DISPLAY_TOP} (glass <= {Z_PCB_TOP + DISPLAY_STACK_MAX:.2f}); "
+          f"bezel x {b[0]:.3f}-{b[2]:.3f} y {b[1]:.3f}-{b[3]:.3f} Z {Z_TOP}-{Z_BEZEL_TOP}; window "
+          f"{d['window'][2] - d['window'][0]:.0f}x{d['window'][3] - d['window'][1]:.0f} at {d['window_centre']}, "
+          f"{wclear:.2f} mm from the well" + ("; probed open" if top is not None else ""))
 
 
 def usb_notch(side: str) -> dict:
@@ -1009,17 +1193,18 @@ def pin_holes(side: str) -> list[tuple[float, float]]:
 
 
 def window_cut(side: str) -> Solid:
-    """Viewing window: rounded rectangle through the top skin with a chamfer on the top edge."""
+    """Viewing window: rounded rectangle through the bezel skin with a chamfer on its top edge."""
     d = DISPLAY(side)
     x0, y0, x1, y1 = d["window"]
     cx, cy = P(*d["window_centre"])
     w, h = x1 - x0, y1 - y0
     win = LD.WINDOW_R
     c = LD.WINDOW_CHAMFER
-    cut = Pos(cx, cy, 0) * prism(RectangleRounded(w, h, win), Z_DISPLAY_TOP - 0.01, Z_TOP + 1)
-    bevel = loft([Plane.XY.offset(Z_TOP - c) * (Pos(cx, cy) * RectangleRounded(w, h, win)).faces()[0],
-                  Plane.XY.offset(Z_TOP + 0.01) * (Pos(cx, cy) * RectangleRounded(w + 2 * c + 0.02, h + 2 * c + 0.02,
-                                                                                    win + c + 0.01)).faces()[0]])
+    zt = Z_BEZEL_TOP
+    cut = Pos(cx, cy, 0) * prism(RectangleRounded(w, h, win), Z_DISPLAY_TOP - 0.01, zt + 1)
+    bevel = loft([Plane.XY.offset(zt - c) * (Pos(cx, cy) * RectangleRounded(w, h, win)).faces()[0],
+                  Plane.XY.offset(zt + 0.01) * (Pos(cx, cy) * RectangleRounded(w + 2 * c + 0.02, h + 2 * c + 0.02,
+                                                                                win + c + 0.01)).faces()[0]])
     return cut + bevel
 
 
@@ -1040,6 +1225,8 @@ def build_top(side: str) -> Solid:
     # key well
     for wf in well:
         body -= prism(wf, Z_PLATE_TOP, Z_TOP + 1)
+    # raised display bezel, flush with the key well where it meets it (cut below with the pocket)
+    body += build_bezel(side)
     # switch cutouts through the plate
     for kx, ky, w, h, rot in KEYS(side):
         body -= prism(switch_cut(kx, ky, rot), Z_PLATE_BOT - 1, Z_PLATE_TOP + 0.01)
@@ -1059,9 +1246,7 @@ def build_top(side: str) -> Solid:
             body += prism(webs[(sx, sy)], Z_PCB_TOP, ceil + 0.01)
             for f in wall_fillets(inner, webs[(sx, sy)], corner_r(ceil - Z_SPLIT)):
                 body += prism(f, Z_PCB_TOP, ceil + 0.01)
-        depth = TAP_DEPTH_PLATE if under else TAP_DEPTH
-        body -= Pos(cx, cy, Z_PCB_TOP - 0.01) * Cylinder(TAP_D / 2, depth,
-                                                       align=(Align.CENTER, Align.CENTER, Align.MIN))
+        body -= tap_cut(side, sx, sy)
 
     # tent legs: pad behind the wall, Ø10 boss outside (flat or toothed), tapped M3 hole
     boss = detent_boss()
@@ -1082,8 +1267,11 @@ def build_top(side: str) -> Solid:
         # root fillet, kept on the flat part of the wall
         body += _leg_frame(px, py, nx, ny, Pos(0, 0, LEG_Z) * Rot(0, -90, 0) * root) & band
         depth = leg_hole_depth(side, px, py, nx, ny)
-        body -= _leg_frame(px, py, nx, ny, Pos(-LEG_BOSS_H - 0.01, 0, LEG_Z) * Rot(0, 90, 0) * Cylinder(
-            LEG_TAP_D / 2, depth + 0.01, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        drill = Pos(-LEG_BOSS_H - 0.01, 0, LEG_Z) * Rot(0, 90, 0) * Cylinder(
+            LEG_TAP_D / 2, depth + 0.01, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        drill += Pos(-LEG_BOSS_H + depth, 0, LEG_Z) * Rot(0, 90, 0) * Solid.make_cone(
+            LEG_TAP_D / 2, 0, drill_point(LEG_TAP_D))
+        body -= _leg_frame(px, py, nx, ny, drill)
 
     # display: pocket over the module (cuts the spacer zone and the plate) + viewing window
     for f in sp_faces(pocket_poly(side)):
@@ -1191,6 +1379,68 @@ def build_leg_cap() -> Solid:
     cap -= Pos(0, y0 - 0.01, zc) * Rot(-90, 0, 0) * Cylinder(
         LEG_SPIGOT[0] / 2 - 0.1, LEG_SPIGOT[1], align=(Align.CENTER, Align.CENTER, Align.MIN))
     return cap
+
+
+def leg_cap_upright() -> Solid:
+    """The foot cap in its own frame: axis +Z, open end on Z = 0, dome up."""
+    y0, zc = LEG_LEN - LEG_CAP_L, LEG_HUB_L - LEG_ARM_T / 2
+    return Rot(90, 0, 0) * (Pos(0, -y0, -zc) * build_leg_cap())
+
+
+def cap_tree_places() -> list[tuple[float, float]]:
+    """Cap centres: the 8 outer places of a 3 x 3 grid, in order round the ring."""
+    p = CAP_TREE_PITCH
+    ring = [(-p, -p), (0, -p), (p, -p), (p, 0), (p, p), (0, p), (-p, p), (-p, 0)]
+    return ring[:CAP_TREE_N]
+
+
+def build_leg_cap_tree() -> Solid:
+    """CAP_TREE_N foot caps for one JLC3DP TPU part (deviation CASE-4): caps upright on their open end,
+    runner bars at the base between neighbours and spokes to a central tag post. Each cap snips off
+    at its base, away from the dome that meets the desk; the bores stay clear."""
+    cap = leg_cap_upright()
+    places = cap_tree_places()
+    r = CAP_RUNNER
+
+    def bar(a, b):
+        ln = math.dist(a, b)
+        ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+        return Pos((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0) * Rot(0, 0, ang) * Box(
+            ln, r, r, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
+    tree = Cylinder(CAP_TAG[0] / 2, CAP_TAG[1], align=(Align.CENTER, Align.CENTER, Align.MIN))
+    tree = chamfer(tree.edges().group_by(Axis.Z)[-1], 0.5)
+    for (x, y) in places:
+        tree += Pos(x, y, 0) * cap
+    for a, b in zip(places, places[1:] + places[:1] if len(places) == 8 else places[1:]):
+        tree += bar(a, b)
+    for (x, y) in places:
+        if x == 0 or y == 0:
+            tree += bar((0.0, 0.0), (x, y))
+    bore = Pos(0, 0, -0.01) * Cylinder(LEG_SPIGOT[0] / 2 - 0.1, LEG_SPIGOT[1] + 0.01,
+                                        align=(Align.CENTER, Align.CENTER, Align.MIN))
+    for (x, y) in places:
+        tree -= Pos(x, y, 0) * bore
+    return tree
+
+
+def cap_tree_check(tree: Solid):
+    """One solid, at least JLC3DP's minimum part size, every bore open, caps as modelled."""
+    bb = tree.bounding_box()
+    size = sorted((bb.size.X, bb.size.Y, bb.size.Z), reverse=True)
+    if any(s < m for s, m in zip(size, CAP_TREE_MIN)):
+        sys.exit(f"leg cap tree {size[0]:.1f} x {size[1]:.1f} x {size[2]:.1f} is below JLC3DP's minimum {CAP_TREE_MIN}")
+    if len(tree.solids()) != 1:
+        sys.exit("leg cap tree is not one piece")
+    for (x, y) in cap_tree_places():
+        for z in (0.05, LEG_SPIGOT[1] - 0.1):
+            if tree.is_inside(Vector(x, y, z)):
+                sys.exit(f"leg cap tree: the bore at ({x},{y}) is not open at Z {z}")
+        if not tree.is_inside(Vector(x, y, LEG_CAP_L - 0.3)):
+            sys.exit(f"leg cap tree: no dome at ({x},{y})")
+    print(f"  leg cap tree: {CAP_TREE_N} caps, {bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} mm "
+          f"(JLC3DP FDM minimum {CAP_TREE_MIN[0]:.0f} x {CAP_TREE_MIN[1]:.0f} x {CAP_TREE_MIN[2]:.0f}), "
+          f"runners {CAP_RUNNER} x {CAP_RUNNER}, one piece, bores open")
 
 
 def leg_parts(side: str, swing_deg: float = 90.0) -> list:
@@ -1302,6 +1552,13 @@ def mirror_check(name: str, left, right):
     print(f"  {name:7s} left == mirror(right): dV {dv:.1e}, dA {da:.1e}, centroid {dc:.1e} mm")
 
 
+def export_part_step(shape, path: str, name: str):
+    """STEP named after the part (the shop sees the name), stamped with the case revision date rather
+    than the export time, so the same model gives the same file."""
+    shape.label = name
+    export_step(shape, path, timestamp=f"{CASE_REVISION_DATE}T00:00:00")
+
+
 def report(name: str, s):
     bb = s.bounding_box()
     print(f"{name:22s} vol {s.volume / 1000:7.2f} cm3  mass(6061) {s.volume * 2.70e-3:6.1f} g  "
@@ -1324,6 +1581,7 @@ def main(outdir: str, platedir: str | None = None):
         feet_check(side)
         display_check(side)
         jack_check(side)
+        tap_check(side)
     parts = {}
     for side in SIDES:
         export_fitcheck_dxf(side, os.path.join(outdir, f"worxboard_{side}_fitcheck.dxf"))
@@ -1339,16 +1597,19 @@ def main(outdir: str, platedir: str | None = None):
         parts[f"{side}_bottom"] -= side_mark(side)
         display_check(side, parts[f"{side}_top"])
         jack_check(side, parts[f"{side}_top"], parts[f"{side}_bottom"])
+        tap_check(side, parts[f"{side}_top"])
         spacer_check(side, parts[f"{side}_spacer"])
-    parts["leg"], parts["leg_cap"] = build_leg(), build_leg_cap()
+    parts["leg"], parts["leg_cap"], parts["leg_cap_tree"] = build_leg(), build_leg_cap(), build_leg_cap_tree()
+    cap_tree_check(parts["leg_cap_tree"])
     for name, s in parts.items():
-        export_step(s, os.path.join(outdir, f"worxboard_{name}.step"))
+        export_part_step(s, os.path.join(outdir, f"worxboard_{name}.step"), f"worxboard_{name}")
         fine = name.startswith("leg")
         export_stl(s, os.path.join(outdir, f"worxboard_{name}.stl"),
                    tolerance=0.01 if fine else 0.02, angular_tolerance=0.1 if fine else 0.3)
         report(name, s)
     asm = Compound([parts["right_top"], parts["right_bottom"], parts["right_spacer"], *leg_parts("right")])
-    export_step(asm, os.path.join(outdir, "worxboard_right_assembly_with_legs.step"))
+    export_part_step(asm, os.path.join(outdir, "worxboard_right_assembly_with_legs.step"),
+                     "worxboard_right_assembly_with_legs")
     export_stl(asm, os.path.join(outdir, "worxboard_right_assembly_with_legs.stl"), tolerance=0.05)
     bad = [name for name, s in parts.items() if not s.is_valid or len(s.solids()) != 1]
     if bad:

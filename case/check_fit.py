@@ -4,8 +4,9 @@
 For each half it loads the PCB STEP from WS2 (build/<side>/worxboard-<side>.step, board plus
 3D models) and requires 0 mm3 of interference with the top, bottom and spacer parts. The STEP has
 no body for J1 (USB-C), J2 (TRRS) or the hot-swap sockets (KiCad ships no model, deviations
-WS2c-2) and leaves out the DNP display socket J3 (WS2c-5), so the `layout` envelopes of those
-parts (STEP_GAPS) are checked with it. Until the STEP exists it falls back to all the `layout`
+WS2c-2), nor for the nice!view module that plugs into J3, so the `layout` envelopes of those parts
+(STEP_GAPS; J3 + display is the socket, header and module up to the highest glass top, deviations
+ELEC-3 and CASE-1) are checked with it. Until the STEP exists it falls back to all the `layout`
 envelopes (board slab, the anchored top-side parts, the component zones and the bottom-side
 socket area), prints a warning and still fails on any interference.
 
@@ -30,7 +31,11 @@ SIZE_TOL = 0.3           # STEP board bbox vs layout outline bbox (mm)
 PART_H = {"J1": L.jacks("right")[0].height, "J2": L.jacks("right")[1].height,
           "U1": 1.0, "U2": 2.2, "SW_BOOT": 2.0, "SW_RST": 2.0}
 ZONE_H = 1.2             # passives anywhere in Z_BACK / Z_TRRS
-DISPLAY_H = E.Z_DISPLAY_TOP - E.Z_PCB_TOP     # J3 socket + module + glass (gate G1)
+# J3 + nice!view stack (gate G1, deviations ELEC-3 and CASE-1): the 5.0 mm socket at the drawing's upper
+# tolerances, the module's male header up to the lowest module parts, then the module up to its glass
+J3_BODY = (13.4, 2.55, 5.15)      # C27985230, pins along x (ELEC-3 model)
+DISPLAY_LOW = 5.8                 # lowest module parts above the PCB top: 6.0-6.5 nominal (ELEC-3), less 0.2
+NV_VCUT = 0.2                     # the module's V-cut may add this to its 36 mm length, at the far end
 BOTTOM_H = 1.8           # hot-swap sockets and diodes on B.Cu
 BOTTOM_CLEAR = 0.3       # bottom envelope kept off the support posts
 # Layout envelopes checked together with the STEP: parts it has no body for (deviations REVIEW-FIX-4)
@@ -75,13 +80,27 @@ def layout_envelopes(side: str) -> dict[str, list[Solid]]:
     env = {"board": _slab(pcb, z0, z1)}
     for ref, h in PART_H.items():
         env[ref] = _slab(box(*L.part_rect(side, ref)), z1, z1 + h)
-    env["J3 + display"] = _slab(box(*E.DISPLAY(side)["module"]), z1, z1 + DISPLAY_H)
+    env["J3 + display"] = display_envelope(side)
     bosses = unary_union([Point(p).buffer(E.boss_radius(side, *p) + KEEPOUT_MARGIN, quad_segs=32)
                           for p in L.holes(side)])
     env["component zones"] = _slab(E.zones_poly(side).difference(bosses.union(web_keepouts(side))), z1, z1 + ZONE_H)
     posts = bosses.union(_web_polys(side, "bottom")).buffer(BOTTOM_CLEAR)
     env["bottom-side parts"] = _slab(pcb.difference(posts), z0 - BOTTOM_H, z0)
     return env
+
+
+def display_envelope(side: str) -> list[Solid]:
+    """J3 body + header up to the module, and the module (with its V-cut) up to the highest glass top."""
+    d = E.DISPLAY(side)
+    (hx, hy), (x0, y0, x1, y1) = d["header"], d["module"]
+    if hy < (y0 + y1) / 2:
+        y1 += NV_VCUT
+    else:
+        y0 -= NV_VCUT
+    w, h, _ = J3_BODY
+    z1 = E.Z_PCB_TOP
+    return (_slab(box(hx - w / 2, hy - h / 2, hx + w / 2, hy + h / 2), z1, z1 + DISPLAY_LOW)
+            + _slab(box(x0, y0, x1, y1), z1 + DISPLAY_LOW, z1 + E.DISPLAY_STACK_MAX))
 
 
 def step_envelopes(side: str, path: str) -> dict[str, list[Solid]]:

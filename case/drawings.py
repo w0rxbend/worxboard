@@ -1,20 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Manufacturing drawings (A3 PDF) and the CNC order package for the worxboard case
+Manufacturing drawings (A3 PDF) and the order package for the worxboard case
 (port of the reference cad/drawings.py).
 
-For every part it writes <part>.pdf next to <part>.step: views generated from the
+jlccnc/: for every machined part <part>.pdf next to <part>.step: views generated from the
 STEP file, the thread / hole table, general notes and, for the top parts, the leg boss
 sheet (flat face, or tooth count and profile with DETENT_TEETH, plus a section). The tent
-leg gets its own sheet (hub bearing face or teeth). Also writes hole_table.csv.
+leg gets its own sheet (hub bearing face or teeth). Also hole_table.csv.
+jlc3dp/: the printed parts (plate spacers, leg cap tree) as STL (their STEPs stay in case/exports).
+hardware.csv: the screws, feet and leg hardware the case needs.
+The output depends only on the model: case/production is a committed copy (`just production`).
 
-Usage: drawings.py <exports_dir> <order_dir> [version]
+Usage: drawings.py <exports_dir> <order_dir> [revision]     (default: worxboard_case.CASE_REVISION)
 The STEP files must already exist in <exports_dir> (run worxboard_case.py first).
 """
 from __future__ import annotations
 
 import csv
-import datetime
 import math
 import os
 import shutil
@@ -28,7 +30,7 @@ from matplotlib.patches import Circle as MCircle, Polygon as MPoly, Rectangle as
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import worxboard_case as E  # noqa: E402
-from build123d import import_step  # noqa: E402
+from build123d import Box, Pos, import_step  # noqa: E402
 
 REPO_URL = "https://github.com/w0rxbend/worxboard"
 DWG = "WXB"          # drawing number prefix
@@ -56,25 +58,30 @@ def _side(right: bool) -> str:
 
 
 def top_threads(right: bool) -> list[dict]:
+    """Every tapped hole of a top part. depth = full-diameter drill depth (the 118° point is extra),
+    full = minimum full-thread depth, both from the hole's start face; JLCCNC's guideline keeps at least
+    D/2 of each blind hole unthreaded (deviation CASE-3). screw / reach: the screw meant for the hole
+    and the deepest its tip may reach."""
     side = _side(right)
     rows = []
     for i, (sx, sy) in enumerate(E.SCREWS(side)):
         x, y = E.P(sx, sy)
-        under = E.screw_under_plate(side, sx, sy)
-        depth = E.TAP_DEPTH_PLATE if under else E.TAP_DEPTH
+        h = E.tap_hole(side, sx, sy)
         rows.append(dict(
-            id=f"T{i + 1}", thread="M2.5x0.45", hand="RH", cls="6H", drill=E.TAP_D, depth=depth,
-            full=round(depth - 0.4, 1), x=x, y=y, z=E.Z_PCB_TOP,
+            id=f"T{i + 1}", thread="M2.5x0.45", hand="RH", cls="6H", drill=E.TAP_D, depth=h["drill"],
+            full=h["thread"], screw=f"M2.5x{h['screw']} CSK", reach=h["reach"], x=x, y=y, z=E.Z_PCB_TOP,
             direction="+Z (from PCB face)",
-            note=("BLIND under key well: 1.1 mm skin, must not break through" if under else "blind")))
+            note=(f"BLIND under key well, {h['skin']:.2f} skin: no break-through" if h["kind"] == "plate"
+                  else "blind")))
     for j, ((px, py), (nx, ny)) in enumerate(E.leg_mounts(side)):
-        depth = E.leg_hole_depth(side, px, py, nx, ny)
+        depth = round(E.leg_hole_depth(side, px, py, nx, ny), 1)
+        full = E.leg_thread(depth)
         fx, fy = px + nx * E.LEG_BOSS_H, py + ny * E.LEG_BOSS_H
         rows.append(dict(
-            id=f"L{j + 1}", thread="M3x0.5", hand="RH", cls="6H", drill=E.LEG_TAP_D, depth=round(depth, 1),
-            full=round(depth - 0.5, 1), x=fx, y=fy, z=E.LEG_Z,
+            id=f"L{j + 1}", thread="M3x0.5", hand="RH", cls="6H", drill=E.LEG_TAP_D, depth=depth,
+            full=full, screw="M3 leg thumbscrew", reach=round(full - E.LEG_REACH_CLEAR, 1), x=fx, y=fy, z=E.LEG_Z,
             direction=f"normal to wall, into part ({-nx:+.3f}, {-ny:+.3f}, 0)",
-            note=f"in {'toothed detent' if E.DETENT_TEETH else 'flat'} leg boss, see sheet 2"))
+            note=f"blind, in the {'toothed detent' if E.DETENT_TEETH else 'flat'} leg boss, see sheet 2"))
     return rows
 
 
@@ -85,11 +92,17 @@ def top_features(right: bool) -> list[list[str]]:
     (wx, wy), (x0, y0, x1, y1) = d["window_centre"], d["window"]
     (px0, py0, px1, py1) = d["pocket"]
     usb, trrs = E.usb_notch(side), E.trrs_notch(side)
+    bx0, by0, bx1, by1 = E.bezel_rect(side)
     rows = [
-        ["W1", f"display window {x1 - x0:.0f} x {y1 - y0:.0f} R{E.LD.WINDOW_R} THRU top skin, "
+        ["W1", f"display window {x1 - x0:.0f} x {y1 - y0:.0f} R{E.LD.WINDOW_R} THRU the bezel skin, "
                f"{E.LD.WINDOW_CHAMFER} x 45° chamfer on the top edge", *map("{:.2f}".format, E.P(wx, wy))],
         ["D1", f"display pocket {px1 - px0:.1f} x {py1 - py0:.1f}, Z {E.Z_PCB_TOP}-{E.Z_DISPLAY_TOP} "
-               f"(top skin {E.Z_TOP - E.Z_DISPLAY_TOP:.1f})", *map("{:.2f}".format, E.P((px0 + px1) / 2, (py0 + py1) / 2))],
+               f"(bezel skin {E.Z_BEZEL_TOP - E.Z_DISPLAY_TOP:.1f}); front end open into the key well",
+         *map("{:.2f}".format, E.P((px0 + px1) / 2, (py0 + py1) / 2))],
+        ["B1", f"raised display bezel {bx1 - bx0:.2f} x {by1 - by0:.2f}, top Z {E.Z_BEZEL_TOP} "
+               f"({E.Z_BEZEL_TOP - E.Z_TOP:.1f} above the top face), top edges {E.BEZEL_CHAMFER} x 45°, "
+               f"R{E.BEZEL_R} free corners; flush with the key-well walls on its well sides",
+         *map("{:.2f}".format, E.P((bx0 + bx1) / 2, (by0 + by1) / 2))],
         ["J1", f"USB-C notch {E.USB_NOTCH[0]} x {E.USB_NOTCH[1]} R{E.USB_NOTCH_R} thru back wall at Z {usb['z']:.1f}; "
                f"outside recess {E.USB_RECESS[0]:.0f} x {E.USB_RECESS[1]:.0f} x {E.USB_RECESS_DEPTH} deep",
          *map("{:.2f}".format, E.P(usb["x"], usb["y"]))],
@@ -97,7 +110,7 @@ def top_features(right: bool) -> list[list[str]]:
          *map("{:.2f}".format, E.P(trrs["x"], trrs["y"]))],
     ]
     for ref, (x, y) in zip(E.PIN_HOLES, E.pin_holes(side)):
-        rows.append([f"P{len(rows) - 3}", f"Ø{E.PIN_HOLE_D} THRU top skin ({ref} pin-hole)",
+        rows.append([f"P{sum(r[0].startswith('P') for r in rows) + 1}", f"Ø{E.PIN_HOLE_D} THRU top skin ({ref} pin-hole)",
                      *map("{:.2f}".format, E.P(x, y))])
     return rows
 
@@ -107,8 +120,9 @@ def bottom_holes(right: bool) -> list[dict]:
     rows = []
     for i, (sx, sy) in enumerate(E.SCREWS(side)):
         x, y = E.P(sx, sy)
+        screw = E.tap_hole(side, sx, sy)["screw"]
         rows.append(dict(id=f"C{i + 1}", feature=f"Ø{E.SCREW_CLEAR_D} THRU, 90° CSK Ø{E.SCREW_CSK_D}",
-                         x=x, y=y, note="for M2.5 ISO 10642 countersunk screw"))
+                         x=x, y=y, note=f"M2.5x{screw} countersunk screw into T{i + 1}"))
     for i, (fx, fy) in enumerate(E.feet(side)):
         x, y = E.P(fx, fy)
         rows.append(dict(id=f"F{i + 1}", feature=f"Ø{E.FOOT_D} x {E.FOOT_DEPTH} deep recess",
@@ -151,7 +165,7 @@ def title_block(ax, part: str, dwg_no: str, sheet: str, scale: str, version: str
     text(ax, x0 + 112, y0 + 26.5, f"Sheet {sheet}", size=7)
     text(ax, x0 + 112, y0 + 21.5, f"Scale {scale}", size=6)
     text(ax, x0 + 112, y0 + 17.5, "Units: mm", size=6)
-    text(ax, x0 + 2, y0 + 12.5, f"Revision {version}   Date {datetime.date.today().isoformat()}", size=6)
+    text(ax, x0 + 2, y0 + 12.5, f"Revision {version}   Date {E.CASE_REVISION_DATE}", size=6)
     text(ax, x0 + 2, y0 + 8, "General tolerance ISO 2768-mK. Threads ISO metric, RIGHT-HAND, 6H.", size=6)
     text(ax, x0 + 2, y0 + 4, "The STEP file governs geometry; this drawing governs threads, tolerances, finish.",
          size=5.5)
@@ -242,38 +256,48 @@ def top_sheet1(pdf, shape, right, part, dwg, version):
             label(ax, to(r["x"], r["y"], r["z"]), r["id"])
         else:
             label(ax, to(r["x"], r["y"], r["z"]), r["id"], dx=-6 if (r["x"] > 0) == right else 6)
+    offsets = {"W1": (7, -7), "D1": (8, 5), "B1": (-8, 8)}
     for f in top_features(right):
-        label(ax, to(float(f[2]), float(f[3]), E.Z_TOP), f[0], dx=6, dy=-6, color="#0050a0")
-    y = table(ax, 222, 283, [("ID", 9), ("Thread", 17), ("Hand", 9), ("Cls", 8), ("Tap drill", 13),
-                             ("Drill depth", 15), ("Min full thr.", 16), ("X", 14), ("Y", 14), ("Z", 10),
-                             ("Note", 63)],
+        dx, dy = offsets.get(f[0], (6, -6))
+        label(ax, to(float(f[2]), float(f[3]), E.Z_TOP), f[0], dx=dx if right else -dx, dy=dy, color="#0050a0")
+    y = table(ax, 222, 283, [("ID", 7), ("Thread", 15), ("Hand", 8), ("Cls", 6), ("Tap drill", 12),
+                             ("Drill depth", 14), ("Min full thr.", 15), ("Screw", 26), ("X", 13), ("Y", 13),
+                             ("Z", 8), ("Note", 51)],
               [[r["id"], r["thread"], r["hand"], r["cls"], f"Ø{r['drill']}", f"{r['depth']}",
-                f"{r['full']}", f"{r['x']:.2f}", f"{r['y']:.2f}", f"{r['z']:.1f}", r["note"]] for r in rows])
+                f"{r['full']}", r["screw"], f"{r['x']:.2f}", f"{r['y']:.2f}", f"{r['z']:.1f}", r["note"]]
+               for r in rows], size=5.0)
     text(ax, 222, y - 1.5, "X/Y/Z = hole start point in STEP coordinates. T holes: drilled +Z from the PCB "
          "face of the boss. L holes: drilled into the part, normal to the wall, from the boss face.", size=5.2)
-    y = table(ax, 222, y - 5, [("ID", 9), ("Feature (no thread)", 140), ("X", 14), ("Y", 14)], top_features(right))
+    text(ax, 222, y - 4.5, "Drill depth = full-diameter depth; the 118° drill point is extra (modelled). Every "
+         "hole is BLIND and keeps at least D/2 unthreaded at its bottom (JLCCNC threaded-hole guideline).", size=5.2)
+    y = table(ax, 222, y - 8, [("ID", 9), ("Feature (no thread)", 152), ("X", 13.5), ("Y", 13.5)],
+              top_features(right), size=5.0)
     tq = sum(1 for r in rows if r["id"].startswith("T"))
     lq = len(rows) - tq
     notes(ax, 222, y - 8, "GENERAL NOTES", [
         f"Geometry per {part}.step. Dimensions not shown are taken from the STEP model.",
         f"Material: {TOP_MATERIAL}.",
         f"THREADS: {tq}x M2.5x0.45-6H and {lq}x M3x0.5-6H, ISO metric coarse, ALL RIGHT-HAND (clockwise to "
-        "tighten). Holes are modelled at tap-drill diameter in the STEP; tap them per the table. Use bottoming "
-        "taps or thread-forming taps to reach the minimum full-thread depth.",
+        "tighten), all blind. Holes are modelled at tap-drill diameter in the STEP; tap them per the table to at "
+        "least the minimum full-thread depth. The screw column names the screw each hole takes; its tip stops "
+        f"at least {E.SCREW_TIP_CLEAR} short of the end of the full thread.",
         ("This is a LEFT-hand part: a mirror image of the right-hand part. Threads stay RIGHT-HAND; do not "
          "mirror the thread direction." if not right else
          "The left-hand part is a mirror image of this part. Its threads are also RIGHT-HAND."),
-        "Holes marked BLIND under key well: 1.1 mm of material remains to the cosmetic key-well floor. "
-        "Must not break through or leave witness marks on the top surface.",
+        f"Holes marked BLIND under key well: drill {E.TAP_HOLE['plate'][0]} deep (full diameter); "
+        f"{min(E.tap_hole(_side(right), *p)['skin'] for p in E.SCREWS(_side(right)) if E.screw_under_plate(_side(right), *p)):.2f} "
+        "mm of material remains between the drill point and the cosmetic key-well floor. Must not break "
+        "through or leave witness marks on the top surface.",
         f"Switch cutouts ({len(E.KEYS(_side(right)))}x): 14.00 +0.05/-0 square, corner R0.5 max, plus "
         f"{2 * len(E.stab_keys(_side(right)))} stabiliser cutouts. Plate thickness 1.50 ±0.05. "
         "Plate flatness 0.2 over the part.",
-        "Display window W1 and pocket D1: the pocket runs from the parting side up to 0.8 mm under the top face; "
-        "the window opens it. USB-C notch J1 and TRRS hole J2 are side operations (see table).",
+        f"Display bezel B1 stands {E.Z_BEZEL_TOP - E.Z_TOP:.1f} mm above the top face (part height "
+        f"{E.Z_BEZEL_TOP - E.Z_SPLIT:.1f}). Pocket D1 runs from the parting side up to {E.BEZEL_SKIN} mm under "
+        "the bezel top; window W1 opens it. USB-C notch J1 and TRRS hole J2 are side operations (see table).",
         (f"Detent bosses L1-L3 carry {E.LEG_TEETH} radial teeth: see sheet 2. Tooth count is critical."
          if E.DETENT_TEETH else
          "Leg bosses L1-L3: plain Ø10 bosses with a FLAT face (no teeth), see sheet 2."),
-        "Cosmetic surfaces: top face, key well, outer walls, leg bosses: no tool marks, scratches or "
+        "Cosmetic surfaces: top face, display bezel, key well, outer walls, leg bosses: no tool marks, scratches or "
         "clamp marks. Inside (cavity) surfaces are non-cosmetic.",
         ("Break sharp edges 0.1-0.2 mm, except detent tooth crests and switch-cutout edges (0.1 max)."
          if E.DETENT_TEETH else
@@ -332,9 +356,63 @@ def _boss_teeth_spec(ax, rows, r0):
     return yb
 
 
+def bezel_detail(ax, shape, right, ox: float, oy: float, s: float = 3.0):
+    """DETAIL C: the real section of the part across the display bezel at the window centre (X-Z),
+    with its Z levels and widths (deviation CASE-1)."""
+    side = _side(right)
+    d = E.DISPLAY(side)
+    wx, wy = d["window_centre"]
+    cx, cy = E.P(wx, wy)
+    half = 22.0
+    slab = Pos(cx, cy, (E.Z_SPLIT + E.Z_BEZEL_TOP) / 2 + 1) * Box(2 * half, 0.001, E.Z_BEZEL_TOP - E.Z_SPLIT + 2)
+    sec = shape & slab
+    z0 = E.Z_PCB_TOP
+
+    def to(x, z):
+        return ox + (x - cx) * s, oy + (z - z0) * s
+
+    hatch = dict(fc="#e8ecf2", ec="k", lw=0.5, hatch="////")
+    for f in sec.faces():
+        if f.normal_at().Y > -0.9:
+            continue
+        for w in [f.outer_wire()]:
+            pts = []
+            for e in w.edges():
+                n = 2 if "LINE" in str(e.geom_type) else 12
+                pts += [to(p.X, p.Z) for p in (e.position_at(i / (n - 1)) for i in range(n))]
+            ax.add_patch(MPoly(pts, closed=True, **hatch))
+    xl, xr = to(cx - half, 0)[0], to(cx + half, 0)[0]
+    for z, lab, right_side in ((E.Z_TOP, f"top face Z {E.Z_TOP}", False),
+                               (E.Z_DISPLAY_TOP, f"pocket ceiling Z {E.Z_DISPLAY_TOP}", True),
+                               (E.Z_BEZEL_TOP, f"bezel top Z {E.Z_BEZEL_TOP}", True),
+                               (E.Z_PCB_TOP + E.DISPLAY_STACK_MAX,
+                                f"highest display glass Z {E.Z_PCB_TOP + E.DISPLAY_STACK_MAX:.2f}", False),
+                               (E.Z_PLATE_TOP, f"plate top / key-well floor Z {E.Z_PLATE_TOP}", True),
+                               (E.Z_PCB_TOP, f"PCB top Z {E.Z_PCB_TOP}", True)):
+        y = to(0, z)[1]
+        ax.plot([xl - 2, xr + 2], [y, y], color="#0050a0", lw=0.3, ls=(0, (3, 2)))
+        if right_side:
+            text(ax, xr + 3, y, lab, size=5.2, color="#0050a0", va="center")
+        else:
+            text(ax, xl - 3, y, lab, size=5.2, color="#0050a0", va="center", ha="right")
+    (px0, _, px1, _), (x0, _, x1, _), (bx0, _, bx1, _) = d["pocket"], d["window"], E.bezel_rect(side)
+    sx = (lambda x: E.P(x, 0)[0])
+    yb = to(0, E.Z_BEZEL_TOP)[1]
+    for a, b, lab, dy in ((x0, x1, f"window {x1 - x0:.0f}", 5), (px0, px1, f"pocket {px1 - px0:.1f}", 10),
+                          (bx0, bx1, f"bezel {bx1 - bx0:.2f}", 15)):
+        pa, pb = to(sx(a), 0)[0], to(sx(b), 0)[0]
+        dim(ax, (min(pa, pb), yb + dy), (max(pa, pb), yb + dy), lab, size=5)
+    text(ax, ox, oy + (E.Z_BEZEL_TOP - z0) * s + 23, "DETAIL C — SECTION THROUGH THE DISPLAY BEZEL at the window "
+         f"centre (X-Z, real section), scale {s:.0f}:1", size=7, weight="bold", ha="center")
+    text(ax, ox, to(0, E.Z_SPLIT)[1] - 4, f"bezel skin {E.BEZEL_SKIN}; top edges {E.BEZEL_CHAMFER} x 45°; window "
+         f"edge {E.LD.WINDOW_CHAMFER} x 45°. The bezel side wall on the key-well side is flush with the well wall.",
+         size=5.2, ha="center")
+
+
 def top_sheet2(pdf, shape, right, part, dwg, version):
     fig, ax = new_sheet()
     rows = [r for r in top_threads(right) if r["id"].startswith("L")]
+    bezel_detail(ax, shape, right, 315, 222)
     # elevations
     for view, cy, title in (("+X", 262, "VIEW FROM +X"), ("-X", 222, "VIEW FROM −X")):
         to = place_view(ax, shape, view, 115, cy, 1.0)
@@ -419,20 +497,24 @@ def top_sheet2(pdf, shape, right, part, dwg, version):
             ["Bearing face", "FLAT, no teeth. Flatness 0.05, perpendicular to the thread axis within 0.05. "
                              "Ra 1.6 max"],
             ["Function", "the leg hub is clamped against this face by the M3 spring thumbscrew (friction)"],
-            ["Thread", f"M3x0.5-6H RIGHT-HAND, concentric with boss within Ø0.05; tap drill Ø{E.LEG_TAP_D}"],
+            ["Thread", f"M3x0.5-6H RIGHT-HAND, blind, concentric with boss within Ø0.05; tap drill Ø{E.LEG_TAP_D}; "
+                       "depths per the table below"],
             ["Quantity", f"{len(rows)} bosses per part (L1-L{len(rows)}), identical"],
             ["Machining hint", "side op (4th axis, right-angle head or a setup per wall): face the boss, "
                                "profile Ø10, drill and tap M3"],
-            ["Mating part", f"custom leg worxboard_leg (drawing {DWG}-LEG, flat hub face) + stock M3 spring thumbscrew"],
+            ["Mating part", f"custom leg worxboard_leg (drawing {DWG}-LEG, flat hub face) + M3 thumbscrew"],
         ]
         yb = table(ax, 225, 182, [("Leg boss specification", 38), ("", 147)], spec, size=5.6, row_h=4.0)
     loc = [[r["id"], f"{r['x']:.2f}", f"{r['y']:.2f}", f"{r['z']:.1f}", r["direction"].split("wall, ")[-1],
-            f"{r['depth']}"] for r in rows]
-    table(ax, 225, yb - 4, [("Boss", 12), ("X face", 18), ("Y face", 18), ("Z", 10),
-                            ("Thread direction (into part)", 62), ("Drill depth", 18)], loc, size=5.6, row_h=4.0)
-    text(ax, 225, yb - 4 - 4.0 * (len(loc) + 1) - 1.5, "X/Y/Z: centre of the boss face (tooth tip plane) in STEP coordinates.",
+            f"{r['depth']}", f"{r['full']}", f"{r['reach']}"] for r in rows]
+    table(ax, 225, yb - 4, [("Boss", 10), ("X face", 16), ("Y face", 16), ("Z", 9),
+                            ("Thread direction (into part)", 52), ("Drill depth", 17), ("Min full thr.", 19),
+                            ("Screw reach max", 25)], loc, size=5.6, row_h=4.0)
+    text(ax, 225, yb - 4 - 4.0 * (len(loc) + 1) - 1.5, "X/Y/Z: centre of the boss face (tooth tip plane) in STEP "
+         "coordinates. Depths from the boss face; the drill point is extra. >= 1.5 (D/2) stays unthreaded.",
          size=5.2)
-    title_block(ax, part, dwg, "2 of 2", "1:1, 5:1, 20:1" if E.DETENT_TEETH else "1:1, 5:1", version, TOP_MATERIAL)
+    title_block(ax, part, dwg, "2 of 2", "1:1, 3:1, 5:1, 20:1" if E.DETENT_TEETH else "1:1, 3:1, 5:1", version,
+                TOP_MATERIAL)
     pdf.savefig(fig)
     plt.close(fig)
 
@@ -451,7 +533,7 @@ def bottom_sheet(pdf, shape, right, part, dwg, version):
         f"Geometry per {part}.step. Dimensions not shown are taken from the STEP model.",
         f"Material: {TOP_MATERIAL}.",
         "NO THREADS in this part. C1-C8: clearance holes with 90° countersink for M2.5 ISO 10642 / DIN 7991 "
-        "countersunk screws; heads must sit flush or up to 0.2 below the underside.",
+        f"style countersunk screws; heads must sit flush or up to {E.SCREW_HEAD_SINK} below the underside.",
         "The USB-C plug recess of the top part continues 0.8 mm into the back wall of this part (see STEP). "
         "M1: engraved side mark, cosmetic.",
         ("This is a LEFT-hand part: a mirror image of the right-hand part." if not right else
@@ -589,21 +671,63 @@ def leg_sheet(pdf, shape, part, dwg, version):
     notes(ax, 225, y - 6, "GENERAL NOTES", [
         f"Geometry per {part}.step. Dimensions not shown are taken from the STEP model.",
         f"Material: {TOP_MATERIAL}.  QUANTITY: {LEG_QTY} pcs (3 per keyboard half; identical, not handed).",
-        "NO THREADS in this part. The stock ErgoDox EZ M3 spring thumbscrew passes through the Ø3.4 bore "
-        "into the M3 thread of the case boss.",
+        "NO THREADS in this part. An M3 thumbscrew passes through the Ø3.4 bore into the M3 thread of the "
+        f"case boss (its reach past the boss face is limited per drawing {DWG}-TOP sheet 2).",
         *(["Toothed face: no burrs; tooth count and 90° form are critical (the leg must click in every 10° step).",
            "Break sharp edges 0.1-0.2 mm, except the tooth crests (0.1 max)."] if teeth else
           ["Bearing face: flat, no burrs, no raised tool marks.", "Break sharp edges 0.1-0.2 mm."]),
         f"Finish: {FINISH}; same colour as the case.",
-        "Foot cap worxboard_leg_cap: 3D print in TPU 95A (not machined), push onto the spigot.",
+        "Foot caps are not machined: worxboard_leg_cap_tree (8 TPU 95A caps on one runner, JLC3DP), snipped "
+        "off and pushed onto the spigot.",
     ], width=118)
     title_block(ax, part, dwg, "1 of 1", "2.5:1, 6:1, 20:1" if teeth else "2.5:1, 6:1", version, TOP_MATERIAL)
     pdf.savefig(fig)
     plt.close(fig)
 
 
-def main(exports: str, order: str, version: str):
-    os.makedirs(order, exist_ok=True)
+def _pdf(path: str, title: str) -> PdfPages:
+    """PDF without a creation date, so the same drawing gives the same file."""
+    return PdfPages(path, metadata={"Title": title, "Creator": f"worxboard case/drawings.py ({REPO_URL})",
+                                    "CreationDate": None})
+
+
+def hardware_rows() -> list[list]:
+    """Off-board case hardware for one keyboard (both halves), from the model (deviation CASE-3)."""
+    rows = []
+    for length in sorted({E.tap_hole("right", *p)["screw"] for p in E.SCREWS("right")}, reverse=True):
+        ids = [f"T{i + 1}" for i, p in enumerate(E.SCREWS("right")) if E.tap_hole("right", *p)["screw"] == length]
+        h = E.tap_hole("right", *E.SCREWS("right")[int(ids[0][1:]) - 1])
+        rows.append([f"M2.5x{length} countersunk screw", 2 * len(ids),
+                     f"M2.5x0.45, length {length} incl. head, 90° head <= Ø{E.SCREW_CSK_D}, hex socket "
+                     "(ISO 10642 / DIN 7991 style), steel or A2",
+                     f"{', '.join(ids)} per half (C{', C'.join(i[1:] for i in ids)} in the tray)",
+                     f"engages {h['engage']:.1f} mm; do NOT use a longer screw: its tip would reach past the "
+                     f"{h['thread']} mm thread of the blind hole" + (" under the key well; snug only"
+                                                                     if h["kind"] == "plate" else "")])
+    rows.append(["Rubber foot", 2 * len(E.FEET), f"self-adhesive, Ø{E.FOOT_D - 0.5:.0f} (max Ø{E.FOOT_D - 0.2:.1f}), "
+                 "2-3 mm tall", "F1-F4 recesses in each tray", f"recess Ø{E.FOOT_D} x {E.FOOT_DEPTH}"])
+    reach = {name: E.leg_thread(round(E.leg_hole_depth("right", *m[0], *m[1]), 1)) - E.LEG_REACH_CLEAR
+             for name, m in zip(E.leg_names("right"), E.leg_mounts("right"))}
+    lim = ", ".join(f"{n} {r:.1f}" for n, r in reach.items())
+    hub = E.LEG_HUB_L
+    rows.append(["Leg thumbscrew", 2 * len(reach),
+                 f"M3x12 knurled-head thumbscrew (DIN 464 or DIN 653, head Ø >= 7 so it bears on the leg's back "
+                 f"face) - or the stock ErgoDox EZ M3 spring thumbscrew, measured first",
+                 "L1-L3 per half", f"its thread may reach at most {lim} mm past the boss face; an M3x12 on the "
+                 f"{hub:.0f} mm hub reaches {12 - hub:.1f} less the washer"])
+    rows.append(["Friction washer", 2 * len(reach), "Ø10 x Ø3.2, 0.5-1.0 mm, fibre, rubber or cork",
+                 "between each leg hub and its boss",
+                 "required with an M3x12 thumbscrew (keeps its reach within the thread); holds the leg angle"])
+    return rows
+
+
+def main(exports: str, order: str, version: str | None = None):
+    """order/jlccnc: per-part STEP + PDF and hole_table.csv; order/jlc3dp: the printed parts (STL);
+    order/hardware.csv: off-board case hardware. Deterministic for a given model (case/production)."""
+    version = version or E.CASE_REVISION
+    cnc, p3d = os.path.join(order, "jlccnc"), os.path.join(order, "jlc3dp")
+    os.makedirs(cnc, exist_ok=True)
+    os.makedirs(p3d, exist_ok=True)
     csv_rows = []
     for side in E.SIDES[::-1]:
         right = side == "right"
@@ -612,44 +736,49 @@ def main(exports: str, order: str, version: str):
             step = os.path.join(exports, part + ".step")
             shape = import_step(step)
             dwg = f"{DWG}-{kind.upper()}-{side[0].upper()}"
-            with PdfPages(os.path.join(order, part + ".pdf")) as pdf:
+            with _pdf(os.path.join(cnc, part + ".pdf"), part) as pdf:
                 if kind == "top":
                     top_sheet1(pdf, shape, right, part, dwg, version)
                     top_sheet2(pdf, shape, right, part, dwg, version)
                     for r in top_threads(right):
                         csv_rows.append([part, r["id"], r["thread"], r["hand"], r["cls"], r["drill"], r["depth"],
-                                         r["full"], f"{r['x']:.3f}", f"{r['y']:.3f}", f"{r['z']:.3f}",
-                                         r["direction"], r["note"]])
+                                         r["full"], r["screw"], r["reach"], f"{r['x']:.3f}", f"{r['y']:.3f}",
+                                         f"{r['z']:.3f}", r["direction"], r["note"]])
                     for f in top_features(right):
-                        csv_rows.append([part, f[0], f[1], "", "", "", "", "", f[2], f[3], "", "", "no thread"])
+                        csv_rows.append([part, f[0], f[1], "", "", "", "", "", "", "", f[2], f[3], "", "", "no thread"])
                 else:
                     bottom_sheet(pdf, shape, right, part, dwg, version)
                     for r in bottom_holes(right):
-                        csv_rows.append([part, r["id"], r["feature"], "", "", "", "", "", f"{r['x']:.3f}",
+                        csv_rows.append([part, r["id"], r["feature"], "", "", "", "", "", "", "", f"{r['x']:.3f}",
                                          f"{r['y']:.3f}", "0.000", "-Z face", r["note"]])
-            shutil.copy(step, os.path.join(order, part + ".step"))
-            print(f"  {part}: drawing + STEP")
-        # the plate spacer is not machined: laser-cut / print it from the STL
-        shutil.copy(os.path.join(exports, f"worxboard_{side}_spacer.stl"), order)
+            shutil.copy(step, os.path.join(cnc, part + ".step"))
+            print(f"  jlccnc/{part}: drawing + STEP")
+        # the plate spacer is printed (JLC3DP takes the STL), not machined
+        shutil.copy(os.path.join(exports, f"worxboard_{side}_spacer.stl"), p3d)
     part = "worxboard_leg"
     step = os.path.join(exports, part + ".step")
-    with PdfPages(os.path.join(order, part + ".pdf")) as pdf:
+    with _pdf(os.path.join(cnc, part + ".pdf"), part) as pdf:
         leg_sheet(pdf, import_step(step), part, f"{DWG}-LEG", version)
-    shutil.copy(step, os.path.join(order, part + ".step"))
-    shutil.copy(os.path.join(exports, "worxboard_leg_cap.stl"), os.path.join(order, "worxboard_leg_cap.stl"))
-    csv_rows += [[part, "H1", f"Ø{E.LEG_HOLE_D} thru (M3 clearance)", "", "", "", "thru", "", "0.000", "0.000",
-                  "0.000", "+Z", "no thread"],
+    shutil.copy(step, os.path.join(cnc, part + ".step"))
+    shutil.copy(os.path.join(exports, "worxboard_leg_cap_tree.stl"), p3d)
+    csv_rows += [[part, "H1", f"Ø{E.LEG_HOLE_D} thru (M3 clearance)", "", "", "", "thru", "", "", "", "0.000",
+                  "0.000", "0.000", "+Z", "no thread"],
                  [part, "CB1", f"counterbore Ø{E.LEG_CBORE[0]} x {E.LEG_CBORE[1]}", "", "", "",
-                  f"{E.LEG_CBORE[1]}", "", "0.000", "0.000", f"{E.LEG_HUB_L:.3f}", "-Z", "spring seat"]]
-    print(f"  {part}: drawing + STEP (qty {LEG_QTY}), worxboard_leg_cap.stl (print), spacer STLs")
-    with open(os.path.join(order, "hole_table.csv"), "w", newline="") as f:
-        w = csv.writer(f)
+                  f"{E.LEG_CBORE[1]}", "", "", "", "0.000", "0.000", f"{E.LEG_HUB_L:.3f}", "-Z", "spring seat"]]
+    print(f"  jlccnc/{part}: drawing + STEP (qty {LEG_QTY}); jlc3dp/: leg cap tree, spacers (STL)")
+    with open(os.path.join(cnc, "hole_table.csv"), "w", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["part", "id", "thread_or_feature", "hand", "class", "tap_drill", "drill_depth",
-                    "min_full_thread", "x", "y", "z", "direction", "note"])
+                    "min_full_thread", "screw", "max_screw_reach", "x", "y", "z", "direction", "note"])
         w.writerows(csv_rows)
+    with open(os.path.join(order, "hardware.csv"), "w", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["item", "qty_per_keyboard", "spec", "where", "note"])
+        w.writerows(hardware_rows())
+    print("  hardware.csv: off-board case hardware")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         sys.exit(__doc__)
-    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "dev")
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)

@@ -50,9 +50,9 @@ For one keyboard (both halves). The full list with specs, quantities and shops i
 | M2.5 × 12 countersunk screws | 12 | 6 per half, in the edge bosses T2–T4 and T6–T8 |
 | M2.5 × 10 countersunk screws | 4 | 2 per half, in the bosses under the key well, T1 and T5 |
 | Rubber feet, Ø10 mm | 8 | 4 per half |
-| M3 × 12 knurled thumbscrews and friction washers | 6 + 6 | one per leg ([legs.md](legs.md)) |
+| M3 × 12 knurled thumbscrews without a collar (DIN 653) and friction washers | 6 + 6 | one per leg; not DIN 464, whose collar makes it reach too far ([legs.md](legs.md)) |
 | TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm, with a **slim plug head: ≤ Ø6.3 mm for the first 3.7 mm** behind the metal shaft ([case.md](case.md#trrs-cable)) |
-| USB-C cable | 1–2 | the second is only needed in split-powered mode or for flashing the right half |
+| USB-C cable | 1–2 | with **at least 8 mm** of bare metal plug shell, or the plug does not seat in the case ([shopping list](shopping-list.md#cables)). The second is only needed in split-powered mode or for flashing the right half |
 
 ## Tools
 
@@ -167,7 +167,8 @@ is checked against the PCB STEPs by `just fitcheck`, with 0 mm³ of interference
 Before you machine aluminium, 3D-print a test top and check it against your assembled PCB:
 
 - The display sits in its pocket under the window, with the glass below the bezel skin.
-- The USB-C notch on the back wall lines up with J1 on **both** halves, and the plug seats fully.
+- The USB-C notch on the back wall lines up with J1 on **both** halves, and your cable's plug seats
+  fully and latches (it needs at least 8 mm of bare metal shell).
 - The TRRS hole in the inner bump lines up with the jack mouth, and the plug seats fully.
 - The BOOT and RESET pin holes in the top skin sit over the two buttons.
 - The C6R1 keycap clears the display module's far end.
@@ -175,10 +176,17 @@ Before you machine aluminium, 3D-print a test top and check it against your asse
 ## 6. Assemble the case
 
 1. Fit the four rubber feet into the recesses under each bottom tray.
-2. Lay the PCB, top side up, with its display plugged in, on the posts of the bottom tray.
-3. Lay the plate spacer over the PCB: each switch goes through its own opening.
-4. Put the top shell on, so its bosses meet the PCB and the display goes up into its pocket.
-5. Fit the 8 M2.5 countersunk screws from below:
+2. **Stabilisers, before the case is closed.** Turn the top shell over. Assemble the two 2u
+   plate-mount stabilisers (housing, stem and wire) and clip them into the plate cut-outs at the
+   thumb keys T4 and T5, with the wire under the plate, as the stabiliser maker shows. Check that
+   both stems move freely. They cannot go in later: the plate is part of the top shell, and the wire
+   clips in from underneath, which is closed off once the PCB is in.
+3. Lay the PCB, top side up, with its display plugged in, on the posts of the bottom tray.
+4. Lay the plate spacer over the PCB. Its openings line up with the switch positions, and the two
+   channels beside each 2u thumb key take the stabiliser wire.
+5. Put the top shell on, so its bosses meet the PCB, the display goes up into its pocket, and each
+   stabiliser's housings and wire drop into the spacer's cut-outs and channel.
+6. Fit the 8 M2.5 countersunk screws from below:
    - the **2 × M2.5 × 10** go into the two bosses under the key well, T1 and T5 (holes 0 and 4 in
      [pinout.md](pinout.md#mounting-holes)). Tighten them **snug only**: their blind threads are
      short;
@@ -190,13 +198,13 @@ Before you machine aluminium, 3D-print a test top and check it against your asse
 
 ## 7. Switches, stabilisers and keycaps
 
-1. **Stabilisers first.** Clip the two 2u plate-mount stabilisers into the plate cut-outs at the
-   thumb keys T4 and T5, before any switch is fitted there.
-2. **Switches.** Press each switch through the plate until it clicks, supporting the hot-swap
+The stabilisers are already in the plate ([section 6](#6-assemble-the-case), step 2).
+
+1. **Switches.** Press each switch through the plate until it clicks, supporting the hot-swap
    socket from behind if you can. Check the pins are straight first: a bent pin does not enter the
    socket and can push it off its pads.
-3. Re-test every key in a key tester.
-4. **Keycaps.** The outer column takes 1.5u caps, the inner column (`TG(1)`, `HYPER`/`MEH`) takes
+2. Re-test every key in a key tester.
+3. **Keycaps.** The outer column takes 1.5u caps, the inner column (`TG(1)`, `HYPER`/`MEH`) takes
    1.5u caps turned vertical, and the two large thumb keys take 2u caps, also vertical. The top
    inner key is gone: the display sits there.
 

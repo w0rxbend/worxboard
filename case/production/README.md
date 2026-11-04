@@ -33,9 +33,11 @@ part of this package.
   the key well (T1, T5; tighten those only snug). A longer screw would reach past the end of the
   blind thread and stop before its head seats.
 - **Legs.** The M3 thumbscrew may reach at most 3.7 mm past the boss face at the outer and thumb
-  legs (L1, L3) and 5.7 mm at the inner leg (L2). An M3 × 12 knurled thumbscrew whose head bears on
-  the leg's back face reaches 4.0 mm, so it needs the 0.5–1.0 mm friction washer between hub and
-  boss. Measure a stock ErgoDox EZ spring thumbscrew before using it.
+  legs (L1, L3) and 5.7 mm at the inner leg (L2). An M3 × 12 knurled thumbscrew without a collar
+  (DIN 653), whose head bears on the leg's back face, reaches 4.0 mm, so it needs the 0.5–1.0 mm
+  friction washer between hub and boss. Not DIN 464: its collar sits in the leg's Ø6.5 × 4.0
+  counterbore and the screw reaches 8.0 mm. Measure a stock ErgoDox EZ spring thumbscrew before
+  using it.
 - **Foot caps.** Snip the caps off the tree at their base and push them onto the leg spigots.
 
 ## Files and sizes

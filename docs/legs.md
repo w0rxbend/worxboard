@@ -3,8 +3,8 @@
 worxboard keeps the leg design of the reference [ErgoDox CNC case](https://github.com/w0rxbend/ergodox)
 unchanged (see its [legs.md](https://github.com/w0rxbend/ergodox/blob/main/docs/legs.md) for the
 measurements behind it). Each half has **three** mounts at the stock ErgoDox EZ positions, and every
-mount takes the same custom leg, clamped by an M3 thumbscrew: an M3 × 12 knurled thumbscrew with a
-friction washer, or the stock EZ spring thumbscrew once it is measured.
+mount takes the same custom leg, clamped by an M3 thumbscrew: an M3 × 12 knurled thumbscrew without a
+collar (DIN 653) with a friction washer, or the stock EZ spring thumbscrew once it is measured.
 
 > [!NOTE]
 > The values below are the as-built model (`case/worxboard_case.py`); `just model` prints them in
@@ -43,9 +43,12 @@ The inner leg sits right beside the display. Its position is unchanged from the 
 moving it); only the pad behind the wall is shallower. The outer and thumb threads are shorter than
 the reference's 7.5 mm, because the derived walls sit closer to the key well.
 
-**The thumbscrew.** An M3 × 12 knurled thumbscrew (DIN 464 or DIN 653, head Ø ≥ 7 mm, bearing on the
-leg's back face) reaches 4.0 mm past the boss face through the 8.0 mm hub, 0.3 mm more than the
-outer and thumb threads allow. A 0.5–1.0 mm friction washer between the hub and the boss brings it to
+**The thumbscrew.** An M3 × 12 knurled thumbscrew **without a collar** (DIN 653, the low type: its
+flat Ø12 head bears on the leg's back face) reaches 4.0 mm past the boss face through the 8.0 mm hub,
+0.3 mm more than the outer and thumb threads allow. **Do not use DIN 464** or any other shouldered
+thumbscrew: the length of a DIN 464 M3 is measured under its Ø6 × 5 mm collar, which drops into the
+leg's Ø6.5 × 4.0 counterbore and bears on its floor, so an M3 × 12 reaches 8.0 mm past the boss face
+and bottoms in the blind thread before it clamps the leg (deviation ORDER-5). A 0.5–1.0 mm friction washer between the hub and the boss brings it to
 3.0–3.5 mm, so the washer is **required** with that screw. The stock ErgoDox EZ spring thumbscrew's
 length is not known: measure it before using it (`case/production/hardware.csv`).
 

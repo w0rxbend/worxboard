@@ -1524,8 +1524,9 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
   past the thread − 0.3, engages < 1.4 mm, or the drill point leaves < 0.75 mm of skin; on the
   built part it probes each hole open to its depth and solid from the drill point to the face.
 - **Leg thumbscrews:** the stock EZ screw's length is unknown. `hardware.csv` names an M3 × 12
-  knurled thumbscrew (DIN 464/653, head bearing on the leg's back face: 4.0 mm reach) with a
-  0.5–1.0 mm friction washer under the hub (3.0–3.5 mm reach), or the stock screw measured first.
+  knurled thumbscrew (DIN 653 only, no collar, head bearing on the leg's back face: 4.0 mm reach)
+  with a 0.5–1.0 mm friction washer under the hub (3.0–3.5 mm reach), or the stock screw measured
+  first. This said "DIN 464/653" until ORDER-5: a DIN 464 cannot clamp the leg.
 - **Consumers:** DOCS: `case.md` (Fasteners, threads row), `bom.md` lines 92–93 (now 12 × M2.5 × 12
   and 4 × M2.5 × 10), `legs.md` (thread table: full thread and reach), build guide. PACKAGE / the
   shopping list: `case/production/hardware.csv`.
@@ -1926,3 +1927,76 @@ Written by DOCS from the PKG commits (4396f6c, 653659a, 0c692a9, 73ec186) on 202
 - **Cost estimate inputs, not quoted:** the bare-PCB price and shipping (no public formula; given
   as ranges), and whether JLC charges the fixture fee ($16.42 per design) and a loading fee for the
   THT J3.
+
+## ORDER: fixes from the order review of the turnkey package (`pcb/`, `case/`, `docs/`)
+
+The review of 2026-11-04 checked the PCB and case order packages against JLCPCB's, JLCCNC's and
+JLC3DP's published rules and the parts they hold. Each defect below was confirmed before it was fixed.
+
+### ORDER-5. Leg thumbscrews: a collarless DIN 653 only (§10 fasteners; corrects CASE-3)
+
+- **Problem:** `hardware.csv`, the shopping list, `legs.md` and CASE-3 allowed "DIN 464 or DIN 653".
+  A DIN 464 M3 (high type) has a Ø5.7–6.0 × 5.0 mm collar under its Ø12 knurled head, and its length
+  is measured under the collar. The leg has a Ø6.5 × 4.0 mm counterbore in its back face
+  (`LEG_CBORE`), so the collar drops into it and bears on its floor, 4.0 mm from the hub face, with
+  the knurl 1 mm proud. An M3 × 12 then reaches 12 − 4.0 = 8.0 mm past the boss face (7.0–7.5 with
+  the washer), against at most 3.7 mm at L1/L3 and 5.7 mm at L2: it bottoms in the blind hole before
+  the leg is clamped.
+- **Change:** `case/drawings.py` (`hardware_rows`) names a thumbscrew **without a collar (DIN 653)**
+  and warns against DIN 464 and other shouldered thumbscrews; `hardware.csv` is regenerated. The
+  DIN 653 head is flat underneath and Ø12, so it bears on the back face round the counterbore: 4.0 mm
+  of reach, 3.0–3.5 mm with the washer, as before. Docs: `legs.md`, `shopping-list.md`, build guide,
+  `case/production/README.md`.
+
+### ORDER-6. The plate spacer has a channel for each stabiliser wire (§5, §10.8; amends CASE-5)
+
+- **Problem:** a Cherry-style plate-mount stabiliser's wire bar runs under the plate, between plate
+  and PCB, from one housing to the other, beside the switch. `spacer_face()` cut only the 15 mm
+  switch opening and each stabiliser cut-out + 0.5 mm, and the spacer fills Z 9.1–12.1 with 0.5 mm
+  over the PCB. The review's probe found the spacer solid on 161 of 161 samples between the housings
+  at 7.75 mm or more from the switch centre, on both sides of all four 2u keys. The merged switch and
+  stabiliser opening reached only about 6.9 mm, inside the 14 mm switch housing. The stabilisers
+  could not be fitted with the spacer in place, or the wire would be pinched against the PCB. The
+  fit check has no stabiliser body, so CI could not see it.
+- **Change** (`case/worxboard_case.py`): `stab_wire_cuts()` cuts a channel `STAB_WIRE_U` = 6.5–10.0 mm
+  across the key from its centre, on **both** sides (the wire side of a clone is not certain), along
+  the key from one stabiliser to the other (2 × 11.938 mm; the stabiliser cut-outs open its ends),
+  R1.0 corners. `spacer_check()` now fails if spacer material lies anywhere along either channel (126
+  probe points per key). Each spacer is still one piece: 20.88 → 20.17 cm³. The machined parts are
+  unchanged, so the case revision stays A3 and only the two spacer STLs change.
+- **Result:** the review's probe (`stab_wire.py`) finds 0 of 161 samples solid at u = ±7.5 to ±9.0
+  on all four keys; `just model`, `just fitcheck` (0 mm³), `just corners` and
+  `just production-check` pass.
+
+### ORDER-7. The USB-C cable needs a plug with at least 8 mm of bare shell (§10.5)
+
+- **Problem:** J1's mouth is flush with the PCB back edge (`layout/jacks.py`; footprint front at
+  y 30.6). The case leaves 0.5 mm, then the 3.0 mm wall with a 13 × 8 mm recess 1.8 mm deep
+  (`USB_RECESS_DEPTH`; notch centre y 28.6), so the recess floor is 1.7 mm in front of the mouth and
+  only the plug's bare metal shell passes the 9.4 × 3.6 mm notch. The USB Type-C receptacle-shell ECN
+  asks the system for an effective shell length equivalent to the 6.20 mm reference; here it is
+  about 7.9 mm. A plug with the common ~6.6 mm exposed shell stops about 1.2 mm short: the latches
+  do not engage and the contacts are marginal. The shopping list asked only that the overmould fit
+  the recess and said "slim plugs fit", which does not help.
+- **Change:** docs only. The shopping list, `case.md` and the build guide ask for a plug with **at
+  least 8 mm of bare metal shell** in front of the overmould (sold as "extended tip" or "long neck"),
+  and the test-print checklist checks that the plug latches. The recess was not deepened: that would
+  change the four machined parts, and 1.2 mm of wall is left there.
+
+### ORDER-8. The stabilisers go into the top shell before the case is closed (build guide)
+
+- **Problem:** the build guide closed the case (section 6) and then clipped the stabilisers into the
+  plate (section 7, step 1). The plate is milled into the top shell, and the wire clips in from
+  underneath, which the PCB and the tray close off.
+- **Change:** section 6, step 2 fits the assembled stabilisers (housing, stem and wire) into the
+  upturned top shell, before the PCB and spacer go in; steps 4 and 5 note the spacer's wire channels
+  (ORDER-6). Section 7 starts with the switches.
+
+### ORDER-9. Anodizing: ask for the Strict appearance tier, not only a remark (JLCCNC)
+
+- **Problem:** `jlccnc/ORDER_NOTES.md` asked for a remark about a uniform anodize colour across the
+  10 parts. JLCCNC's Appearance Standard Guidelines allow "slight anodizing color variation among
+  some products" in the Standard tier; Strict and Premium allow "no visible color variation". A
+  remark does not change the tier.
+- **Change:** the form-settings table has an "Appearance standard: Strict (or Premium), if the form
+  offers it" row, and the remark paragraph says why.

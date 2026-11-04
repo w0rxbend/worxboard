@@ -66,7 +66,7 @@ hardware shops.
 | Item | Qty | Spec | Where |
 |---|---|---|---|
 | TRRS cable | **1** | 3.5 mm, **4-pole** (TRRS, not TRS), **straight** 1:1 wiring (the crossover is on the PCB). The plug head must be **≤ Ø6.3 mm for its first 3.7 mm** behind the metal shaft, because the plug passes a Ø6.5 mm hole in the 3 mm case wall ([case.md](case.md#trrs-cable)). Check it with calipers | keyboard shops ("TRRS cable", often coiled); audio shops (headset extension cables are TRRS) |
-| USB-C cable | **1**, optionally 2 | USB 2.0 data cable (not charge-only), C to whatever your host has. The plug's overmould must fit the case's 13 × 8 mm recess round the USB-C notch. Slim plugs fit. The second cable is only needed for split-powered mode (JP1 cut) or to flash the right half without moving the cable | any shop |
+| USB-C cable | **1**, optionally 2 | USB 2.0 data cable (not charge-only), C to whatever your host has, with an **extended plug: at least 8 mm of bare metal shell in front of the overmould**, and an overmould that fits the case's 13 × 8 mm recess. The receptacle sits 1.7 mm behind the floor of that recess, so a common plug (6.5–6.6 mm of shell) stops about 1.2 mm short and does not latch; a slim overmould does not help. Such plugs are sold as "extended tip" or "long neck" USB-C, often for phones in thick cases: measure the shell with calipers. The second cable is only needed for split-powered mode (JP1 cut) or to flash the right half without moving the cable | any shop |
 
 ### Case hardware
 
@@ -79,7 +79,7 @@ milled into it.
 | M2.5 × 12 countersunk screws | **12** | M2.5 × 0.45, 12 mm including the head, 90° head ≤ Ø5.2 mm (DIN 7991 hex socket, or ISO 7046 cross recess), steel or A2. Six per half, in T2–T4 and T6–T8 | hardware shops. LCSC C5138785 (GB819 cross recess, A2) had only 13 in stock |
 | M2.5 × 10 countersunk screws | **4** | the same, 10 mm. Two per half, in T1 and T5, under the key well: **snug only** | hardware shops. LCSC had none in stock |
 | Rubber feet | **8** | self-adhesive, Ø10 mm (at most Ø10.3), 2–3 mm tall. Four per half, in the Ø10.5 × 0.6 mm recesses | electronics distributors, hardware shops |
-| Leg thumbscrews | **6** | M3 × 12 knurled-head thumbscrew (DIN 464 or DIN 653, head Ø ≥ 7 mm, so it bears on the leg's back face), or the stock ErgoDox EZ M3 spring thumbscrew, measured first | hardware shops. ZSA sells EZ spare parts |
+| Leg thumbscrews | **6** | M3 × 12 knurled-head thumbscrew **without a collar: DIN 653** (flat head underside, Ø ≥ 7 mm, so it bears on the leg's back face), or the stock ErgoDox EZ M3 spring thumbscrew, measured first. **Not DIN 464** or any shouldered thumbscrew: the collar drops into the leg's Ø6.5 × 4 mm counterbore and the screw reaches 4 mm further, into the bottom of the blind thread ([legs.md](legs.md#positions)) | hardware shops. ZSA sells EZ spare parts |
 | Friction washers | **6** | Ø10 × Ø3.2 mm, 0.5–1.0 mm thick, fibre, rubber or cork: one between each leg hub and its boss | hardware shops |
 | Leg foot caps | 6 (8 printed) | TPU 95A, from the JLC3DP tree. Snip them off at the base and push them onto the leg spigots | JLC3DP, above |
 
@@ -111,7 +111,7 @@ milled into it.
 | 2u plate-mount stabilisers | 4 |
 | nice!view with its header | 2 |
 | TRRS cable, 4-pole, straight, slim plug | 1 |
-| USB-C data cable | 1–2 |
+| USB-C data cable, plug shell ≥ 8 mm (extended tip) | 1–2 |
 | M2.5 × 12 / M2.5 × 10 countersunk screws | 12 / 4 |
 | Rubber feet, Ø10 mm | 8 |
-| M3 × 12 knurled thumbscrews and friction washers | 6 + 6 |
+| M3 × 12 knurled thumbscrews without a collar (DIN 653) and friction washers | 6 + 6 |

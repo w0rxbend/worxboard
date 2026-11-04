@@ -97,6 +97,10 @@ STAB_CUT_W = 6.65
 STAB_SIDE_NOTCH_U = (-2.3, 0.5)   # notch on the outer side, Cherry 0.875 deep -> 1.0 (1 mm tool)
 STAB_SIDE_NOTCH_D = 1.0
 STAB_END_NOTCH = (3.3, 1.2)       # notch at the housing end: width along the key, depth
+# The Cherry stabiliser wire's long bar runs under the plate, between plate and PCB, from one housing
+# to the other, beside the switch: the plate spacer keeps a channel for it on both sides of the key,
+# across the key this far from its centre, along it from one stab to the other (deviation ORDER-6)
+STAB_WIRE_U = (6.5, 10.0)
 
 # Outline corner radii by vertex class (reference values)
 R_BACK = 10.0            # convex corners of the back edge
@@ -547,6 +551,18 @@ def stab_cuts(x, y, rot, housing) -> Sketch:
     return Pos(cx, cy) * Rot(0, 0, cad_rot(rot)) * s
 
 
+def stab_wire_cuts(x, y, rot) -> Sketch:
+    """Channels in the plate spacer for the stabiliser wire of a vertical 2u key: STAB_WIRE_U across
+    the key on both sides of its centre, along the key between the two stabs (whose spacer cut-outs
+    open the channel's ends)."""
+    cx, cy = P(x, y)
+    u0, u1 = STAB_WIRE_U
+    s = Sketch()
+    for su in (-1, 1):
+        s += Pos(su * (u0 + u1) / 2, 0) * RectangleRounded(u1 - u0, 2 * STAB_OFFSET, TOOL_R)
+    return Pos(cx, cy) * Rot(0, 0, cad_rot(rot)) * s
+
+
 def stab_keys(side: str):
     """(x, y, w, h, rot, layout.stab_dir) of the 2u keys."""
     if not STABILIZERS:
@@ -950,7 +966,7 @@ def relief_faces(side: str) -> list[Face]:
 
 def spacer_face(side: str) -> Sketch:
     """Spacer outline (part frame): the plate island inside the wall, minus an opening per switch
-    and stabiliser, the PCB screw bosses, the tent-leg pads, the component zones and the display
+    and stabiliser, the stabiliser wire channels, the PCB screw bosses, the tent-leg pads, the component zones and the display
     pocket, each with SPACER_CLEAR."""
     inner = offset(outline_face(side), -WALL - SPACER_CLEAR, kind=Kind.ARC).faces()[0]
     s = Sketch() + list(well_face(side, extra=WALL / 2 + 0.5))
@@ -959,6 +975,7 @@ def spacer_face(side: str) -> Sketch:
         s -= Pos(*P(kx, ky)) * Rot(0, 0, cad_rot(rot)) * RectangleRounded(SPACER_HOLE, SPACER_HOLE, TOOL_R)
     for kx, ky, w, h, rot, sd in stab_keys(side):
         s -= offset(stab_cuts(kx, ky, rot, sd), SPACER_CLEAR, kind=Kind.ARC)
+        s -= stab_wire_cuts(kx, ky, rot)
     for sx, sy in SCREWS(side):
         s -= Pos(*P(sx, sy)) * Circle(boss_radius(side, sx, sy) + SPACER_CLEAR)
     for web in boss_webs(side, "top").values():
@@ -982,7 +999,7 @@ def build_spacer(side: str) -> Solid:
 
 
 def spacer_check(side: str, spacer: Solid):
-    """The spacer must clear the PCB and keep every switch opening free."""
+    """The spacer must clear the PCB and keep every switch opening and stabiliser wire channel free."""
     gap = Z_PLATE_BOT - SPACER_T - Z_PCB_TOP
     if gap < 0:
         sys.exit(f"plate spacer is {-gap:.2f} mm too thick for the plate-to-PCB gap")
@@ -1001,6 +1018,16 @@ def spacer_check(side: str, spacer: Solid):
             c = f.center()
             if spacer.is_inside(Vector(c.X, c.Y, zmid)):
                 sys.exit(f"{side} plate spacer covers a stabiliser at ({kx:.1f},{ky:.1f})")
+        a = math.radians(cad_rot(rot))
+        cx, cy = P(kx, ky)
+        for su in (-1, 1):                    # the wire channel is open along its whole length
+            for u in (su * STAB_WIRE_U[0] + su * 0.3, su * sum(STAB_WIRE_U) / 2, su * STAB_WIRE_U[1] - su * 0.3):
+                for i in range(-10, 11):
+                    v = i / 10 * (STAB_OFFSET - 0.5)
+                    q = Vector(cx + u * math.cos(a) - v * math.sin(a), cy + u * math.sin(a) + v * math.cos(a), zmid)
+                    if spacer.is_inside(q):
+                        sys.exit(f"{side} plate spacer blocks the stabiliser wire channel of ({kx:.1f},{ky:.1f}) "
+                                 f"at u {u:.1f}, v {v:.1f}")
     sec = spacer_face(side)
     for name, geom in (("component zones", zones_poly(side)), ("display pocket", pocket_poly(side)),
                        ("J2 body", box(*JACK(side, "J2").body))):

@@ -30,12 +30,17 @@ The left parts are mirror images of the right ones; mirror the geometry only, **
 | Process | CNC milling | CNC milling | CNC milling |
 | Material | Aluminium 6061-T6 (7075-T6 gives a stiffer plate) | Aluminium 6061-T6 | Aluminium 6061-T6 |
 | Surface finish | the anodizing option **with** bead blasting (plain anodizing has no blasting) | same as the tops | same as the tops |
+| Appearance standard | **Strict** (or Premium), if the form offers it | same | same |
 | Threads | **Yes: 11 per part, 8 × M2.5 + 3 × M3, all right-hand, all blind** | No | No |
 | Tolerance | ISO 2768-m (default); tighter values only where the drawing gives them | same | same |
 | Quantity | 1 each | 1 each | 6 |
 
 Add a remark that the parts must fit together (JLCCNC then checks the fits), and one about a
-uniform anodize colour across all 10 parts.
+uniform anodize colour across all 10 parts. A remark does not change the appearance tier, though:
+JLCCNC's [Appearance Standard Guidelines](https://jlccnc.com/help/article/appearance-standard-guidelines)
+allow "slight anodizing color variation among some products" in the Standard tier and "no visible
+color variation" only in Strict and Premium. Pick **Strict** where the form offers the tier, so the
+two halves and the six legs match (deviation ORDER-9).
 
 ## What changed for this order
 

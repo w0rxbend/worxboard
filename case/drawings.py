@@ -721,9 +721,12 @@ def hardware_rows() -> list[list]:
              for name, m in zip(E.leg_names("right"), E.leg_mounts("right"))}
     lim = ", ".join(f"{n} {r:.1f}" for n, r in reach.items())
     hub = E.LEG_HUB_L
+    cb_d, cb_h = E.LEG_CBORE
     rows.append(["Leg thumbscrew", 2 * len(reach),
-                 f"M3x12 knurled-head thumbscrew (DIN 464 or DIN 653, head Ø >= 7 so it bears on the leg's back "
-                 f"face) - or the stock ErgoDox EZ M3 spring thumbscrew, measured first",
+                 f"M3x12 knurled-head thumbscrew WITHOUT a collar (DIN 653, flat head underside Ø >= 7, so it "
+                 f"bears on the leg's back face). Not DIN 464 or any shouldered thumbscrew: its collar drops into the "
+                 f"leg's Ø{cb_d} x {cb_h:.0f} counterbore and the screw reaches {cb_h:.0f} mm further. Or the stock "
+                 f"ErgoDox EZ M3 spring thumbscrew, measured first",
                  "L1-L3 per half", f"its thread may reach at most {lim} mm past the boss face; an M3x12 on the "
                  f"{hub:.0f} mm hub reaches {12 - hub:.1f} less the washer"])
     rows.append(["Friction washer", 2 * len(reach), "Ø10 x Ø3.2, 0.5-1.0 mm, fibre, rubber or cork",

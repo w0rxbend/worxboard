@@ -13,11 +13,17 @@ the DRC and, for every unlocked item it names:
 - else, for a track with one loose end, cuts the segment back to the last point where copper of its
   net joins it (an overhang);
 - else, for a via that joins copper on one layer only, replaces it by short tracks on that layer from
-  its centre to each track end it held.
+  its centre to each track end it held;
+- else, for a track whose end lies part-way along another unlocked track of its net (a T junction),
+  splits that track at the junction. KiCad's dangling test credits a track that one end of a short
+  segment hits to whichever end lies nearer that track's own ends, so a short jog whose end meets
+  a long track part-way is called dangling although both ends are joined; with the long track split
+  there, its new end lies on the junction and the test credits the right end.
 
 Every change is kept only if the item's net keeps its island count, and the pours are refilled after
-each round. Locked copper (fan-out, USB pair, matrix) is never touched; it lists what it left.
-The DRC gate that follows in stage_c.sh judges the result.
+each round. Locked copper (fan-out, USB pair, matrix) is never touched; it lists what it left. If
+unlocked copper is still dangling after the last round, it exits 1 (deviations BOARD-14); the DRC gate
+that follows in stage_c.sh judges the rest.
 """
 from __future__ import annotations
 
@@ -39,9 +45,12 @@ from complete_routes import LAYERS, VIA, Item, islands, xy  # noqa: E402
 from place import mm, pt, seed_kiids  # noqa: E402
 
 DANGLING = ("track_dangling", "via_dangling")
-MAX_ROUNDS = 12
+MAX_ROUNDS = 30             # the right needs 11 (a chain of stubs goes a few items per round)
 EPS = 1e-4                   # mm: an anchor this close to copper touches it
 MIN_TRIM = 0.01              # mm: shorter overhangs are left alone
+JOIN_TOL = 1e-3              # mm: a via-replacing join may pass the copper it replaces by this much
+                             # (the polygons of two equal round caps differ by slivers ~1e-5 mm2)
+JOIN_WIDTHS = (0.4, 0.3, 0.25, 0.2, 0.15)   # mm: narrower joins tried when the track's own width pokes out
 
 
 def dangling(pcb: Path, report: Path) -> list[str]:
@@ -112,7 +121,7 @@ class Cleaner:
         self.board = board
         self.items, _ = complete_routes.collect(board)
         self.items += complete_routes.pour_copper(board)
-        self.deleted = self.trimmed = self.merged = 0
+        self.deleted = self.trimmed = self.merged = self.split_n = 0
 
     @staticmethod
     def same_islands(before: list[Item], after: list[Item], net: int) -> bool:
@@ -160,13 +169,53 @@ class Cleaner:
             t.SetStart(pt(*end))
         new = track_item(t)
         rest = [x for x in self.items if x is not it] + [new]
-        if not self.same_islands(self.items, rest, it.net) or loose_ends(rest, new):
+        if not self.same_islands(self.items, rest, it.net) or not self.joined_at(rest, new, end, half):
             t.SetStart(old[0])
             t.SetEnd(old[1])
             return False
         self.items = rest
         self.trimmed += 1
         return True
+
+    @staticmethod
+    def joined_at(items: list[Item], it: Item, p, half: float) -> bool:
+        """KiCad's dangling test for one end of a track: other copper of its net on its layer lies
+        within the track's half width of the end (CONNECTIVITY_DATA::TestTrackEndpointDangling)."""
+        (layer, _), = it.anchors.items()
+        q = Point(p)
+        return any(x.geoms[layer].distance(q) <= half for x in items
+                   if x.net == it.net and x is not it and layer in x.geoms)
+
+    def split(self, it: Item) -> bool:
+        """Split each unlocked track of its net that an end of track `it` meets part-way."""
+        (layer, ends), = it.anchors.items()
+        done = False
+        for p in ends:
+            q = Point(p)
+            for x in list(self.items):
+                if (x.net != it.net or x is it or x.ref is None or x.pour or x.pad or len(x.geoms) != 1
+                        or layer not in x.geoms or x.geoms[layer].distance(q) > EPS):
+                    continue
+                a, b = x.anchors[layer]
+                seg = LineString([a, b])
+                s = seg.project(q)
+                if s < MIN_TRIM or seg.length - s < MIN_TRIM:
+                    continue                              # meets it at an end already
+                m = seg.interpolate(s).coords[0]
+                t = x.ref
+                u = pcbnew.PCB_TRACK(self.board)
+                u.SetStart(pt(*m))
+                u.SetEnd(t.GetEnd())
+                u.SetWidth(t.GetWidth())
+                u.SetLayer(t.GetLayer())
+                u.SetNet(t.GetNet())
+                t.SetEnd(pt(*m))
+                self.board.Add(u)
+                self.items = [y for y in self.items if y is not x] + [track_item(t), track_item(u)]
+                done = True
+        if done:
+            self.split_n += 1
+        return done
 
     def merge(self, it: Item) -> bool:
         """Replace a via that joins copper on one layer only by tracks on that layer from its centre
@@ -184,10 +233,17 @@ class Cleaner:
                     if disc.distance(Point(q)) < EPS and math.dist(q, c) > EPS:
                         ends.append((q, pcbnew.ToMM(x.ref.GetWidth())))
                         held.append(x.geoms[layer])
-        # the joins must stay inside the via and the tracks it held, so no clearance can shrink
-        joins = [LineString([c, q]).buffer(w / 2) for q, w in ends]
-        if any(j.difference(unary_union(held)).area > 1e-6 for j in joins):
-            return False
+        # the joins must stay inside the via and the tracks it held, so no clearance can shrink: a join
+        # to an end off the held track's axis is narrowed through JOIN_WIDTHS until it fits
+        inside = unary_union(held).buffer(JOIN_TOL)
+        fitted = []
+        for q, w in ends:
+            widths = [w] + [x for x in JOIN_WIDTHS if x < w]
+            fit = next((x for x in widths if LineString([c, q]).buffer(x / 2).difference(inside).area <= 1e-6), None)
+            if fit is None:
+                return False
+            fitted.append((q, fit))
+        ends = fitted
         net = it.ref.GetNet()
         self.board.Delete(it.ref)
         rest = [x for x in self.items if x is not it]
@@ -229,7 +285,7 @@ class Cleaner:
                 kept.append(f"locked {t.GetNetname()} at {xy(t.GetPosition())}" if t else u)
             elif self.drop(it):
                 gone.append(it)
-            elif not (self.trim(it) if len(it.geoms) == 1 else self.merge(it)):
+            elif not (self.trim(it) or self.split(it) if len(it.geoms) == 1 else self.merge(it)):
                 kept.append(f"needed {it.ref.GetNetname()} at {xy(it.ref.GetPosition())}")
         while gone:                                     # what the deleted items touched may dangle now
             near = {id(x): x for g in gone for x in self.items
@@ -247,7 +303,7 @@ def main(argv: list[str]) -> int:
     pcb = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
     report = ROOT / "build" / side / "drc-dangling.json"
     report.parent.mkdir(parents=True, exist_ok=True)
-    totals = [0, 0, 0]
+    totals = [0, 0, 0, 0]
     kept: list[str] = []
     for rnd in range(MAX_ROUNDS):
         uuids = dangling(pcb, report)
@@ -258,14 +314,20 @@ def main(argv: list[str]) -> int:
         board = pcbnew.LoadBoard(str(pcb))
         c = Cleaner(board)
         kept = c.run(uuids)
-        if not (c.deleted or c.trimmed or c.merged):
+        if not (c.deleted or c.trimmed or c.merged or c.split_n):
             break
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
         board.Save(str(pcb))
-        totals = [totals[0] + c.deleted, totals[1] + c.trimmed, totals[2] + c.merged]
-        print(f"{side}: prune round {rnd + 1}: deleted {c.deleted}, trimmed {c.trimmed}, vias merged {c.merged}")
+        totals = [a + b for a, b in zip(totals, (c.deleted, c.trimmed, c.merged, c.split_n))]
+        print(f"{side}: prune round {rnd + 1}: deleted {c.deleted}, trimmed {c.trimmed}, vias merged {c.merged}, "
+              f"T junctions split {c.split_n}")
     print(f"{side}: dangling copper: {totals[0]} items deleted, {totals[1]} tracks trimmed, "
-          f"{totals[2]} one-layer vias replaced; left {len(kept)}: {'; '.join(kept) or 'none'}")
+          f"{totals[2]} one-layer vias replaced, {totals[3]} T junctions split; left {len(kept)}: "
+          f"{'; '.join(kept) or 'none'}")
+    needed = [k for k in kept if k.startswith("needed")]
+    if needed:
+        print(f"{side}: {len(needed)} unlocked items still dangling")
+        return 1
     return 0
 
 

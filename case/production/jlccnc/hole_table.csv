@@ -11,7 +11,7 @@ worxboard_right_top,L1,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,82.118,36.
 worxboard_right_top,L2,M3x0.5,RH,6H,2.5,7.5,6.0,M3 leg thumbscrew,5.7,-77.100,36.000,12.000,"normal to wall, into part (+1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
 worxboard_right_top,L3,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,-105.207,-59.659,12.000,"normal to wall, into part (+0.906, +0.423, 0)","blind, in the flat leg boss, see sheet 2"
 worxboard_right_top,W1,"display window 12 x 26 R1.0 THRU the bezel skin, 0.5 x 45° chamfer on the top edge",,,,,,,,-57.61,44.13,,,no thread
-worxboard_right_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (bezel skin 1.0), corners relieved by R1.5 dog-bones; front end open into the key well",,,,,,,,-57.61,43.37,,,no thread
+worxboard_right_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (skin 1.0), 11.6 deep from the parting face: R2.0 dog-bones at the 2 back corners (keep), front end open into the key well",,,,,,,,-57.61,43.37,,,no thread
 worxboard_right_top,B1,"raised display bezel 18.42 x 37.90, top Z 19.6 (2.0 above the top face), top edges 0.5 x 45°, R2.0 free corners; flush with the key-well walls on its well sides",,,,,,,,-57.90,44.93,,,no thread
 worxboard_right_top,J1,USB-C notch 9.4 x 3.6 R1.6 thru back wall at Z 10.2; outside recess 13 x 8 x 1.8 deep,,,,,,,,56.00,72.90,,,no thread
 worxboard_right_top,J2,"TRRS hole Ø6.5 thru inner bump wall, axis Z 11.1",,,,,,,,-84.50,-3.00,,,no thread
@@ -42,7 +42,7 @@ worxboard_left_top,L1,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,-82.118,36.
 worxboard_left_top,L2,M3x0.5,RH,6H,2.5,7.5,6.0,M3 leg thumbscrew,5.7,77.100,36.000,12.000,"normal to wall, into part (-1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
 worxboard_left_top,L3,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,105.207,-59.659,12.000,"normal to wall, into part (-0.906, +0.423, 0)","blind, in the flat leg boss, see sheet 2"
 worxboard_left_top,W1,"display window 12 x 26 R1.0 THRU the bezel skin, 0.5 x 45° chamfer on the top edge",,,,,,,,57.61,44.13,,,no thread
-worxboard_left_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (bezel skin 1.0), corners relieved by R1.5 dog-bones; front end open into the key well",,,,,,,,57.61,43.37,,,no thread
+worxboard_left_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (skin 1.0), 11.6 deep from the parting face: R2.0 dog-bones at the 2 back corners (keep), front end open into the key well",,,,,,,,57.61,43.37,,,no thread
 worxboard_left_top,B1,"raised display bezel 18.43 x 37.90, top Z 19.6 (2.0 above the top face), top edges 0.5 x 45°, R2.0 free corners; flush with the key-well walls on its well sides",,,,,,,,57.90,44.93,,,no thread
 worxboard_left_top,J1,USB-C notch 9.4 x 3.6 R1.6 thru back wall at Z 10.2; outside recess 13 x 8 x 1.8 deep,,,,,,,,-56.00,72.90,,,no thread
 worxboard_left_top,J2,"TRRS hole Ø6.5 thru inner bump wall, axis Z 11.1",,,,,,,,84.50,-3.00,,,no thread

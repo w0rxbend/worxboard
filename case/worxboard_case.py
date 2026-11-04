@@ -50,7 +50,7 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Case design revision, printed on the drawings and in the STEP headers of the order package
 # (case/production). Bump it with any change to the ordered geometry.
-CASE_REVISION = "A1"
+CASE_REVISION = "A2"
 CASE_REVISION_DATE = "2026-11-04"
 
 # Vertical stack, Z = 0 at the bottom face of the case
@@ -73,8 +73,16 @@ CAVITY_MIN_CLEAR = 0.3   # convex corner radii are reduced until the cavity keep
 CHAMFER_COLLAPSE = 15.0  # PCB corner chamfers shorter than this become one (filleted) case corner
 TOP_EDGE_FILLET = 1.5    # rounded top outer edge
 SEAM_CHAMFER = 0.5       # small chamfer on both sides of the parting line
-TOOL_R = 1.0             # min internal corner radius of pockets (2 mm end mill)
+TOOL_R = 1.0             # key-well corner radius: corner_r(WELL_DEPTH) (JLCCNC R0.9 at 4.0 deep)
 FILLET_MIN_TURN = 20.0   # polygon corners turning less than this (arc chords) stay unfilleted
+# JLCCNC CNC Machining Design Guideline (https://jlccnc.com/help/article/CNC-Machining-Design-Guideline,
+# read 2026-11-04): an internal corner H deep (from the face the cutter enters by) needs R >= H / 10 + 0.5,
+# with a tool of D = H / 5; R0.5 is possible to 3 mm; and its tool table (diameter, maximum length, Min R)
+# sets the radius past the Ø2 tool's 10 mm. corner_r() turns a depth into that radius (deviation CASE-8).
+JLCCNC_TOOLS = ((2.0, 10.0, 1.5), (3.0, 15.0, 2.0), (4.0, 20.0, 2.5), (6.0, 30.0, 3.5), (8.0, 40.0, 4.5),
+                (10.0, 50.0, 5.5))
+JLCCNC_SMALL_DEPTH = 3.0  # R0.5 to this depth
+JLCCNC_WALL_MIN = 0.8     # recommended minimum wall of a metal part (0.5 absolute)
 
 SWITCH_CUT = 14.0        # MX plate cutout
 SWITCH_CUT_R = 0.5       # corner radius (use a 1 mm tool, or switch DOGBONES on)
@@ -129,6 +137,9 @@ WEB_GAP_BOTTOM = 2.0
 # this wide; the component zones (Z_BACK, Z_TRRS) are always relieved.
 RELIEF_MIN_W = 6.0
 RELIEF_WELL_SKIN = 1.0   # well wall left between the key well and a relieved component zone
+RELIEF_ISLAND_CLEAR = 0.3  # relief pocket edge to the bosses, webs and leg pads standing in it (CASE-8)
+RELIEF_QUAD_SEGS = 4     # chords per quarter circle of the relief pockets' arcs: 0.03 mm off a true R1.5,
+                         # and the top STEP stays under the 5 MB the repository commits (CASE-8)
 # The PJ-320D (J2, gate G2) is 14.1 long: its last 0.9 mm runs past Z_TRRS, through the well skin and
 # under the plate between C6R1 and C6R2, and its top is flush with the plate top. Its body + this is
 # relieved in the top part (to Z_POCKET_CEIL, through the plate), the spacer and the plate DXF.
@@ -147,6 +158,8 @@ LEG_PAD = (10.0, 6.0)    # pad (along wall, into case) behind the wall
 LEG_PAD_MAX = {"inner": 5.0}   # inner pad clamped clear of the display pocket (spec §10.4)
 LEG_BOSS_D = 10.0        # boss on the outer wall face
 LEG_BOSS_H = 2.7         # boss height above the wall face (bearing face / tooth tips)
+LEG_BOSS_ROOT_R = 0.5    # fillet where the boss meets the wall: a floor fillet (the end mill's corner on
+                         # the wall face), not a vertical internal corner, so corner_r() does not apply
 LEG_BOSS_EDGE = 0.3      # round on the rim of the flat bearing face
 LEG_TEETH = 36           # radial detent teeth if DETENT_TEETH (stock: 10 deg steps)
 LEG_TOOTH_R0 = 2.2       # teeth run from this radius to the boss edge
@@ -451,7 +464,11 @@ def _filleted_polygon_face(coords, radius: float) -> Face:
         u, v = (b[0] - a[0], b[1] - a[1]), (c[0] - b[0], c[1] - b[1])
         cross = u[0] * v[1] - u[1] * v[0]
         turn = math.degrees(math.atan2(abs(cross), u[0] * v[0] + u[1] * v[1]))
-        if cross * area2 > 0 and turn > FILLET_MIN_TURN and min(math.hypot(*u), math.hypot(*v)) > radius:
+        short = min(math.hypot(*u), math.hypot(*v))
+        # the fillet takes radius * tan(turn / 2) of each edge; an edge shared with another fillet
+        # has room for it if that is under half the edge (CASE-8: a clipped well corner was left sharp)
+        if cross * area2 > 0 and turn > FILLET_MIN_TURN and (
+                short > radius or radius * math.tan(math.radians(turn) / 2) < short / 2 - 1e-3):
             convex.append(b)
     if not convex:
         return face
@@ -540,10 +557,10 @@ def zones_poly(side: str, grow: float = 0.0):
 
 @lru_cache
 def jack_relief_poly(side: str):
-    """J2's body + J2_RELIEF_CLEAR (KiCad frame), corners rounded to the tool radius (gate G2,
-    deviations BOARD-13)."""
+    """J2's body + J2_RELIEF_CLEAR (KiCad frame), corners rounded to the relief pocket's cutter radius
+    (gate G2, deviations BOARD-13, CASE-8)."""
     p = box(*JACK(side, "J2").body).buffer(J2_RELIEF_CLEAR, join_style="mitre")
-    return p.buffer(-TOOL_R).buffer(TOOL_R)
+    return p.buffer(-relief_r(), quad_segs=RELIEF_QUAD_SEGS).buffer(relief_r(), quad_segs=RELIEF_QUAD_SEGS)
 
 
 @lru_cache
@@ -681,15 +698,31 @@ def boss_web(side: str, sx, sy, inner: Face, max_gap: float):
     ang = math.degrees(math.atan2(u.Y, u.X))
     web = Pos(c.X, c.Y) * Rot(0, 0, ang) * Pos(length / 2, 0) * Rectangle(length, 2 * r)
     s = (Sketch() + web) & outline_face(side)
-    for f in sp_faces(pocket_poly(side, DISPLAY_BOSS_CLEAR)):
+    for f in sp_faces(pocket_footprint(side).buffer(DISPLAY_BOSS_CLEAR, join_style="mitre")):
         s -= f
     return max(s.faces(), key=lambda f: f.area)
 
 
 def corner_r(depth: float) -> float:
-    """Internal corner radius the shop's cutter leaves at this depth (JLCCNC rule: depth / 10,
-    rounded up to a multiple of 0.5, at least 0.5)."""
-    return max(0.5, math.ceil(depth / 10 / 0.5 - 1e-9) * 0.5)
+    """Smallest radius JLCCNC machines in a vertical internal corner this deep below the face its cutter
+    enters by (JLCCNC_TOOLS, deviation CASE-8): R0.5 to 3 mm; to 10 mm R = depth / 10 + 0.5 (tool
+    D = depth / 5) rounded up to 0.5 mm, i.e. R1.0 (Ø1 tool) to 5 mm and R1.5 (Ø2, the first row of the
+    shop's table) to 10 mm; deeper, the Min R of the smallest tool in the table that reaches the depth
+    (11.6 mm: Ø3, R2)."""
+    if depth <= JLCCNC_SMALL_DEPTH + 1e-9:
+        return 0.5
+    if depth <= JLCCNC_TOOLS[0][1] + 1e-9:
+        return math.ceil((depth / 10 + 0.5) / 0.5 - 1e-9) * 0.5
+    for _d, reach, r in JLCCNC_TOOLS:
+        if reach + 1e-9 >= depth:
+            return r
+    sys.exit(f"corner_r: no tool in JLCCNC's table reaches {depth} mm")
+
+
+def relief_r() -> float:
+    """Corner radius of the relief pockets above the plate level (J2's included): cut from the parting
+    face up to Z_POCKET_CEIL, 7.6 deep -> R1.5."""
+    return corner_r(Z_POCKET_CEIL - Z_SPLIT)
 
 
 def wall_fillets(inner: Face, feature, r: float) -> list[Face]:
@@ -835,7 +868,7 @@ def detent_grooves(r_out: float, z_tip: float) -> list:
 
 def boss_root_fillet() -> Solid:
     """Concave fillet ring where the leg boss meets the wall (boss frame, wall face at Z = 0)."""
-    r1, rf = LEG_BOSS_D / 2, corner_r(LEG_BOSS_H)
+    r1, rf = LEG_BOSS_D / 2, LEG_BOSS_ROOT_R
     ring = Pos(0, 0, -1) * Cylinder(r1 + rf, rf + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return ring - Pos(0, 0, rf) * Torus(r1 + rf, rf)
 
@@ -858,18 +891,53 @@ def detent_boss() -> Solid:
 def relief_poly(side: str):
     """Relief pocket (KiCad frame) above the plate level: inside the wall, WALL / 2 + 0.5 from the
     key well, opened to RELIEF_MIN_W; plus all of Z_BACK and Z_TRRS (spec §10.6-7), which keep
-    RELIEF_WELL_SKIN of well wall and are opened to the tool radius; plus J2's body, which runs past
-    Z_TRRS through that skin and under the plate (jack_relief_poly)."""
+    RELIEF_WELL_SKIN of well wall; plus J2's body, which runs past Z_TRRS through that skin and under the
+    plate (jack_relief_poly). The union is opened last by the cutter radius (relief_r), so every corner
+    the clipping leaves, against the wall or between the pieces, is one the cutter can make (CASE-8)."""
     cav = cavity_poly(side)
     r = RELIEF_MIN_W / 2
-    main = cav.difference(well_poly(side, WALL / 2 + 0.5)).buffer(-r).buffer(r)
+    main = cav.difference(well_poly(side, WALL / 2 + 0.5)).buffer(-r, quad_segs=RELIEF_QUAD_SEGS).buffer(
+        r, quad_segs=RELIEF_QUAD_SEGS)
     zone = zones_poly(side).difference(well_poly(side).buffer(RELIEF_WELL_SKIN, join_style="mitre"))
-    zone = zone.buffer(-TOOL_R).buffer(TOOL_R).union(jack_relief_poly(side)).intersection(cav)
-    return unary_union([main, zone]).intersection(cav.buffer(-0.01))
+    zone = zone.union(jack_relief_poly(side)).intersection(cav)
+    rr = relief_r()
+    q = RELIEF_QUAD_SEGS
+    keep = relief_islands(side).buffer(RELIEF_ISLAND_CLEAR, quad_segs=q)
+    out = unary_union([main, zone]).intersection(cav.buffer(-0.01)).difference(keep)
+    return out.buffer(-rr, quad_segs=q).buffer(rr, quad_segs=q)
+
+
+def _face_poly(face) -> Polygon:
+    """Part-frame build123d face -> KiCad-frame shapely polygon (its outer wire, 8 points per edge)."""
+    pts = [K(q.X, q.Y) for e in face.outer_wire().edges() for q in (e.position_at(t / 8) for t in range(8))]
+    return Polygon(pts).buffer(0)
+
+
+@lru_cache
+def relief_islands(side: str):
+    """What the top part adds in the relief band (Z_PLATE_BOT-Z_POCKET_CEIL) after the relief cut, as
+    the KiCad-frame plan: the bosses that rise to Z_POCKET_CEIL with their webs and wall fillets, and the
+    tent-leg pads with theirs (build_top). The relief keeps RELIEF_ISLAND_CLEAR off them, so none of them
+    meets its edge at a sharp angle (CASE-8)."""
+    inner = inner_face(side)
+    rf = corner_r(Z_POCKET_CEIL - Z_SPLIT)
+    webs = boss_webs(side, "top")
+    polys = []
+    for sx, sy in SCREWS(side):
+        if screw_under_plate(side, sx, sy):
+            continue
+        polys.append(Point(sx, sy).buffer(boss_radius(side, sx, sy), quad_segs=32))
+        if (sx, sy) in webs:
+            polys += [_face_poly(f) for f in [webs[(sx, sy)], *wall_fillets(inner, webs[(sx, sy)], rf)]]
+    for (px, py), (nx, ny) in leg_mounts(side):
+        pad_d = leg_pad_depth(side, px, py, nx, ny)
+        foot = _leg_frame(px, py, nx, ny, Pos((WALL + pad_d) / 2, 0) * Rectangle(WALL + pad_d, LEG_PAD[0]))
+        polys += [_face_poly(f) for f in [*foot.faces(), *wall_fillets(inner, foot, rf)]]
+    return unary_union(polys)
 
 
 def relief_faces(side: str) -> list[Face]:
-    return sp_faces(relief_poly(side), min_area=4 * TOOL_R ** 2)
+    return sp_faces(relief_poly(side), min_area=4 * relief_r() ** 2)
 
 
 def spacer_face(side: str) -> Sketch:
@@ -1007,11 +1075,10 @@ def leg_check(side: str):
             sys.exit(f"{side} {name} tent-leg thread is shorter than {LEG_MIN_DRILL} mm")
         if leg_thread(depth) < LEG_MIN_THREAD:
             sys.exit(f"{side} {name} tent-leg full thread {leg_thread(depth)} is below {LEG_MIN_THREAD} mm")
-        x0, y0, x1, y1 = DISPLAY(side)["pocket"]
         pad_poly = Polygon([K(px - nx * d + tx * t, py - ny * d + ty * t)
                             for d, t in ((0, -LEG_PAD[0] / 2), (0, LEG_PAD[0] / 2),
                                          (WALL + pad, LEG_PAD[0] / 2), (WALL + pad, -LEG_PAD[0] / 2))])
-        dclear = pad_poly.distance(box(x0, y0, x1, y1))
+        dclear = pad_poly.distance(pocket_footprint(side))
         kx, ky = K(px, py)
         print(f"  {side:5s} {name:5s} tent leg at ({kx:6.1f},{ky:6.1f}): pad depth {pad:4.2f}  "
               f"M3 drill depth {depth:4.2f} mm from boss face, full thread {leg_thread(depth):.1f}, "
@@ -1064,9 +1131,30 @@ def display_check(side: str, top: Solid | None = None):
     wclear = window.exterior.distance(Polygon(well.exterior)) if not window.intersects(well) else -1
     if wclear < 0.5:
         sys.exit(f"{side} display window is only {wclear:.2f} mm from the key well")
+    footprint = pocket_footprint(side)
     for sx, sy in SCREWS(side):
-        if pocket.distance(Point(sx, sy)) < boss_radius(side, sx, sy) + DISPLAY_BOSS_CLEAR:
+        if footprint.distance(Point(sx, sy)) < boss_radius(side, sx, sy) + DISPLAY_BOSS_CLEAR:
             sys.exit(f"{side} display pocket hits the boss at ({sx:.1f},{sy:.1f})")
+    # corners (CASE-8): the cutter's radius is JLCCNC's for the pocket depth; the header-end corners are
+    # relieved and the far ones lie in the key well (open above the plate); the reliefs leave JLCCNC's
+    # minimum wall to the key well and, above the top face, to the outside of the bezel
+    r = pocket_corner_r()
+    if r < corner_r(Z_DISPLAY_TOP - Z_SPLIT) - 1e-9:
+        sys.exit(f"{side} display pocket corner R{r} is below JLCCNC's minimum for its depth")
+    corners = pocket_corners(side)
+    if [c[1] for c in corners if c[4]] != [d["pocket"][3]] * 2:
+        sys.exit(f"{side} display pocket: only its two far-end corners may lie in the key well")
+    walls = []
+    for cx, cy in pocket_reliefs(side):
+        disc = Point(cx, cy).buffer(r, quad_segs=64)
+        walls += [well.distance(disc), bezel.exterior.distance(disc) if bezel.contains(disc) else -1.0]
+    if min(walls) < JLCCNC_WALL_MIN - 1e-6:
+        sys.exit(f"{side} display pocket relief leaves a {min(walls):.2f} mm wall "
+                 f"(JLCCNC: {JLCCNC_WALL_MIN})")
+    for cx, cy, sx, sy, in_well in corners:
+        if in_well and not well.contains(Point(cx, cy).buffer(TOOL_R)):
+            sys.exit(f"{side} display pocket corner ({cx:.2f},{cy:.2f}) is within the well's corner radius "
+                     "of the well edge: it would be an internal corner above the plate")
     if top is not None:
         (wx, wy), (px0, py0, px1, _) = d["window_centre"], d["pocket"]
         x0, y0, x1, y1 = d["window"]
@@ -1079,18 +1167,30 @@ def display_check(side: str, top: Solid | None = None):
         probes_solid = [(wx, y0 - 0.8, Z_BEZEL_TOP - 0.3), (x0 - 0.8, wy, Z_BEZEL_TOP - 0.3),
                         (px0 + 0.3, py0 + 0.3, Z_DISPLAY_TOP + 0.1), (bx0 + 0.3, wy, Z_BEZEL_TOP - 0.6),
                         ((bx0 + bx1) / 2, by0 + 0.3, Z_BEZEL_TOP - 0.6)]
+        a = r / math.sqrt(2)
+        for cx, cy, sx, sy, in_well in corners:
+            if in_well:     # open over the plate, the cutter's fillet in the plate
+                probes_open.append((cx + sx * 0.05, cy + sy * 0.05, Z_PLATE_TOP + 0.3))
+                probes_solid.append((cx + sx * 0.05, cy + sy * 0.05, Z_PLATE_TOP - 0.5))
+            else:           # the relief runs into both walls, from the PCB up to the ceiling
+                for z in (Z_PLATE_BOT + 0.3, Z_PLATE_TOP + 0.5, Z_DISPLAY_TOP - 0.3):
+                    probes_open += [(cx - sx * (r - a - 0.1), cy + sy * a, z),
+                                    (cx + sx * a, cy - sy * (r - a - 0.1), z)]
+                probes_solid.append((cx - sx * (r - a + 0.1), cy + sy * a, Z_DISPLAY_TOP - 0.3))
         for x, y, z in probes_open:
             if top.is_inside(Vector(*P(x, y), z)):
-                sys.exit(f"{side} display window / pocket is not open at ({x:.1f},{y:.1f},{z:.1f})")
+                sys.exit(f"{side} display window / pocket is not open at ({x:.2f},{y:.2f},{z:.2f})")
         for x, y, z in probes_solid:
             if not top.is_inside(Vector(*P(x, y), z)):
-                sys.exit(f"{side} no bezel skin or wall at ({x:.1f},{y:.1f},{z:.1f})")
+                sys.exit(f"{side} no bezel skin or wall at ({x:.2f},{y:.2f},{z:.2f})")
     b = bezel_rect(side)
     print(f"  {side:5s} display: pocket x {d['pocket'][0]:.2f}-{d['pocket'][2]:.2f} y {d['pocket'][1]:.3f}-"
           f"{d['pocket'][3]:.3f} Z {Z_PCB_TOP}-{Z_DISPLAY_TOP} (glass <= {Z_PCB_TOP + DISPLAY_STACK_MAX:.2f}); "
           f"bezel x {b[0]:.3f}-{b[2]:.3f} y {b[1]:.3f}-{b[3]:.3f} Z {Z_TOP}-{Z_BEZEL_TOP}; window "
           f"{d['window'][2] - d['window'][0]:.0f}x{d['window'][3] - d['window'][1]:.0f} at {d['window_centre']}, "
-          f"{wclear:.2f} mm from the well" + ("; probed open" if top is not None else ""))
+          f"{wclear:.2f} mm from the well; corners R{r} ({len(pocket_reliefs(side))} dog-bones, thinnest "
+          f"wall {min(walls):.2f}; {sum(c[4] for c in corners)} in the key well)"
+          + ("; probed open" if top is not None else ""))
 
 
 def usb_notch(side: str) -> dict:
@@ -1194,21 +1294,50 @@ def pin_holes(side: str) -> list[tuple[float, float]]:
 
 
 def pocket_corner_r() -> float:
-    """Radius of the cutter that reaches the display pocket's ceiling from the parting face (JLCCNC
-    rule, corner_r): its corners are relieved by that radius."""
+    """Radius of the cutter that reaches the display pocket's ceiling from the parting face: 11.6 deep,
+    past the Ø2 tool's 10 mm, so JLCCNC's Ø3 tool and its Min R 2 (corner_r, deviation CASE-8)."""
     return corner_r(Z_DISPLAY_TOP - Z_SPLIT)
 
 
-def pocket_cut(side: str) -> Solid:
-    """Display pocket: the rectangle up to the ceiling, with a dog-bone relief at each corner (a
-    circle of the cutter's radius through the corner), so the cutter leaves no fillet in the corner
-    where the module and J3 have only 0.5 mm per side (deviation CASE-1)."""
+def pocket_corners(side: str) -> list[tuple[float, float, int, int, bool]]:
+    """Display pocket corners (KiCad frame): x, y, the inward diagonal, and whether the corner lies in
+    the key well. The far (front) end lies in the C6R1 well (WS3-5): there the pocket is walled only in
+    the plate, below Z_PLATE_TOP, under the module; the header-end corners are walled up to the ceiling."""
     x0, y0, x1, y1 = DISPLAY(side)["pocket"]
+    well = well_poly(side)
+    return [(cx, cy, sx, sy, well.contains(Point(cx, cy)))
+            for cx, cy, sx, sy in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x1, y1, -1, -1), (x0, y1, 1, -1))]
+
+
+def pocket_reliefs(side: str) -> list[tuple[float, float]]:
+    """Centres (KiCad frame) of the dog-bone reliefs, circles of pocket_corner_r() through each corner
+    walled up to the ceiling, where the module and J3 stand 0.5 mm from both walls (CASE-1, CASE-8)."""
+    a = pocket_corner_r() / math.sqrt(2)
+    return [(cx + sx * a, cy + sy * a) for cx, cy, sx, sy, in_well in pocket_corners(side) if not in_well]
+
+
+def pocket_footprint(side: str) -> Polygon:
+    """Plan of the display pocket (KiCad frame): the rectangle plus the dog-bone reliefs."""
     r = pocket_corner_r()
-    a = r / math.sqrt(2)
-    cut = prism(sp_faces(pocket_poly(side))[0], Z_PCB_TOP - 0.01, Z_DISPLAY_TOP)
-    for cx, cy, sx, sy in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x1, y1, -1, -1), (x0, y1, 1, -1)):
-        px, py = P(cx + sx * a, cy + sy * a)
+    return unary_union([pocket_poly(side), *[Point(c).buffer(r, quad_segs=64) for c in pocket_reliefs(side)]])
+
+
+def pocket_cut(side: str) -> Solid:
+    """Display pocket: the rectangle up to the ceiling with a dog-bone relief in each corner walled up
+    to it (pocket_reliefs), so the cutter leaves no fillet where the module and J3 have only 0.5 mm per
+    side; the corners in the key well are walled only in the plate, under the module, and there get the
+    cutter's radius as a fillet (deviations CASE-1, CASE-8)."""
+    r = pocket_corner_r()
+    rect = sp_faces(pocket_poly(side))[0]
+    far = [P(cx, cy) for cx, cy, _sx, _sy, in_well in pocket_corners(side) if in_well]
+    low = rect
+    if far:
+        verts = [min(rect.vertices(), key=lambda v: (v.X - c[0]) ** 2 + (v.Y - c[1]) ** 2) for c in far]
+        out = fillet(verts, r)
+        low = _up(out if isinstance(out, Face) else out.faces()[0])
+    cut = prism(low, Z_PCB_TOP - 0.01, Z_PLATE_TOP + 0.01) + prism(rect, Z_PLATE_TOP, Z_DISPLAY_TOP)
+    for cx, cy in pocket_reliefs(side):
+        px, py = P(cx, cy)
         cut += Pos(px, py, Z_PCB_TOP - 0.01) * Cylinder(r, Z_DISPLAY_TOP - Z_PCB_TOP + 0.01,
                                                       align=(Align.CENTER, Align.CENTER, Align.MIN))
     return cut
@@ -1294,6 +1423,12 @@ def build_top(side: str) -> Solid:
         drill += Pos(-LEG_BOSS_H + depth, 0, LEG_Z) * Rot(0, 90, 0) * Solid.make_cone(
             LEG_TAP_D / 2, 0, drill_point(LEG_TAP_D))
         body -= _leg_frame(px, py, nx, ny, drill)
+
+    # the key well again, up to just over the bosses and pads (and below the bezel, which meets the well
+    # flush): boss T2 (right frame (59.7, 121.7)) reached 0.67 mm into the well and stood 1.0 mm above
+    # the plate there as a crescent island (CASE-8); the well is one cut from the top, nothing stands in it
+    for wf in well:
+        body -= prism(wf, Z_PLATE_TOP, Z_POCKET_CEIL + 0.5)
 
     # display: pocket over the module (cuts the spacer zone and the plate) + viewing window
     body -= pocket_cut(side)
@@ -1513,7 +1648,7 @@ def export_fitcheck_dxf(side: str, path: str):
         dxf.add_shape(_wire_of(Pos(*P(sx, sy)) * Circle(SCREW_CLEAR_D / 2)), layer="SCREWS")
         dxf.add_shape(_wire_of(Pos(*P(sx, sy)) * Circle(boss_radius(side, sx, sy))), layer="SCREWS")
     d = DISPLAY(side)
-    for f in sp_faces(pocket_poly(side)):
+    for f in sp_faces(pocket_footprint(side)):
         dxf.add_shape(f.outer_wire(), layer="DISPLAY")
     x0, y0, x1, y1 = d["window"]
     dxf.add_shape(_wire_of(Pos(*P(*d["window_centre"])) * RectangleRounded(x1 - x0, y1 - y0, LD.WINDOW_R)),

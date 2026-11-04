@@ -97,8 +97,9 @@ def top_features(right: bool) -> list[list[str]]:
         ["W1", f"display window {x1 - x0:.0f} x {y1 - y0:.0f} R{E.LD.WINDOW_R} THRU the bezel skin, "
                f"{E.LD.WINDOW_CHAMFER} x 45° chamfer on the top edge", *map("{:.2f}".format, E.P(wx, wy))],
         ["D1", f"display pocket {px1 - px0:.1f} x {py1 - py0:.1f}, Z {E.Z_PCB_TOP}-{E.Z_DISPLAY_TOP} "
-               f"(bezel skin {E.Z_BEZEL_TOP - E.Z_DISPLAY_TOP:.1f}), corners relieved by R{E.pocket_corner_r()} "
-               "dog-bones; front end open into the key well",
+               f"(skin {E.Z_BEZEL_TOP - E.Z_DISPLAY_TOP:.1f}), {E.Z_DISPLAY_TOP - E.Z_SPLIT:.1f} deep from "
+               f"the parting face: R{E.pocket_corner_r()} dog-bones at the {len(E.pocket_reliefs(side))} "
+               "back corners (keep), front end open into the key well",
          *map("{:.2f}".format, E.P((px0 + px1) / 2, (py0 + py1) / 2))],
         ["B1", f"raised display bezel {bx1 - bx0:.2f} x {by1 - by0:.2f}, top Z {E.Z_BEZEL_TOP} "
                f"({E.Z_BEZEL_TOP - E.Z_TOP:.1f} above the top face), top edges {E.BEZEL_CHAMFER} x 45°, "
@@ -292,6 +293,13 @@ def top_sheet1(pdf, shape, right, part, dwg, version):
         f"Switch cutouts ({len(E.KEYS(_side(right)))}x): 14.00 +0.05/-0 square, corner R0.5 max, plus "
         f"{2 * len(E.stab_keys(_side(right)))} stabiliser cutouts. Plate thickness 1.50 ±0.05. "
         "Plate flatness 0.2 over the part.",
+        f"Internal corners are modelled at JLCCNC's minimum radius for their depth (R = depth/10 + 0.5; past "
+        f"10 mm the Min R of the tool that reaches): key well R{E.corner_r(E.WELL_DEPTH)} "
+        f"({E.WELL_DEPTH:.1f} deep), relief pockets and wall fillets R{E.relief_r()} "
+        f"(to {E.Z_POCKET_CEIL - E.Z_SPLIT:.1f} deep "
+        f"from the parting face), pocket D1 R{E.pocket_corner_r()} ({E.Z_DISPLAY_TOP - E.Z_SPLIT:.1f} deep, "
+        "dog-bones at its back corners). Only the switch and stabiliser cutouts are R0.5 (Ø1 tool, through "
+        "the 1.5 plate at the bottom of the open key well).",
         f"Display bezel B1 stands {E.Z_BEZEL_TOP - E.Z_TOP:.1f} mm above the top face (part height "
         f"{E.Z_BEZEL_TOP - E.Z_SPLIT:.1f}). Pocket D1 runs from the parting side up to {E.BEZEL_SKIN} mm under "
         "the bezel top; window W1 opens it. USB-C notch J1 and TRRS hole J2 are side operations (see table).",
@@ -537,6 +545,8 @@ def bottom_sheet(pdf, shape, right, part, dwg, version):
         f"style countersunk screws; heads must sit flush or up to {E.SCREW_HEAD_SINK} below the underside.",
         "The USB-C plug recess of the top part continues 0.8 mm into the back wall of this part (see STEP). "
         "M1: engraved side mark, cosmetic.",
+        f"Internal corners: boss-web fillets R{E.corner_r(E.Z_SPLIT - E.FLOOR_T)} "
+        f"({E.Z_SPLIT - E.FLOOR_T:.1f} deep, JLCCNC R = depth/10 + 0.5); tray corners R2 and larger.",
         ("This is a LEFT-hand part: a mirror image of the right-hand part." if not right else
          "The left-hand part is a mirror image of this part."),
         "Cosmetic surfaces: underside and outer walls: no tool marks, scratches or clamp marks. Inside "
@@ -663,7 +673,7 @@ def leg_sheet(pdf, shape, part, dwg, version):
         ["Bore", f"Ø{E.LEG_HOLE_D} +0.1/0 THROUGH (M3 clearance, NO THREAD), on the pivot axis"],
         ["Counterbore", f"Ø{E.LEG_CBORE[0]} +0.1/0 x {E.LEG_CBORE[1]} deep from the back face (spring seat)"],
         ["Arm", f"{E.LEG_ARM_W} wide at hub tapering to {E.LEG_NECK_D}, {E.LEG_ARM_T} thick, flush with the "
-                "back face, long edges R1.5"],
+                f"back face, long edges R1.5, joint to the hub R{E.corner_r(E.LEG_ARM_T)}"],
         ["Neck / spigot", f"Ø{E.LEG_NECK_D} to {y_sh:.1f} from axis; spigot Ø{E.LEG_SPIGOT[0]} -0.05 x "
                           f"{E.LEG_SPIGOT[1]} for the foot cap, end chamfer 0.4"],
         ["Length", f"{y_sh + E.LEG_SPIGOT[1]:.1f} axis to spigot end; {E.LEG_LEN:.0f} to foot tip with cap"],

@@ -8,6 +8,10 @@
 #   just pcb-drc left        stages 11-12 only, on the committed board (DRC gate, checks)
 #   just pcb-fab left        stages 13-14: JLCPCB gerbers/BOM/CPL, renders, Edge DXF, STEP
 #   just pcb-render-check left   after pcb-fab: the committed renders are current (pixel compare)
+#   just pcb-production left     stage P: JLC order package (panel, gerbers/BOM/CPL) -> pcb/production/left
+#   just pcb-production-check left   stage P, then the committed package must be byte-identical
+#   just pcb-cpl-images          docs/images/cpl-*.svg: JLC footprints from the CPL over the KiCad pads
+#   just pcb-stock left [5]      live JLC stock for the committed package (network)
 #   just pcb left | pcb-all  everything for one / both sides
 
 pcb_image := "kicad/kicad:10.0.7"
@@ -64,6 +68,32 @@ pcb-render-check side: pcb-deps
     mkdir -p build/{{side}}/committed
     for v in top bottom; do git show HEAD:docs/images/pcb-{{side}}-$v.png > build/{{side}}/committed/pcb-{{side}}-$v.png; done
     {{_pcb_docker}} python3 pcb/scripts/render_check.py {{side}}
+
+# Stage P: the JLC turnkey order package (KiKit panel + DRC, panel and bare-board gerbers/BOM/CPL,
+# cpl_check, jlc_check) from the committed board -> build/<side>/production
+pcb-package side: pcb-deps
+    {{_pcb_docker}} bash pcb/scripts/stage_p.sh {{side}}
+
+# Stage P, then make it the committed order package pcb/production/<side>/
+pcb-production side: (pcb-package side)
+    rm -rf pcb/production/{{side}}
+    mkdir -p pcb/production
+    cp -r build/{{side}}/production pcb/production/{{side}}
+
+# Stage P, then require the committed order package to equal the rebuilt one byte for byte
+pcb-production-check side: (pcb-package side)
+    diff -r build/{{side}}/production pcb/production/{{side}}
+
+# CPL overlay drawings docs/images/cpl-*.svg: JLC's footprints placed from the committed bare-board
+# CPLs of both halves over the KiCad pads (cpl_check.py --svg)
+pcb-cpl-images: pcb-deps
+    {{_pcb_docker}} bash -c "bash tools/kicad_env.sh && python3 pcb/scripts/cpl_check.py --quiet --svg docs/images \
+        pcb/left/worxboard-left.kicad_pcb pcb/production/left/bare-board/bom.csv pcb/production/left/bare-board/cpl.csv \
+        pcb/right/worxboard-right.kicad_pcb pcb/production/right/bare-board/bom.csv pcb/production/right/bare-board/cpl.csv"
+
+# Live JLC stock for the committed package (network; run it on the day you order)
+pcb-stock side boards="5":
+    uv run python pcb/scripts/jlc_check.py check {{side}} pcb/production/{{side}} --stock {{boards}}
 
 # All stages for one side (spec §9.2): schematic, layout, autoroute, finish + DRC + checks, fab outputs
 pcb side: (pcb-sch side) (pcb-place side) (pcb-route side) (pcb-finish side) (pcb-fab side)

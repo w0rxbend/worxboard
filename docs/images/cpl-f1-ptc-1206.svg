@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="346" viewBox="0 0 1020 346" font-family="DejaVu Sans, Arial, sans-serif" fill="#1a1a1a">
+<rect width="1020" height="346" fill="#ffffff"/>
+<text x="8" y="18" font-size="14" font-weight="bold">F1 PTC fuse, 1206 · JLC footprint F1206 (C70069) · 2 placed, 2 pass</text>
+<text x="8" y="36" font-size="11"><tspan fill="#4d4d4d">grey: KiCad copper</tspan>, white: KiCad holes, <tspan fill="#d62728">red: JLC pads</tspan>, <tspan fill="#1f77b4">blue: part terminals / pegs</tspan>, <tspan fill="#2ca02c">green: part body</tspan>, <tspan fill="#b8860b">gold: board edge</tspan>; red ring = JLC pin 1, cross = KiCad pad 1</text>
+<rect x="2" y="48" width="336" height="296" fill="none" stroke="#dddddd"/>
+<path d="M294.257 217.351 L293.089 223.221 L289.764 228.198 L284.787 231.523 L278.916 232.691 L232.895 232.691 L227.025 231.523 L222.048 228.198 L218.723 223.221 L217.555 217.351 L217.555 140.649 L218.723 134.779 L222.048 129.802 L227.025 126.477 L232.895 125.309 L278.916 125.309 L284.787 126.477 L289.764 129.802 L293.089 134.779 L294.257 140.649 L294.257 217.351 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>
+<path d="M122.445 217.351 L121.277 223.221 L117.952 228.198 L112.975 231.523 L107.105 232.691 L61.084 232.691 L55.213 231.523 L50.236 228.198 L46.911 223.221 L45.743 217.351 L45.743 140.649 L46.911 134.779 L50.236 129.802 L55.213 126.477 L61.084 125.309 L107.105 125.309 L112.975 126.477 L117.952 129.802 L121.277 134.779 L122.445 140.649 L122.445 217.351 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>
+<path d="M268.178 129.911 L71.822 129.911 L71.822 228.089 L268.178 228.089 L268.178 129.911 Z" fill="#2ca02c" fill-opacity="0.12" stroke="#2ca02c" stroke-width="2.1"/>
+<path d="M268.178 129.911 L237.497 129.911 L237.497 129.911 L237.497 228.089 L237.497 228.089 L268.178 228.089 L268.178 129.911 Z" fill="#1f77b4" fill-opacity="0.65" stroke="none"/>
+<path d="M102.503 129.911 L71.822 129.911 L71.822 129.911 L71.822 228.089 L71.822 228.089 L102.503 228.089 L102.503 129.911 Z" fill="#1f77b4" fill-opacity="0.65" stroke="none"/>
+<path d="M295.183 232.016 L222.157 232.016 L222.157 125.984 L295.183 125.984 L295.183 232.016 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
+<path d="M117.843 232.016 L44.817 232.016 L44.817 125.984 L117.843 125.984 L117.843 232.016 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
+<path d="M240.566 179 L271.246 179 M255.906 163.66 L255.906 194.34" stroke="#1a1a1a" stroke-width="1.5"/>
+<circle cx="258.667" cy="179" r="15.34" fill="none" stroke="#d62728" stroke-width="2"/>
+<text x="8" y="316" font-size="12" font-weight="bold">LEFT F1 · F.Cu · CPL 180°</text>
+<text x="8" y="331" font-size="11">place 0.000 mm · terminals 100% on pad</text>
+<rect x="342" y="48" width="336" height="296" fill="none" stroke="#dddddd"/>
+<path d="M385.743 140.649 L386.911 134.779 L390.236 129.802 L395.213 126.477 L401.084 125.309 L447.105 125.309 L452.975 126.477 L457.952 129.802 L461.277 134.779 L462.445 140.649 L462.445 217.351 L461.277 223.221 L457.952 228.198 L452.975 231.523 L447.105 232.691 L401.084 232.691 L395.213 231.523 L390.236 228.198 L386.911 223.221 L385.743 217.351 L385.743 140.649 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>
+<path d="M557.555 140.649 L558.723 134.779 L562.048 129.802 L567.025 126.477 L572.895 125.309 L618.916 125.309 L624.787 126.477 L629.764 129.802 L633.089 134.779 L634.257 140.649 L634.257 217.351 L633.089 223.221 L629.764 228.198 L624.787 231.523 L618.916 232.691 L572.895 232.691 L567.025 231.523 L562.048 228.198 L558.723 223.221 L557.555 217.351 L557.555 140.649 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>
+<path d="M411.822 228.089 L608.178 228.089 L608.178 129.911 L411.822 129.911 L411.822 228.089 Z" fill="#2ca02c" fill-opacity="0.12" stroke="#2ca02c" stroke-width="2.1"/>
+<path d="M411.822 228.089 L442.503 228.089 L442.503 228.089 L442.503 129.911 L442.503 129.911 L411.822 129.911 L411.822 228.089 Z" fill="#1f77b4" fill-opacity="0.65" stroke="none"/>
+<path d="M577.497 228.089 L608.178 228.089 L608.178 228.089 L608.178 129.911 L608.178 129.911 L577.497 129.911 L577.497 228.089 Z" fill="#1f77b4" fill-opacity="0.65" stroke="none"/>
+<path d="M384.817 125.984 L457.843 125.984 L457.843 232.016 L384.817 232.016 L384.817 125.984 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
+<path d="M562.157 125.984 L635.183 125.984 L635.183 232.016 L562.157 232.016 L562.157 125.984 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
+<path d="M408.754 179 L439.434 179 M424.094 163.66 L424.094 194.34" stroke="#1a1a1a" stroke-width="1.5"/>
+<circle cx="421.333" cy="179" r="15.34" fill="none" stroke="#d62728" stroke-width="2"/>
+<text x="348" y="316" font-size="12" font-weight="bold">RIGHT F1 · F.Cu · CPL 0°</text>
+<text x="348" y="331" font-size="11">place 0.000 mm · terminals 100% on pad</text>
+</svg>

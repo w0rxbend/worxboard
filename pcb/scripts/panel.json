@@ -1,0 +1,68 @@
+{
+    "layout": {
+        "type": "grid",
+        "rows": 1,
+        "cols": 1,
+        "renameref": "{orig}",
+        "baketext": true,
+        "renamenet": "{orig}"
+    },
+    "source": {
+        "type": "auto",
+        "tolerance": "5mm"
+    },
+    "tabs": {
+        "type": "plugin",
+        "code": "pcb/scripts/panel_tabs.py.FrameTabs",
+        "arg": ""
+    },
+    "cuts": {
+        "type": "mousebites",
+        "drill": "0.5mm",
+        "spacing": "0.8mm",
+        "offset": "-0.05mm",
+        "prolong": "0mm"
+    },
+    "framing": {
+        "type": "tightframe",
+        "width": "6mm",
+        "space": "2mm",
+        "slotwidth": "2mm",
+        "cuts": "none"
+    },
+    "tooling": {
+        "type": "4hole",
+        "hoffset": "4mm",
+        "voffset": "3mm",
+        "size": "2mm",
+        "paste": false,
+        "soldermaskmargin": "0.15mm"
+    },
+    "fiducials": {
+        "type": "3fid",
+        "hoffset": "14mm",
+        "voffset": "4mm",
+        "coppersize": "1mm",
+        "opening": "2mm",
+        "paste": false
+    },
+    "text": {
+        "type": "simple",
+        "text": "worxboard rev A, JLC SMT panel",
+        "anchor": "mb",
+        "voffset": "-3mm",
+        "width": "1.5mm",
+        "height": "1.5mm",
+        "thickness": "0.2mm",
+        "layer": "F.SilkS"
+    },
+    "post": {
+        "origin": "tl",
+        "millradius": "0mm",
+        "refillzones": false,
+        "reconstructarcs": true
+    },
+    "debug": {
+        "deterministic": true
+    }
+}

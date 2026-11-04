@@ -4,7 +4,10 @@ name: pcb
 # schematics to be current; `board` gates the committed boards (DRC + checks) and builds the fab
 # outputs (jlc/, STEP, Edge DXF, renders); `fit` runs the case fit check (WS3) against those STEPs;
 # `rebuild` runs place -> Freerouting -> finish from scratch and requires the result to equal the
-# committed board (the pipeline is seeded, docs/deviations.md WS2c-4).
+# committed board (the pipeline is seeded, docs/deviations.md WS2c-4). `production` rebuilds the JLC
+# order package of each half (stage P: KiKit panel and its DRC, gerbers/BOM/CPL for the panel and the
+# bare board, cpl_check.py, jlc_check.py) and requires it to equal pcb/production/<side>/ byte for
+# byte; `cpl-images` requires docs/images/cpl-*.svg to match the committed CPLs.
 
 on:
   push:
@@ -65,6 +68,45 @@ jobs:
             build/${{ matrix.side }}/drc.json
             docs/images/pcb-${{ matrix.side }}-*.png
           if-no-files-found: error
+
+  production:
+    name: Order package ${{ matrix.side }} (stage P, equal to pcb/production)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        side: [left, right]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v2
+      - name: just pcb-production-check (panel + DRC, fab files, cpl_check, jlc_check, byte compare)
+        run: just pcb-production-check ${{ matrix.side }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worxboard-pcb-production-${{ matrix.side }}
+          path: |
+            build/${{ matrix.side }}/production/
+            build/${{ matrix.side }}/production-work/facts.json
+            build/${{ matrix.side }}/production-work/panel-drc.json
+            build/${{ matrix.side }}/production-work/panel/worxboard-${{ matrix.side }}-panel.kicad_pcb
+          if-no-files-found: warn
+
+  cpl-images:
+    name: CPL overlay drawings match the committed CPLs (docs/images/cpl-*.svg)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v2
+      - name: just pcb-cpl-images (cpl_check.py --svg on both halves' bare-board CPLs)
+        run: just pcb-cpl-images
+      - name: The drawings are the committed ones
+        run: |
+          git status --porcelain -- docs/images/
+          git diff --exit-code -- docs/images/
+          test -z "$(git status --porcelain -- docs/images/)"
 
   fit:
     name: Case fit check against the PCB STEPs (stage 14 -> WS3)

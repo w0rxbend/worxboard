@@ -1,36 +1,38 @@
 # Verification
 
-Rev A integration results and the ordering gates of spec §7 (G1 display, G2 TRRS jack, G3 parts).
-WS5 checked everything below on **2026-11-02**: `just all` at `d1f2d77` (the last commit before WS5,
-which adds only tests, CI and docs), the integration tests at `184671a`, stock at 03:59 UTC. The
-gates block **ordering**, not the repository.
+This page records the rev A integration results and the ordering gates of spec §7: G1 (display),
+G2 (TRRS jack) and G3 (parts). WS5 first checked them on 2026-11-02, and all three failed. The
+turnkey work of 2026-11-03 and 2026-11-04 fixed them (deviations ELEC, BOARD, PKG, CASE and WS1-7
+to WS1-9). This page was re-checked on **2026-11-04** at `f4c95bb`, the last commit before these
+docs. The gates block **ordering**, not the repository.
 
 ## Summary
 
-| Check | Result | Blocks |
-|---|---|---|
-| [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 88 passed, 6 expected failures (the gate findings below), 0 skipped, after the [review fixes](#review-fixes) (68 / 8 before) | |
-| [`just all` from a clean clone](#just-all-from-a-clean-clone) | **PASS** in 34 min 44 s; both boards rebuilt byte-identical | |
-| [CI on `main`](#ci) | **PASS**: every workflow green | |
-| [G1 display](#g1-niceview-display) | **FAIL**: pin order right, but J3 pin 1 is at the wrong end; the module sits 0.7 mm off the model (the window now shows the viewing area, see [review fixes](#review-fixes)) | PCB and case |
-| [G2 TRRS jack](#g2-pj-320d-trrs-jack) | Pad map and height **PASS**; the body is 2.1 mm longer than the case allows for: **FAIL** | case |
-| [G3 parts and rules](#g3-parts-stock-and-track-width) | **FAIL**: the hot-swap socket C2803348 is discontinued; track width **PASS** | PCB assembly |
+| Check | Result |
+|---|---|
+| [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 111 passed, 0 expected failures, 0 skipped |
+| [CI on `main`](#ci) | **PASS**: layout, firmware, case and pcb on `f4c95bb`, every job, both from-scratch board rebuilds included |
+| [Order package](#order-package) (`pcb/production/`) | **PASS**: `jlc_check` on both halves, 119 of 119 placements per half proven against JLC's footprints, and the package rebuilds byte for byte |
+| [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 10 of 10 per half |
+| [G1 display](#g1-niceview-display) | **PASS** |
+| [G2 TRRS jack](#g2-pj-320d-trrs-jack) | **PASS** |
+| [G3 parts, rules and placement](#g3-parts-stock-and-track-width) | **PASS**: every line in stock on 2026-11-04 at 05:17 UTC; re-check on the order day |
+| [Hardware](#not-verified-until-a-board-is-built) | **not built**: the items only a real board can confirm are listed |
 
-Fixes go back to the owning streams; each row under [Open items](#open-items-that-block-ordering)
-names one. The failing gate checks are strict expected failures in `tests/integration/test_gates.py`,
-so a fix makes them pass and the marker has to come off with it.
+Nothing blocks the order now ([open items](#open-items-that-block-ordering)). Order 2 assembled
+boards per side and test them before ordering the aluminium case
+([ordering-jlcpcb.md](ordering-jlcpcb.md)).
 
 ## How to re-run
 
 ```sh
-just all                                          # layout-check -> fw -> pcb-all -> model -> site
-uv run pytest tests/integration -rxs              # pins, gates, release assembly (build outputs optional)
-uv run python tests/integration/stock.py --boards 5   # G3 stock on the day of ordering (network)
-uv run python tests/integration/release.py        # release assets into dist/
+just all                                   # layout-check -> fw -> pcb-all -> model -> site
+uv run pytest tests/integration -rxs       # pins, gates, stock logic, release assembly
+just pcb-production-check left             # the order package equals a rebuild (also: right)
+just pcb-stock left 5                      # package checks + live JLC stock for 5 + 5 boards (network)
+uv run python tests/integration/stock.py --boards 5   # the same stock check, with LCSC too
+just model corners fitcheck                # case checks, JLCCNC corner rule, fit against the PCB STEPs
 ```
-
-Without build outputs the integration tests read the committed boards and board files and skip the
-netlist, compiled-devicetree and real-asset cases; after `just all` nothing is skipped.
 
 ## Integration tests
 
@@ -38,108 +40,172 @@ netlist, compiled-devicetree and real-asset cases; after `just all` nothing is s
 targets, and every built `build/fw/<artifact>/zephyr/zephyr.dts`), the PCB (the committed boards,
 and the netlists `just pcb-sch` exports) and `layout/pins.py`:
 
-- **Every switch reaches its keymap slot.** For each of the 37 keys per half: the socket's COL net
-  and the diode cathode's ROW net, the RP2040 GPIO on each net, the firmware row and column for those
-  GPIOs plus `col-offset`, the transform position of that (row, col) and the key `layout.json` puts
-  there. This is what proves the right half's reversed `col-gpios` (GP20…GP14, `col-offset = 7`)
-  against the shared matrix netlist.
-- **TRRS crossover.** Through each jack's 1 kΩ resistors to the UART pins: with a straight cable the
-  left TX meets the right RX and the reverse; Ring2 is VLINK and Sleeve GND on both halves.
-- **Display header.** J3 pins 1–5 carry the firmware's PIO1 SPI MOSI, SCK and CS GPIOs, 3V3 and GND.
-- **Firmware vs `pins.py`.** Rows GP8–GP13 with pull-down, columns GP14–GP20 (reversed on the right),
-  UART0 TX GP0 / RX GP1 with input enabled, SPI on GP2/GP3/GP5 with CS active high, for the board
-  files and all six compiled builds. Every compiled `zephyr.dts` equals its board files, and the
-  RP2350A target has the same pinout.
+- **Every switch reaches its keymap slot.** The chain is checked for each of the 37 keys per half:
+  1. the socket's COL net and the diode cathode's ROW net;
+  2. the RP2040 GPIO on each net;
+  3. the firmware row and column for those GPIOs, plus `col-offset`;
+  4. the transform position of that (row, col), and the key `layout.json` puts there.
+
+  This proves the right half's reversed `col-gpios` (GP20…GP14, `col-offset = 7`) against the
+  shared matrix netlist.
+- **TRRS crossover.** This follows each jack's 1 kΩ resistors to the UART pins. With a straight
+  cable, the left TX meets the right RX and the reverse. Ring2 is VLINK and Sleeve is GND on both
+  halves.
+- **Display header.** J3 pins 1–5 carry the firmware's PIO1 SPI MOSI, SCK and CS GPIOs, 3V3 and
+  GND.
+- **Firmware vs `pins.py`.** These must hold for the board files and all six compiled builds:
+  - rows GP8–GP13 with pull-down;
+  - columns GP14–GP20 (reversed on the right);
+  - UART0 TX GP0 / RX GP1, with input enabled;
+  - SPI on GP2/GP3/GP5, with CS active high.
+
+  Every compiled `zephyr.dts` equals its board files, and the RP2350A target has the same pinout.
 - **Netlist vs board.** Each netlist part has the same pad nets on the committed board, and the
   RP2040 pin names in the netlist give the QFN numbers that `pins.py` lists.
-- **The checks catch what they are for.** Mutated firmware (right columns not reversed, no
-  `col-offset`, rows rotated, UART roles swapped) must fail the chain and crossover checks.
+- **The checks catch what they are for.** Mutated firmware must fail the chain and crossover
+  checks: right columns not reversed, no `col-offset`, rows rotated, UART roles swapped.
 
-`test_gates.py` checks G1 and G2 against the drawings (below). `test_stabs.py` checks that the
-PCB's Ø4.0 stabiliser holes sit on the side `layout.json` names (`stab_dir`, which the case cut-outs
-also follow) and that the halves are mirror images. `test_release.py` checks the release
-assembly on a synthetic tree and, after `just all`, on the real outputs (gerber zip contents, CPL
-header, BOM LCSC column, STEP and UF2 magic numbers), and that `release.yml` runs only on `v*` tags.
+The other test files:
 
-Result on the clean-clone outputs below: **68 passed, 8 xfailed** (the 8 gate findings), nothing
-skipped. Without any build outputs: 38 passed, 30 skipped, 8 xfailed.
+- `test_gates.py` checks G1 and G2 against the drawings (below). Its strict expected failures came
+  off as the fixes landed (`b5c0f60` for G1, `68f812e` for G2).
+- `test_stock.py` checks offline that every part with a body is in the JLC BOM with an LCSC number,
+  J3 included. It also checks that no part is DNP, that both halves share one BOM, that no retired
+  part is back, that the committed boards order the `design.py` parts, and the stock verdicts on
+  canned records (ELEC-4, ELEC-6).
+- `test_stabs.py` checks that the PCB's Ø4.0 stabiliser holes sit on the side `layout.json` names,
+  and that the halves are mirror images.
+- `test_release.py` checks the release assembly.
+
+Result on 2026-11-04 at `f4c95bb`: **111 passed**, nothing skipped, no expected failures.
+
+## Order package
+
+`pcb/production/<side>/` holds the JLC order of each half. The panel is the default; `bare-board/`
+is the fallback. See [ordering-jlcpcb.md](ordering-jlcpcb.md).
+
+| Check | Left | Right |
+|---|---|---|
+| `jlc_check.py` (`just pcb-stock left 5` and `jlc_check.py check right`, 2026-11-04 05:17 UTC) | 11 of 11, with live stock | 10 of 10 |
+| Panel Gerbers | 9 layers + PTH/NPTH drills, no dates, 198.84 × 174.75 mm | same |
+| `bom.csv` / `cpl.csv` | `Comment,Designator,Footprint,LCSC Part #`, 21 LCSC numbers / `Designator,Mid X,Mid Y,Layer,Rotation`, 119 placements, 74 bottom | same |
+| BOM = CPL = the parts `design.py` fits | 119; not fitted on purpose: H1–H8, JP1, TP1–TP11 | same |
+| `cpl_check.py`: JLC's footprint placed from the CPL over the KiCad pads | 119 of 119 within 0.033 mm, pin 1 on pin 1, terminals 89–100 % on their pads, socket bodies 0.70 mm clear of the switch posts | same |
+| Package equals a rebuild (`just pcb-production-check`) | CI job 126391534598 | CI job 126391534636 |
+| CPL overlays `docs/images/cpl-*.svg` current | CI job 126391534388 | |
+
+The panel holds the board in a frame. It has rails of 6 mm or more and a 2 mm milled slot round the
+board. There are 14 mouse-bite tabs, each 1.4 mm or more from every courtyard and 2.1 mm or more
+from J1 and J2. There are 3 fiducials per side and 4 Ø2.0 mm tooling holes. Panel DRC gives 0
+errors and 0 unconnected items, and `jlc_check` confirms that the panel carries the board's copper
+unchanged (deviations PKG-1 to PKG-4).
+
+## Boards after the turnkey re-placement
+
+Both halves were re-placed and re-routed from the ELEC schematics (BOARD-1 to BOARD-14). Numbers
+are from BOARD-14; CI rebuilds both boards from scratch on every push and requires them to equal
+the committed ones.
+
+| Check | Left | Right |
+|---|---|---|
+| `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
+| DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
+| `checks.py` | 10/10: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 to VSYS 4.07 mm | 10/10: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 to VSYS 4.07 mm |
+| U1 cap GND return to the exposed pad (gate ≤ 20 mm) | 9.3–13.0 mm | 8.6–13.0 mm |
+| Exposed pad to the main B.Cu GND plane (gate ≤ 8 mm) | 5.7 mm, through the TESTEN via | 1.6 mm |
+| `netcmp.py --board` + kikit BOM/CPL (stage D) | 3/3, 119 fitted parts, J3 pin-1 gate | same |
+| Copper | 331 vias, all 0.3 / 0.6; narrowest track 0.135 mm | 389 vias, all 0.3 / 0.6; narrowest 0.135 mm |
+| Dangling copper | 0 unlocked; 34 locked warnings (column vias at the keys, U1 fan-out stubs) | 0 unlocked; 37 locked |
+
+- **U1 ground (BOARD-14).** U1's only GND pin is the exposed pad. Every one of its 12 caps has a
+  short GND return to it:
+  - locked 0.5 mm B.Cu spurs run from the pad's vias to each cap's GND via, or into a GND fill
+    that meets them;
+  - TESTEN (pin 19, GND) runs out on a locked 0.2 mm track to a via in the Y1 keepout's GND fill,
+    which reaches the back edge;
+  - `checks.py` gates both distances. On the left, the pad joins the plane through that via.
+- **Host independence.** The completion router keys its shape cache by the item, not by `id()`
+  (BOARD-2), so the boards are the same on every host.
+- **U4's clamp reference** is VSYS, with its own 10 µF at the pin (ELEC-2, BOARD-5). VBUS can no
+  longer be back-driven.
 
 ## `just all` from a clean clone
 
+WS5 ran this on 2026-11-02 at `d1f2d77`. It has not been repeated as one run since. On every push,
+CI rebuilds what it covers: the six UF2s, both boards from scratch (byte-identical), the order
+packages, the case and the fit check.
+
 `git clone https://github.com/w0rxbend/worxboard` at `d1f2d77` into an empty scratch directory,
-then `just all` with nothing built or cached in the clone: the west workspace, the Freerouting jar,
-the container Python packages and the uv environment were created fresh (uv from its local package
-cache; the Docker images were already pulled).
+then `just all` with nothing built or cached, exited 0 after **34 min 44 s**:
 
-`just all` exited 0 after **34 min 44 s** (03:36–04:11 UTC; most of it Freerouting and the
-completion router):
-
-| Stage | Result |
+| Stage | Result then |
 |---|---|
 | `just layout-check` | 31 passed; `layout.json` and `layout.svg` regenerate with no diff |
-| `just fw` | west workspace fetched; all six `build.yaml` rows built a UF2; right peripheral has no `zmk_ble_` / `zmk_battery_` symbols, FLASH 169 196 B (seed + 3 796 B, budget 40 960 B) |
-| `just pcb-all` | per half: ERC 0, netcmp 9/9, Freerouting 2.5.0 (25 / 31 nets left for the completion router), DRC with schematic parity 0 violations / 0 unconnected / 0 parity issues, `checks.py` 4/4 (USB pair left 24.73 / 23.92 mm, skew 0.81; right 23.75 / 23.50 mm, skew 0.25; Y1 2.93 mm), `kikit --missingError` gerbers, BOM, CPL, renders, Edge DXF, STEP |
-| `just model` | every case check passed; STEP, STL and fit-check DXFs for both halves, legs and caps |
-| `just site` | `_site/` 6.6 MB: 8 case parts, 158 PCB components |
+| `just fw` | all six `build.yaml` rows built a UF2; the right peripheral had no `zmk_ble_` / `zmk_battery_` symbols |
+| `just pcb-all` | per half: ERC 0, Freerouting, DRC with schematic parity 0 / 0 / 0, `checks.py`, KiKit fab outputs, renders, STEP |
+| `just model` | every case check passed |
+| `just site` | `_site/` 6.6 MB |
 
-Afterwards `git status` in the clone was empty: the rebuilt schematics, **both boards** (placement,
-Freerouting, completion), `plates/` and the renders are byte-identical to the committed files. On
-those outputs `just fitcheck` reported 0 mm³ against both PCB STEPs, the integration tests passed as
-above, and `tests/integration/release.py --version v0.1.0-revA` packed `dist/`: both PCB zips, the
-six UF2s, both case zips and `SHA256SUMS.txt`.
+Afterwards `git status` in the clone was empty: both boards rebuilt byte-identical.
 
 ## CI
 
-The four workflows that run on a push to `main` passed on every WS5 commit. At `184671a`:
+The four workflows that run on a push to `main` all pass. At `f4c95bb`:
 
 | Workflow | Run | Result |
 |---|---|---|
-| layout | [41387161014](https://github.com/w0rxbend/worxboard/actions/runs/41387161014) | success |
-| firmware (six UF2s, right-half checks) | [41387160982](https://github.com/w0rxbend/worxboard/actions/runs/41387160982) | success |
-| pcb (schematics, DRC gate, fab outputs, fit check, from-scratch rebuild of both boards) | [41387161050](https://github.com/w0rxbend/worxboard/actions/runs/41387161050) | success |
-| case (model, plates, fit check, renders, order package) | [41387161080](https://github.com/w0rxbend/worxboard/actions/runs/41387161080) | success |
+| layout | [41774485217](https://github.com/w0rxbend/worxboard/actions/runs/41774485217) | success |
+| firmware (six UF2s, the rotation host test, right-half checks) | [41774485258](https://github.com/w0rxbend/worxboard/actions/runs/41774485258) | success |
+| pcb | [41774485196](https://github.com/w0rxbend/worxboard/actions/runs/41774485196) | success, all 10 jobs |
+| case (model, JLCCNC corner check, plates, fit check, renders, order package, production check) | [41774485198](https://github.com/w0rxbend/worxboard/actions/runs/41774485198) | success |
+
+The pcb run's 10 jobs:
+
+- schematics, ERC and netcmp;
+- both board jobs (DRC gate, fab outputs, render compare);
+- both from-scratch rebuilds;
+- both order-package jobs;
+- the CPL overlay drawings;
+- the case fit check against the CI-built PCB STEPs.
 
 `release.yml` runs only on a `v*` tag push and has not run: no tag or release exists. `pages.yml`
-is manual and was not run.
+is manual and has not run.
 
 ## G1: nice!view display
 
-**Sources:** nice!view pinout, dimension and schematic drawings
-([nicekeyboards.com](https://nicekeyboards.com/docs/nice-view/pinout-schematic)); splitkb
-[FAQ](https://docs.splitkb.com/product-guides/nice-view/frequently-asked-questions) (36 × 14 × 2.9 mm,
-five pins, socket and pins included); viewing area of the Sharp LS011B7DH03 from its
-[DigiKey listing](https://www.digikey.com/en/products/detail/sharp-microelectronics/LS011B7DH03/25953418).
+**Sources:**
+
+- the nice!view pinout, dimension and schematic drawings
+  ([nicekeyboards.com](https://nicekeyboards.com/docs/nice-view/pinout-schematic), re-read
+  2026-11-03);
+- the splitkb [FAQ](https://docs.splitkb.com/product-guides/nice-view/frequently-asked-questions):
+  36 × 14 × 2.9 mm, five pins, socket and pins included;
+- the viewing area of the Sharp LS011B7DH03, from its
+  [DigiKey listing](https://www.digikey.com/en/products/detail/sharp-microelectronics/LS011B7DH03/25953418).
 
 | Item | Drawing | Design | Result |
 |---|---|---|---|
 | Size | 36 (+0.1–0.2 V-cut) × 14 × 2.9: glass 0.9, PCB 1.0, parts below 1.0 | 36 × 14 × 2.9 | PASS |
-| Pin order | MOSI, SCK, VCC, GND, CS (schematic J2: SI, SCLK, 3V3, GND, SCS) | J3 pins 1–5: `DISP_MOSI`, `DISP_SCK`, `3V3`, `GND`, `DISP_CS` | PASS |
-| Pin-1 end | Front (LCD) view with the header at the bottom: MOSI at the left. Mounted LCD up with the header at the back (low y), MOSI is at **high x** | J3 pad 1 (`DISP_MOSI`) at **low x** on both halves (right x 67.31, left x 182.53) | **FAIL** |
-| Header row to the module edge | 1.3 mm; the pins are centred across the 14 mm width | 1.975 mm (header y 40.6, module y 38.625–74.625) | **FAIL** |
-| Viewing area | 25.28 × 10.74, starting 4.6 mm from the header-end edge (1.3 + 1.7 to the glass + 1.6) | window 26 × 12 at y 43.54–69.54 (was 47.0–73.0) | PASS since the review fixes |
-| Stack above the PCB | socket body + header spacer + 1.0 + 0.9 | ≤ 8.2 mm (pocket ceiling Z 16.8) | socket + spacer ≤ 6.3 mm |
+| Pin order | MOSI, SCK, VCC, GND, CS | J3 pins 1–5: `DISP_MOSI`, `DISP_SCK`, `3V3`, `GND`, `DISP_CS` | PASS |
+| Pin-1 end | Front (LCD) view with the header at the bottom: MOSI at the left. Mounted LCD up with the header at the back (low y), MOSI is at **high x** | J3 pad 1 (`DISP_MOSI`) at **high x** on both halves: right (77.47, 39.925), left (192.69, 39.925) (BOARD-1) | PASS, and a gate: `netcmp.py --board` stops stages C and D otherwise (ELEC-8) |
+| Header row to the module edge | 1.3 mm, pins centred across the 14 mm width | 1.3: header y 39.925, module y 38.625–74.625 | PASS |
+| Module in the pocket | 36.2 mm with the V-cut | module y 38.625–74.825; pocket 38.125–75.125 | PASS |
+| Viewing area | 25.28 × 10.74, starting 4.6 mm from the header-end edge | 26 × 12 window centred on it (y 55.865), following the header | PASS |
+| Stack above the PCB | J3 5.0 (C27985230, ELEC-3) + the stock header 2.0 + PCB 1.0 + glass 0.9 | glass 8.9 nominal, 9.4 with a 2.5 mm header carrier, **9.75 at full tolerance**; pocket ceiling at Z 18.6 = PCB + 10.0, under a 1.0 mm skin in a raised bezel (CASE-1) | PASS |
+| Fit | | `just fitcheck`: the J3 body to 5.8 mm, then the module to 9.75 mm, against both case tops: **0 mm³**. A top with the old 16.8 ceiling gives 138 mm³, so the check has teeth | PASS |
 | CS polarity | active high (LS011B7DH03) | `cs-gpios … GPIO_ACTIVE_HIGH` | PASS |
+| Screen orientation | the module stands LCD up, header at the back | both screens are laid out portrait and turned by the firmware (`LV_DISPLAY_ROTATION_90`, WS1-7) | on hardware |
 
-**Pin-1 end.** With the module plugged in face up, its pins meet J3 reversed: module CS on
-`DISP_MOSI` (GP3), GND on `DISP_SCK` (GP2), VCC on 3V3, SCK on GND and MOSI on `DISP_CS` (GP5).
-VCC is the middle pin, so nothing is shorted, but the module's clock is tied to ground and no
-firmware change can recover it. The display cannot work on the boards as routed.
-
-**Module length.** A module plugged into J3 at y 40.6 (right frame) spans y 39.3–75.3, up to 75.5
-with the V-cut, against the pocket's far wall at 75.125. Intersecting a module-sized solid with the
-exported case parts (both halves) gives 7.3 mm³ of top-part interference with a 3.0 mm socket +
-spacer stack and 7.9 mm³ at 4.5 mm. It clears only when the module underside is above the plate top
-(Z 13.6), which needs a 6.0–6.3 mm stack, for example a 3.5 mm low-profile socket and a standard
-2.5 mm male-header spacer. A standard 8.5 mm socket breaks the 8.2 mm limit. The board STEP leaves J3
-out (WS2c-5); `just fitcheck` now checks the layout's J3 + module envelope instead, which ends at
-y 74.625, so it does not see this either until fix 2 lands.
-
-**Window.** The viewing area runs y 43.9–69.2 (right frame). The window was 47.0–73.0, hiding the
-3.1 mm nearest the header (about 20 of the 160 pixels along it); it is now centred on the viewing area
-from the header position (`layout/display.py`), y 43.54–69.54, so it also follows the header if fix 2
-moves it.
-Across, the window is 0.6 mm wider than the viewing area on each side, which is fine. Separately, both
-screens are laid out landscape (160 × 68) for an upright module (WS1 open item).
+- **J3 is fitted by JLC.** It is C27985230, a 5.0 mm THT socket and the same height as the socket
+  that ships with the nice!view. A stock nice!view plugs in on its own header. The header pins must
+  be **trimmed flush** on the glass side: untrimmed, they reach the pocket ceiling (CASE-1).
+- **Integration tests.** `test_g1_header_is_at_the_back_end`, `…_j3_pin_order_is_the_module_order`,
+  `…_module_pins_land_on_their_nets`, `…_module_fits_the_pocket` and
+  `…_window_shows_the_viewing_area` all pass on both halves.
+- **Firmware orientation.** The panel end that is pixel x = 0 comes from ZMK's nice_view widgets
+  and the vendor's product images. No Sharp datasheet was found. If the first board shows the
+  screens upside down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in
+  `firmware/zmk/config/worxboard.conf` ([firmware.md](firmware.md#known-issues)).
 
 ## G2: PJ-320D TRRS jack
 
@@ -148,121 +214,125 @@ screens are laid out landscape (160 × 68) for an upright module (WS1 open item)
 
 | Item | Drawing | Design | Result |
 |---|---|---|---|
-| Height | 5.00 (Ø5.00 barrel, 6.10 × 5.00 body) | ≤ 5.5 (spec), layout 5.5 | PASS |
-| Plug axis | centred, 2.50 above the PCB | `axis_z` 2.5, case side notch at 2.5 | PASS |
+| Height | 5.00 (Ø5.00 barrel, 6.10 × 5.00 body) | ≤ 5.5 (spec); layout 5.0 | PASS |
+| Plug axis | centred, 2.50 above the PCB | `axis_z` 2.5, case hole on it | PASS |
 | Land pattern | pads 1.20 × 2.50 at 3.20 (pin 4), 6.20 (pin 3), 10.20 (pin 2) behind the barrel face on one side and 11.30 (pin 1) on the other, rows ±3.25 off the axis; peg holes Ø1.00 at 1.60 and 8.60 | KiCad `Jack_3.5mm_PJ320D_Horizontal`: R2, R1, T and S at the same positions and sizes; peg holes Ø1.5 (a looser fit) | PASS |
-| Contacts | schematic PJ-320D-A: pin 1 is the sleeve; the spring contacts run 4, 3, 2 from the mouth, so 4 = Ring2, 3 = Ring1, 2 = Tip | pads named S, R2, R1, T at those places | PASS, see note |
-| Length | 2.00 barrel + 12.10 body = 14.10, 6.10 wide | layout body 12.0 × 6.0 (x 49.0–61.0 right frame) | **FAIL** |
+| Contacts | schematic PJ-320D-A: pin 1 is the sleeve; the spring contacts run 4, 3, 2 from the mouth, so 4 = Ring2, 3 = Ring1, 2 = Tip | pads named S, R2, R1, T at those places | PASS, see the note |
+| Body | 2.00 barrel + 12.10 body = 14.10 long, 6.10 wide | layout body 14.1 × 6.1 × 5.0: x 49.0–63.1 by y 99.95–106.05 (right frame) (BOARD-13) | PASS |
+| Case relief | | the body + 0.75 mm, R1.5 corners, in the top, the spacer and the plate DXF; 0.376 mm at the far corners in the built top, 0.431 in the spacer and the plate; 1.0 mm headroom (CASE-9) | PASS, and a gate: `jack_check` fails under `JACK_MIN_CLEAR` = 0.3 mm |
+| Fit | | `just fitcheck` against both PCB STEPs and the J2 envelope: **0 mm³** (CI job 126392436085) | PASS |
 
-**Contacts.** The drawing numbers the contacts but does not print T/R1/R2/S. The order above follows
-its schematic and matches the KiCad names. A community library entry (Flux) gives 2 = R1, 3 = R2,
-4 = T instead. The link works either way, because both halves use the same footprint on a straight
-cable; only the §6.2 hot-plug argument (VLINK on Ring2 next to the sleeve) depends on it. Check one
-jack with a plug and a meter before relying on that argument.
-
-**Length.** The board places the jack correctly (mouth on the x 49.0 edge, pads as drawn), but the
-real body runs to x 63.1 (right frame), past Z_TRRS (x < 62.2) and the layout envelope that the case
-relief is cut for. Intersecting a 14.1 × 6.1 × 5.0 mm body with the exported case parts gives
-16.8 mm³ with the top part and 7.3 mm³ with the spacer, on each half. The board STEP has no model
-for J2 (WS2c-2); `just fitcheck` now checks the layout's J2 envelope instead, so it catches the clash
-once fix 4 sets the real body size there.
+**Contacts.** The drawing numbers the contacts but does not print T/R1/R2/S. The order above
+follows its schematic and matches the KiCad names. A community library entry (Flux) gives 2 = R1,
+3 = R2, 4 = T instead. The link works either way, because both halves use the same footprint on a
+straight cable. Only the §6.2 hot-plug argument (VLINK on Ring2, next to the sleeve) depends on it.
+Check one jack with a plug and a meter before relying on that argument.
 
 ## G3: parts, stock and track width
 
-**Sources:** the LCSC product API and the JLCPCB assembly-library search (re-run with
-`tests/integration/stock.py`), and the JLCPCB
-[PCB capabilities](https://jlcpcb.com/capabilities/pcb-capabilities). Stock at 2026-11-02 03:59 UTC
-for 5 assembled boards per half (both halves draw on the same stock):
+**Sources:**
 
-| LCSC | Part | Per board | JLC library | JLC stock | LCSC stock | Result |
-|---|---|---|---|---|---|---|
-| C2040 | RP2040 | 1 | extended | 63 302 | 54 849 | PASS |
-| C113767 | W25Q128JVSIQ | 1 | extended | 163 | 0 | PASS, low; see below |
-| C91749 | 12 MHz 3225 crystal (Epson Q22FA23V00418) | 1 | extended | 34 | 30 | PASS for one order; see below |
-| C51118 | AP2112K-3.3TRG1 **[G3]** | 1 | extended | 8 430 | 2 780 | PASS |
-| C7519 | USBLC6-2SC6 | 2 | extended | 44 941 | 40 640 | PASS |
-| C8598 | B5819W **[G3]** | 1 | basic | 981 220 | 510 380 | PASS |
-| C70069 | nSMD025-24V PTC, 250 mA hold, 24 V **[G3]** | 1 | extended | 19 363 | 18 780 | PASS |
-| C165948 | HRO TYPE-C-31-M-12 **[G3]** | 1 | extended | 198 765 | 179 210 | PASS |
-| C95562 | HRO PJ-320D-4A | 1 | extended | 5 743 | 5 620 | PASS |
-| C455280 | TS-1088R-02026 | 2 | extended | 133 395 | 126 490 | PASS |
-| C81598 | 1N4148W **[G3]** | 37 | basic | 3 755 702 | 2 264 050 | PASS |
-| C2803348 | Kailh CPG151101S11 hot-swap socket **[G3]** | 37 | extended | **0** | **0**, discontinued | **FAIL** |
-| C25905 | 5.1 kΩ 0402 | 2 | basic | 4 978 661 | 1 954 900 | PASS |
-| C2909343 | 27 Ω 0402 | 2 | extended | 285 234 | 252 500 | PASS; extended, see below |
-| C11702 | 1 kΩ 0402 | 4 | basic | 21 222 988 | 9 038 500 | PASS |
-| C25744 | 10 kΩ 0402 | 5 | basic | 16 412 787 | 0 | PASS (JLC stock) |
-| C1525 | 100 nF 0402 | 11 | basic | 35 162 152 | 20 297 100 | PASS |
-| C52923 | 1 µF 0402 | 3 | basic | 10 180 553 | 5 925 500 | PASS |
-| C15525 | 10 µF 0402 | 3 | basic | 9 991 546 | 5 319 700 | PASS |
-| C1557 | 27 pF 0402 | 2 | extended (preferred) | 316 012 | 121 400 | PASS; extended, see below |
+- JLC's component records (`getComponentDetail`: library type, SMT or THT, stock, attrition, the
+  "no longer manufactured" note), read by `pcb/scripts/jlc_check.py --stock` through
+  `tests/integration/stock.py`;
+- JLC's [PCB capabilities](https://jlcpcb.com/capabilities/pcb-capabilities) and
+  [PCBA price page](https://jlcpcb.com/help/article/pcb-assembly-price) (updated 2026-10-22).
 
-- **Hot-swap socket.** LCSC lists C2803348 as discontinued and neither shop has any. JLC stocks
-  CPG151101S11-16 as **C41430893** (241 636; brand "HanElectricity") and CPG151101S11-2 as
-  C49352235 (36 107). Check the drawing against `SW_MX_Hotswap_Kailh` before switching.
-- **Flash.** **C97521** is the same W25Q128JVSIQ (SOIC-8 208 mil) as a JLC **basic** part with
-  83 436 in stock: no extended-part fee and no stock risk.
-- **Crystal.** 34 at JLC covers one order of 5 + 5 boards. **C9002** (YXC X322512MSB4SI, 12 MHz,
-  3225, basic, 314 645) fits the same footprint. Its 20 pF load against the 18 pF the 27 pF caps
-  give pulls it by tens of ppm, far inside the ±2500 ppm USB full speed allows.
-- **Fees.** C2909343 and C1557 are extended parts too, which the extended-part list in spec §7 and
-  `docs/bom.md` leaves out. JLC marks C1557 as a preferred extended part.
-- **Track width.** JLCPCB makes 1–2 layer boards down to 0.10 mm track / 0.10 mm space, vias down
-  to 0.15 mm drill / 0.25 mm pad, and copper ≥ 0.2 mm from a routed edge. The boards use a 0.127 mm
-  minimum track and clearance rule; the narrowest track is 0.135 mm (three segments on the right
-  half), signal tracks are 0.15–0.18 mm, all 702 vias are 0.3 / 0.6 mm and the edge clearance is
-  0.5 mm: **PASS**. On the boards re-routed by the [review fixes](#review-fixes): narrowest track
-  0.135 mm (3 segments left, 4 right), 774 vias, all 0.3 / 0.6 mm: still **PASS**.
+Stock on **2026-11-04 at 05:17 UTC**, for 5 assembled boards per half. Both halves draw on the
+same stock. "Need" is the quantity for both designs, plus JLC's attrition, and never less than 50:
+
+| LCSC | Refs | Part | JLC library | Process | Need | JLC stock | Result |
+|---|---|---|---|---|---|---|---|
+| C2040 | U1 | RP2040 | extended | SMT | 50 | 58 844 | PASS |
+| C97521 | U2 | W25Q128JVSIQ | basic | SMT | 50 | 74 052 | PASS |
+| C49304726 | Y1 | YXC XL2EL89CRI-111YLC-12M, 12 MHz | extended | SMT | 50 | 13 833 | PASS |
+| C51118 | U3 | AP2112K-3.3TRG1 | extended | SMT | 50 | 12 075 | PASS |
+| C7519 | U4, U5 | USBLC6-2SC6 | extended | SMT | 50 | 28 267 | PASS |
+| C8598 | D1 | B5819W | basic | SMT | 50 | 826 670 | PASS |
+| C70069 | F1 | nSMD025-24V | extended | SMT | 50 | 18 951 | PASS |
+| C165948 | J1 | HRO TYPE-C-31-M-12 | extended | SMT | 50 | 165 043 | PASS |
+| C95562 | J2 | HRO PJ-320D-4A | extended | SMT | 50 | 5 513 | PASS |
+| C27985230 | J3 | HC-PM254-5.0H-1x5PZ socket | extended | **THT** | 50 | 6 294 | PASS |
+| C455280 | SW1, SW2 | TS-1088R-02026 | extended | SMT | 50 | 124 616 | PASS |
+| C41430893 | SK101–SK137 | HanElectricity CPG151101S11-16 | extended | SMT | 374 | 229 543 | PASS |
+| C81598 | D101–D137 | 1N4148W | basic | SMT | 398 | 3 815 633 | PASS |
+| C25905 | R1, R2 | 5.1 kΩ 0402 | basic | SMT | 50 | 4 789 167 | PASS |
+| C2909343 | R3, R4 | 27 Ω 0402 | extended | SMT | 50 | 252 149 | PASS |
+| C11702 | R7, R9, R11, R12 | 1 kΩ 0402 | basic | SMT | 60 | 21 052 308 | PASS |
+| C25744 | R5, R6, R8, R10, R13 | 10 kΩ 0402 | basic | SMT | 70 | 15 634 607 | PASS |
+| C1525 | C5, C8–C17 | 100 nF 0402 | basic | SMT | 130 | 33 658 574 | PASS |
+| C52923 | C4, C18, C19 | 1 µF 0402 | basic | SMT | 50 | 10 144 033 | PASS |
+| C15525 | C1–C3 | 10 µF 0402 | basic | SMT | 50 | 9 704 103 | PASS |
+| C1557 | C6, C7 | 27 pF 0402 | extended | SMT | 50 | 294 001 | PASS |
+
+- **Replaced parts (ELEC-1).** C2803348, the Kailh socket, was discontinued at both shops. C113767,
+  the flash, was "no longer manufactured", and C91749, the crystal, was down to 19. Their
+  replacements are C41430893, C97521 and C49304726. `stock.py` and `netcmp.py` fail if a retired
+  number comes back.
+- **Alternates**, re-checked on 2026-11-04: C49352235 (socket, 26 943), C9002 (crystal, basic,
+  286 104) and C46061764 (5.7 mm socket, 4 487). C46061764 does not fit the display pocket at full
+  tolerance; see [ordering-jlcpcb.md](ordering-jlcpcb.md#if-a-part-is-out-of-stock).
+- **PTC.** C70069 is WS2's choice for the spec's "PTC 1206, 250 mA hold" (WS2a-4): 250 mA hold,
+  500 mA trip, 24 V.
+- **Fees.** In Standard PCBA, JLC charges every unique part the same $1.53 loading fee, basic or
+  extended. The spec's extended-part list no longer prices anything.
+- **Track width and rules.** JLC makes 1–2 layer boards down to 0.10 mm track and 0.10 mm space,
+  vias down to 0.15 mm drill and 0.25 mm pad, and needs copper ≥ 0.2 mm from a routed edge. The boards use a 0.127 mm minimum track and clearance rule. The
+  narrowest track is 0.135 mm, signal tracks are 0.15–0.18 mm, every via is 0.3 / 0.6 mm (331 left,
+  389 right), and the copper-to-edge rule is 0.5 mm: **PASS** (BOARD-7, BOARD-14).
+- **Placement file.** `cpl_check.py` places JLC's own footprint of every part, both sides, where
+  the CPL puts it: **119 of 119 per half** ([order package](#order-package), PKG-2). JLC does not
+  document its bottom-side CPL convention, so its placement preview is the last check
+  ([checklist](ordering-jlcpcb.md#placement-preview-checklist)).
+- **Assembly rules.** Several parts sit closer than 2.5 mm to the board edge (J1 and J2 overhang
+  it), so the order uses the customer panel with rails, a routed slot and mouse-bites, and no tab
+  in front of J1 or J2 (BOARD-7, PKG-1).
 
 ## Review fixes
 
-A post-integration review on 2026-11-02 found defects that the checks above did not catch. They are
-fixed on `main` (deviations REVIEW-FIX-1 to -8) and were re-checked on the fixed tree:
+A post-integration review on 2026-11-02 found defects that the checks above did not catch. They
+were fixed on `main` (deviations REVIEW-FIX-1 to -8). The later turnkey changes kept or superseded
+them:
 
-| Finding | Fix | Re-check | Result |
-|---|---|---|---|
-| The display's PIO SPI took GP0 (UART0 TX) on its first transfer: no TRRS link on any build | `miso-gpios` = MOSI on both targets (REVIEW-FIX-1) | six builds; `miso` is `{gpio0, 3}` in the compiled config; `test_pins.py` fails a PIO SPI pin on a UART, row or column | PASS |
-| Right-central build had no USB product name | `ZMK_KEYBOARD_NAME` on both halves | `.config` of all six builds: `worxboard` | PASS |
-| Left 3V3 caps C8–C13, C18 reached U1 only through a 75–86 mm detour; no cap near DVDD 23; VREG_VOUT 1 µF 13–17 mm away | caps at the five U1 supply exits on locked copper (REVIEW-FIX-2) | `checks.py`: every supply pin ≤ 11.6 mm of copper from a cap (IOVDD 22, the worst; DVDD 23 5.2, VREG_VOUT 45 8.3), every cap ≤ 6.8 mm from a pin, each GND pad ≤ 0.84 mm from its via | PASS |
-| Vias in SMD pads (15 left, 13 right; one cut into U1 pin 43) | router, session import and a check keep them out (REVIEW-FIX-3) | `checks.py`: none on either half | PASS |
-| The fit check ignored J1, J2, J3 + module and the sockets once the STEP existed | their layout envelopes join the STEP (REVIEW-FIX-4) | `just fitcheck`: 0 mm³ | PASS against the layout sizes; G1/G2 items 2 and 4 still apply |
-| CPL had no JLC rotation corrections | `jlc_rotations.csv` (REVIEW-FIX-5) | `pos.csv`: U1–U5 at 270°, J1 at 0° | check in JLC's preview |
-| Window hid the header end of the viewing area; a 1.0 mm skin bar to the C6R1 well | window centred on the viewing area (REVIEW-FIX-6, open item 3) | `test_g1_window_shows_the_viewing_area` passes; bar 4.5 mm | PASS |
-| Stab cut-outs faced away from the PCB's Ø4.0 holes, no Cherry notches, left ≠ mirror(right) | `layout.stab_dir` for both, Cherry cut-out (REVIEW-FIX-7) | `test_stabs.py`; mirror check at 0.005 mm (top centroid 7e-4 mm) | PASS |
-| COL0/COL1/XOUT on B.Cu under Y1; XOUT 13 mm with 2 vias | R7 beside Y1, locked XOUT, B.Cu keepout (REVIEW-FIX-8) | `checks.py`: nothing under Y1; XOUT 5.1 mm, no via | PASS |
-| Build guide, BOM, case, legs and README behind this page; TRRS plug-head limit and VBUS back-drive undocumented | docs | link check | PASS |
+| Finding | Fix | Since then |
+|---|---|---|
+| The display's PIO SPI took GP0 (UART0 TX) on its first transfer: no TRRS link on any build | `miso-gpios` = MOSI on both targets (REVIEW-FIX-1) | unchanged; `test_pins.py` fails a PIO SPI pin on a UART, row or column |
+| Right-central build had no USB product name | `ZMK_KEYBOARD_NAME` on both halves | unchanged |
+| Left 3V3 caps reached U1 only through a 75–86 mm detour | caps at the five U1 supply exits on locked copper (REVIEW-FIX-2) | kept; their GND returns are now gated too (BOARD-14) |
+| Vias in SMD pads | router, session import and a check keep them out (REVIEW-FIX-3) | unchanged |
+| The fit check ignored J1, J2, J3 + module and the sockets | their layout envelopes join the STEP (REVIEW-FIX-4) | J3 has its own STEP model now (ELEC-3); J2's envelope is the drawing size (BOARD-13) |
+| CPL had no JLC rotation corrections | `jlc_rotations.csv` from a community table (REVIEW-FIX-5) | **superseded**: the U1 and J1 rows were wrong and 3 rows were missing. Every row is now derived from JLC's own footprints and proven by `cpl_check.py` (PKG-2) |
+| Window hid the header end of the viewing area | window centred on the viewing area (REVIEW-FIX-6) | kept; it follows the moved header |
+| Stabiliser cut-outs faced away from the PCB holes | `layout.stab_dir` for both, Cherry cut-out (REVIEW-FIX-7) | unchanged |
+| COL0/COL1/XOUT on B.Cu under Y1 | R7 beside Y1, locked XOUT, B.Cu keepout (REVIEW-FIX-8) | unchanged |
 
-Both boards were rebuilt from scratch after the fixes (placement, Freerouting, completion). The
-right board is byte-identical here and on the CI runners. The left board has the same copper on both,
-but the runners give part of its completion copper other UUIDs than this host (see the first note
-below), so the committed left board is the CI build. DRC with schematic parity reports 0 violations,
-0 unconnected and 0 parity issues on each board, `checks.py` passes 7/7, and `layout-check`,
-`just model` (every case check) and `just fitcheck` pass. Integration tests on those outputs:
-**88 passed, 6 xfailed** (the 6 remaining gate findings), nothing skipped.
-
-Not changed:
-
-- **The completion router depends on the host.** `complete_routes.Index.dilated` caches the
-  dilated copper shapes by `id()` of the item. Items freed by a rip-up have their ids reused by new
-  ones, which then get the old shape (over 6 000 such hits in one left rebuild). Which ids are
-  reused depends on the host's memory layout, so a host can take another path through the left
-  board's rip-up negotiation: here and on the runners the end copper is the same, but the UUIDs
-  differ. Keying the cache by the item itself removes the dependence, but the left board then ends
-  with its U1-area GND pour island unconnected (3 DRC unconnected items), so the fix needs a routing
-  change around U1 (WS2). Until then the `rebuild` job reproduces the CI build, and a local
-  `just pcb left` can differ from git in track UUIDs only.
-- Unlocked track and via stubs left by the completion rip-up show up as DRC `track_dangling` /
-  `via_dangling` warnings (about 90 on the left, 70 on the right); they carry no current and are
-  not errors.
+The two notes this page used to carry are closed. The completion router no longer depends on the
+host (BOARD-2), and `prune.py` leaves no unlocked dangling copper (BOARD-4, BOARD-14).
 
 ## Open items that block ordering
 
-| # | Gate | Fix | Owner |
-|---|---|---|---|
-| 1 | G1 | Put J3 pin 1 at **high x** on both halves (turn J3 by 180°: pad 1 at right-frame x 77.47, left-frame x 192.69) and re-route the display nets. `layout.display()["header_pins"]` lists pin 1 at low x (WS0-5 left this end provisional). | WS0, WS2 |
-| 2 | G1 | Move the J3 row to y **39.925** (module edge + 1.3) so the module spans the modelled y 38.625–74.625, in the same re-placement; or lengthen the case pocket to y ≥ 75.8 below the plate top. | WS0, WS2 (or WS3) |
-| 3 | G1 | ~~Centre the window on the viewing area~~ **done** in the review fixes: y = header + 15.94 (56.54 now, 55.87 with fix 2, which the layout then follows). | WS0, WS3 |
-| 4 | G2 | Set the TRRS body to 14.1 × 6.1 mm (height 5.0) in `layout/jacks.py` and cut the case relief and spacer over it; the plate between the C6R1 and C6R2 switch cut-outs (y 95.9–110.5) is free. The PCB is unchanged. | WS0, WS3 |
-| 5 | G3 | Replace C2803348 (see above) and re-check stock on the order day with `stock.py`. Switching U2 to C97521 and Y1 to C9002 is advised. | WS2, WS4 (BOM) |
+None. The five items WS5 listed are done:
 
-Not blocking, for the owning streams: both screens need a rotation for the upright module (WS1).
+| # | Gate | Item | Done in |
+|---|---|---|---|
+| 1 | G1 | J3 pin 1 at high x on both halves | BOARD-1 (`bf7a642`), gated by ELEC-8 |
+| 2 | G1 | J3 row at y 39.925, so the module stays inside the pocket | BOARD-1 |
+| 3 | G1 | Window centred on the viewing area | REVIEW-FIX-6 |
+| 4 | G2 | TRRS body at the drawing size, relieved in the case | BOARD-13 (`68f812e`), CASE-9 (`dec5f7b`) |
+| 5 | G3 | Discontinued socket replaced; flash and crystal swapped | ELEC-1 (`f5f051d`), boards re-placed in BOARD-1 |
+
+## Not verified until a board is built
+
+Nothing below blocks the order. Each item can only be confirmed on the first assembled boards:
+
+- **JLC assembly.** Whether JLC solders the C41430893 sockets cleanly: there is no field report of
+  this second-source part. Whether JLC's viewer applies the bottom-side CPL as KiKit writes it:
+  check it in the preview.
+- **Firmware on hardware.** That the displays light up and read upright (else use
+  `CONFIG_WORXBOARD_DISPLAY_ROTATION_270`), the wired split, the forwarded lock indicators, the
+  role-swap builds, and the XOSC start-up with the YXC crystal (64× delay, WS1-9). The LVGL heap use
+  on 32-bit ARM has not been measured (WS1-8).
+- **J2 contacts.** Check the T/R1/R2/S naming with a plug and a meter (G2 note).
+- **Case.** That the USB-C and TRRS plugs seat fully, the BOOT/RESET pin holes reach the buttons,
+  and the C6R1 keycap clears the display module's far end. Check these on a 3D-printed test top
+  first ([case.md](case.md#before-machining)).

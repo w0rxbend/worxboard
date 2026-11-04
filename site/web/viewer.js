@@ -246,7 +246,7 @@ function keyGroup(side, k, groups) {
 
   // hot-swap socket on the bottom side (mirrored footprint on the left)
   const mx = side === "left" ? -1 : 1;
-  const sock = mesh(new THREE.BoxGeometry(...SOCKET.size, SOCKET.h), M.socket, `${side} hot-swap socket ${k.id}\nKailh CPG151101S11, bottom side`);
+  const sock = mesh(new THREE.BoxGeometry(...SOCKET.size, SOCKET.h), M.socket, `${side} hot-swap socket ${k.id}\nMX hot-swap socket CPG151101S11-16, bottom side`);
   sock.position.set(mx * SOCKET.off[0], -SOCKET.off[1], Z.pcb - SOCKET.h / 2);
   groups.pcb.add(at(new THREE.Group().add(sock)));
 }
@@ -274,7 +274,7 @@ function pcbGroup(side) {
   const s = lay.sides[side];
   const board = mesh(pcbGeometry(side), M.pcb, `worxboard-${side} PCB\n2-layer, 1.6 mm, ENIG\n${s.keys.length} keys`);
   g.add(withEdges(board, 20));
-  g.add(rectBox(manifest.bodies[side].J3, Z.pcbTop, Z.pcbTop + J3_H, M.chip, "J3  display socket (hand-soldered)"));
+  g.add(rectBox(manifest.bodies[side].J3, Z.pcbTop, Z.pcbTop + J3_H, M.chip, "J3  display socket, 5.0 mm (fitted by JLC)"));
   // assembled parts at their footprint pose: box = [cx, cy, w, l, h] in the footprint frame
   for (const c of manifest.components[side]) {
     const [cx, cy, w, l, h] = c.box;
@@ -527,13 +527,14 @@ $("shots").innerHTML = manifest.gallery.map((s) =>
   `<figure${s.wide ? ' class="wide"' : ""}><img loading="lazy" src="${s.file}" alt="${s.caption}"><figcaption>${s.caption}</figcaption></figure>`).join("");
 
 const DOCS = [
-  ["docs/buildguide_en.md", "Build guide", "Check, flash, solder J3, assemble"],
-  ["docs/bom.md", "Bill of materials", "JLC parts with [G3] flags, builder parts, gates (generated)"],
+  ["docs/buildguide_en.md", "Build guide", "Check, flash, plug in the displays, assemble"],
+  ["docs/bom.md", "Bill of materials", "JLC parts, fees, gates (generated)"],
+  ["docs/shopping-list.md", "Shopping list", "The four orders and every off-board part"],
   ["docs/electrical.md", "Electrical design", "Power path, TRRS, USB-C, MCU, display"],
   ["docs/pinout.md", "Pinout", "GPIO map, TRRS, J3, part positions (generated)"],
   ["docs/matrix.md", "Key matrix", "6×7 per half, sockets, ZMK 6×14 transform (generated)"],
   ["docs/firmware.md", "Firmware", "ZMK builds, flashing, keymap, displays"],
-  ["docs/ordering-jlcpcb.md", "Ordering PCBs", "JLCPCB settings for both sides"],
+  ["docs/ordering-jlcpcb.md", "Ordering PCBs", "The JLCPCB turnkey order, step by step"],
   ["docs/case.md", "Case and plates", "build123d case, Z stack, files"],
   ["docs/legs.md", "Tent legs", "Mounts, positions, the custom leg"],
   ["docs/design.md", "Design spec", "The frozen rev A specification"],

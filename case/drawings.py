@@ -97,7 +97,8 @@ def top_features(right: bool) -> list[list[str]]:
         ["W1", f"display window {x1 - x0:.0f} x {y1 - y0:.0f} R{E.LD.WINDOW_R} THRU the bezel skin, "
                f"{E.LD.WINDOW_CHAMFER} x 45° chamfer on the top edge", *map("{:.2f}".format, E.P(wx, wy))],
         ["D1", f"display pocket {px1 - px0:.1f} x {py1 - py0:.1f}, Z {E.Z_PCB_TOP}-{E.Z_DISPLAY_TOP} "
-               f"(bezel skin {E.Z_BEZEL_TOP - E.Z_DISPLAY_TOP:.1f}); front end open into the key well",
+               f"(bezel skin {E.Z_BEZEL_TOP - E.Z_DISPLAY_TOP:.1f}), corners relieved by R{E.pocket_corner_r()} "
+               "dog-bones; front end open into the key well",
          *map("{:.2f}".format, E.P((px0 + px1) / 2, (py0 + py1) / 2))],
         ["B1", f"raised display bezel {bx1 - bx0:.2f} x {by1 - by0:.2f}, top Z {E.Z_BEZEL_TOP} "
                f"({E.Z_BEZEL_TOP - E.Z_TOP:.1f} above the top face), top edges {E.BEZEL_CHAMFER} x 45°, "

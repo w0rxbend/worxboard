@@ -1074,6 +1074,7 @@ def display_check(side: str, top: Solid | None = None):
         probes_open = [(wx, wy, Z_BEZEL_TOP - 0.2), (wx, wy, Z_DISPLAY_TOP - 0.2),
                        ((px0 + px1) / 2, py0 + 1.0, Z_PCB_TOP + 0.5),
                        (px0 + 0.3, py0 + 0.3, Z_DISPLAY_TOP - 0.05), (px1 - 0.3, wy, Z_DISPLAY_TOP - 0.05),
+                       (px0 + 0.03, py0 + 0.03, Z_DISPLAY_TOP - 0.5), (px1 - 0.03, py0 + 0.03, Z_DISPLAY_TOP - 0.5),
                        (bx0 - 0.3, wy, Z_TOP + 0.3)]
         probes_solid = [(wx, y0 - 0.8, Z_BEZEL_TOP - 0.3), (x0 - 0.8, wy, Z_BEZEL_TOP - 0.3),
                         (px0 + 0.3, py0 + 0.3, Z_DISPLAY_TOP + 0.1), (bx0 + 0.3, wy, Z_BEZEL_TOP - 0.6),
@@ -1192,6 +1193,27 @@ def pin_holes(side: str) -> list[tuple[float, float]]:
     return [a[ref] for ref in PIN_HOLES]
 
 
+def pocket_corner_r() -> float:
+    """Radius of the cutter that reaches the display pocket's ceiling from the parting face (JLCCNC
+    rule, corner_r): its corners are relieved by that radius."""
+    return corner_r(Z_DISPLAY_TOP - Z_SPLIT)
+
+
+def pocket_cut(side: str) -> Solid:
+    """Display pocket: the rectangle up to the ceiling, with a dog-bone relief at each corner (a
+    circle of the cutter's radius through the corner), so the cutter leaves no fillet in the corner
+    where the module and J3 have only 0.5 mm per side (deviation CASE-1)."""
+    x0, y0, x1, y1 = DISPLAY(side)["pocket"]
+    r = pocket_corner_r()
+    a = r / math.sqrt(2)
+    cut = prism(sp_faces(pocket_poly(side))[0], Z_PCB_TOP - 0.01, Z_DISPLAY_TOP)
+    for cx, cy, sx, sy in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x1, y1, -1, -1), (x0, y1, 1, -1)):
+        px, py = P(cx + sx * a, cy + sy * a)
+        cut += Pos(px, py, Z_PCB_TOP - 0.01) * Cylinder(r, Z_DISPLAY_TOP - Z_PCB_TOP + 0.01,
+                                                      align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return cut
+
+
 def window_cut(side: str) -> Solid:
     """Viewing window: rounded rectangle through the bezel skin with a chamfer on its top edge."""
     d = DISPLAY(side)
@@ -1274,8 +1296,7 @@ def build_top(side: str) -> Solid:
         body -= _leg_frame(px, py, nx, ny, drill)
 
     # display: pocket over the module (cuts the spacer zone and the plate) + viewing window
-    for f in sp_faces(pocket_poly(side)):
-        body -= prism(f, Z_PCB_TOP - 0.01, Z_DISPLAY_TOP)
+    body -= pocket_cut(side)
     body -= window_cut(side)
 
     # USB-C notch + plug recess, TRRS hole

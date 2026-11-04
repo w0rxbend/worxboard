@@ -61,7 +61,8 @@ T2-T4, T6-T8: drill 6.0, full thread 4.5. T1, T5: drill 3.6, full thread 2.3.
 L1, L3: drill 5.5, full thread 4.0. L2: drill 7.5, full thread 6.0.
 T1 and T5 are under the key well: 0.78 mm stays between the drill point and the key-well floor. Do not break through.
 Display: raised bezel B1 (2.0 above the top face), pocket D1 machined from the parting side up to 1.0 under the
-bezel top, window W1 through that 1.0 skin, see detail C on sheet 2. Support the skin while machining the window.
+bezel top (corners: R1.5 dog-bones, keep them), window W1 through that 1.0 skin, see detail C on sheet 2.
+Support the skin while machining the window.
 USB-C notch J1 (back wall) and TRRS hole J2 (inner wall) are side operations. Pin-holes P1-P2 dia. 3 thru.
 L1-L3: plain dia. 10 bosses on the outer walls, 2.7 high, FLAT face, M3 thread in each, see sheet 2.
 Switch cutouts 14.00 +0.05/-0. Stabiliser cutouts have 1.0 mm wide side notches: use a 1 mm end mill.
@@ -95,7 +96,7 @@ Same anodize colour as the case parts.
 | Can the threads be shallower? | No. The screw tips reach 1.6 mm (T1, T5), 3.6 mm (other T holes) past the boss face, 0.7 and 0.9 mm short of the minimum full thread. |
 | The skin over the display pocket is thin (1.0 mm). | Intended: the display glass sits 0.25–1.1 mm under it. Machine the pocket from the parting side and support the skin for the window. |
 | The bezel wall on the key-well side is 1.4 mm thick. | Intended: the C5 switch column leaves no more room. It stands 6.0 mm above the key-well floor (Z 13.6–19.6) and joins the plate. |
-| Sharp internal corners? | All pocket corners are R ≥ 1 mm (Ø2 tool), except the switch and stabiliser cutouts (R0.5, Ø1 tool; the stabiliser side notches are 1.0 mm wide). Fillets per R = depth/10 are modelled where pads and webs meet the walls. |
+| Sharp internal corners? | All pocket corners are R ≥ 1 mm (Ø2 tool), except the switch and stabiliser cutouts (R0.5, Ø1 tool; the stabiliser side notches are 1.0 mm wide). The display pocket D1 (11.6 mm deep from the parting face) has sharp corners with R1.5 dog-bone reliefs for a Ø3 tool: the display module sits 0.5 mm from its walls, so a corner fillet must not be left there. Fillets per R = depth/10 are modelled where pads and webs meet the walls. |
 | The bar between the display window and the C6R1 key well? | 5.2 mm of 1.0 mm bezel skin, open towards the key well at its front edge (the pocket's front strip lies in the well). |
 | Gaps between bosses and walls? | Every boss near a wall is joined to it by a solid web. |
 | Tolerances not given? | ISO 2768-m. The STEP model is the reference geometry. |

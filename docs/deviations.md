@@ -121,6 +121,57 @@ what changed, why, and who consumes it.
 - ZMK's built-in screen `select`s `LV_OBJ_LABEL`, a dangling symbol at 4dd95d78. The module's
   `WORXBOARD_STATUS_SCREEN` selects `LV_USE_LABEL` (plus Montserrat 12/16) instead.
 
+### WS1-7. Both displays are laid out portrait and turned in the LVGL flush (§4, §11.2, §11.6)
+
+- **Spec:** the nice!view status screens as ZMK draws them, 160 × 68 landscape.
+- **Problem:** the module stands in J3 LCD up, its header at the back and its flex toward the user,
+  the same way on both halves (G1, BOARD-1). Laid out landscape, both screens read turned by a
+  quarter. Zephyr's ls0xx driver and LVGL glue at the pinned SHA cannot rotate.
+- **Source for the panel's origin:** pixel x = 0 is the header end. ZMK's nice_view widgets
+  (`widgets/status.c`, `util.c`) draw their top canvas at x 92..159 and turn it a quarter clockwise,
+  and nicekeyboards.com's product images show that screen upright with the header at the bottom.
+  worxboard shows the module turned 180° from that view. No Sharp LS011B7DH03 datasheet was found.
+- **Change** (`firmware/zmk`, commit 876847c):
+  - LVGL lays out a 68 × 160 portrait screen.
+  - `src/worx_display_rotation.c` uses `LV_DISPLAY_ROTATION_90`: portrait (u, v) maps to panel
+    (v, 67 − u), with the map in `src/worx_rotate.h`.
+  - At SYS_INIT 91, after `lvgl_init()`, it replaces Zephyr's mono flush and rounder: each area is
+    turned into a panel-ordered shadow, and the lines it touches go, full width, through
+    `lvgl_flush_cb_mono()`.
+  - The Kconfig choice `WORXBOARD_DISPLAY_ROTATION` is `_90` (the default) or `_270` (a 180° flip,
+    the stock nice!view orientation).
+  - Left: ZMK's built-in screen, portrait. Right: the custom screen laid out portrait
+    (`worx/board`, the lock column, `wired`).
+- **Checks:** `tests/rotate_test.c` (`just fw-rotate-check`, in `just fw` and the CI checks job)
+  tests the pixel map against the panel facts and LVGL's `lv_display_rotate_area()`. `fw_check.py`
+  runs on both core rows and fails if the rotation is not configured or not linked. Firmware CI run
+  41757564608 passed, 9 of 9 jobs.
+- **Not checked on hardware:** that the screens read upright. If the first board shows them upside
+  down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in `firmware/zmk/config/worxboard.conf`.
+
+### WS1-8. The right screen sets its own paper and ink and gets an 8 KB LVGL heap (§11.6)
+
+- **Problem:** ZMK applies its mono theme only to the built-in screen. The custom right screen had a
+  transparent background and black text, and LVGL never clears an I1 draw buffer. On the panel its
+  text had the colour of the uncleared buffer, so the right screen showed nothing. This was found by
+  rendering the screen on the host with the pinned LVGL 9.3 and Zephyr's own mono flush. The screen
+  also ran on Zephyr's default 2048 B LVGL heap.
+- **Change** (commit 4769d4d): the screen sets an opaque paper and its ink like the left's mono theme
+  (`ZMK_DISPLAY_INVERT` swaps them). `LV_Z_MEM_POOL_SIZE` defaults to 8192 B when the custom screen
+  is chosen, as ZMK's nice_view shield sets it. The left built-in screen keeps ZMK's 4096 B. RAM:
+  left central 46 206 B (17.2 %), right peripheral 30 460 B (11.3 %). Right flash: 170 872 B,
+  +5 472 B against the 40 KB budget.
+- **Not measured:** heap use on 32-bit ARM. On a 64-bit host the right screen peaks at 5 240 B and
+  the left built-in screen at 4 672 B.
+
+### WS1-9. XOSC start-up is 64× for the rev A crystal (§6.4; ELEC-1)
+
+- **Problem:** Y1 is now the YXC XL2EL89CRI-111YLC-12M (C49304726, ESR 80 Ω max), not the Pico's
+  Abracon ABM8-272-T3, which the Pico SDK's 1 ms XOSC start-up delay is tuned for.
+- **Change** (commit 5fd74ae): rev A `worxboard.dtsi` sets `&xosc` `startup-delay-multiplier = <64>`
+  (about 64 ms), as Zephyr's RP2040 boards with other crystals do (xiao_rp2040, qt_py_rp2040,
+  kb2040). The RP2350A `worxboard2` target is unchanged. A future Y1 change needs no firmware change.
+
 ## WS2a: schematic and electrical data (`pcb/scripts/design.py`, `gen_sch.py`, `netcmp.py`)
 
 ### WS2a-1. Matrix and button reference designators (§7, §9)
@@ -1762,3 +1813,116 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
     it (corners ≥ 0.38) in the top, the spacer and the plate; 1.0 mm headroom; gated by
     `JACK_MIN_CLEAR`.
   - No other stream's files change: the PCB, `layout` and the STEP envelopes are as before.
+
+## PKG: the JLC turnkey order package (`pcb/scripts/stage_p.sh`, `package.py`, `panel.json`, `panel_tabs.py`, `jlc_check.py`, `cpl_check.py`, `jlc_footprints.py`, `jlc_rotations.csv`, `pcb/production/`)
+
+Written by DOCS from the PKG commits (4396f6c, 653659a, 0c692a9, 73ec186) on 2026-11-04.
+
+### PKG-1. The order is a customer panel with rails, tabs, fiducials and tooling holes (§9 stage 13; BOARD-7)
+
+- **Spec:** KiKit's bare-board JLC files, with JLC adding the rails.
+- **Problem:** Standard PCBA needs rails and fiducials. JLC's terms want parts at least 2.5 mm from
+  the board edge. J1 and J2 overhang the edge, and several thumb sockets sit closer than 2.5 mm
+  (BOARD-7). Rails that JLC adds on its own judgement could land a tab or a V-cut in front of a
+  connector.
+- **Change:** stage P (`stage_p.sh`, `just pcb-production <side>`) panelizes the committed board
+  with KiKit (`panel.json`, `panel_tabs.py`):
+  - the board in a solid frame, 198.84 × 174.75 mm (JLC's Standard PCBA limit is 250 × 250);
+  - rails of 6 mm or more, and a 2 mm milled slot round the board;
+  - 14 mouse-bite tabs per half, each with six Ø0.6 mm holes 1 mm apart, a third of each hole in
+    the board, as JLC's mouse-bite guide asks. Tabs are ≥ 1.4 mm from every courtyard and ≥ 2.1 mm
+    from J1 and J2, with no tab in front of either;
+  - 3 fiducials per side: Ø1.0 mm copper in a Ø2.0 mm opening, centres 4.0 mm from the edges
+    (JLC: 3.85);
+  - 4 non-plated Ø2.0 mm tooling holes. JLC's SMT guideline of 2026-09 asks for 2 mm, its older FAQ
+    for 1.152 mm, and JLC adds its own on the rails if it needs them.
+
+  Panel DRC: 0 errors, 0 unconnected. `bare-board/` keeps the unpanelled files and a remark for an
+  order where JLC adds the rails.
+- **Consequence:** the board must be broken out and every tab nub sanded flush, because the case
+  leaves about 0.3 mm round the PCB (build guide, step 1).
+
+### PKG-2. Every CPL correction is derived from JLC's own footprint and proven by `cpl_check.py` (§9 stage 13; supersedes REVIEW-FIX-5, ELEC-7)
+
+- **Problem:** the REVIEW-FIX-5 table came from a community list of 2024. Its U1 (QFN-56, 270) and
+  J1 (USB-C, 180) rows were wrong, and it had no row for J2, J3 or the hot-swap sockets: 41 of 119
+  parts per half would have been misplaced (ELEC-7). Nothing tested a rotation.
+- **Source:** `jlc_footprints.py` fetches JLC's footprint of each LCSC part (the EasyEDA / JLCEDA
+  library, through the lceda.cn API; easyeda.com returned 403) into `jlc_footprints.json`. It covers
+  the 21 BOM parts and the fallbacks C49352235, C9002 and C46061764. Every pad matched LCSC's
+  footprint SVG to within 0.0025 mm.
+- **Change:** `jlc_rotations.csv` holds a row for every footprint whose JLC origin or zero angle
+  differs from KiCad's:
+  - QFN-56 0;0;0;
+  - SOIC-8 0;0;270;
+  - SOT-23-5/6 0;0;−90;
+  - USB-C 0;−1.394;0, anchored on the locating pegs (the SMD pads alone give −1.572);
+  - PJ320D 0.776;0;90;
+  - `SW_MX_Hotswap_Kailh` 0.635;3.81;180. Y is entered as is because KiKit does not mirror the
+    offset on B.Cu, and 180 is decided by the body notch;
+  - the J3 socket 0;5.08;270.
+- **Check:** `cpl_check.py` (stage D, on the bare-board CPL) places each JLC footprint where the CPL
+  puts it, top or bottom, every orientation included (the 155°/205° thumbs). It requires:
+  - the part within 0.1 mm of the best fit on its pegs, barrels or pads;
+  - pin 1 on KiCad pin 1;
+  - every terminal on its pad, and THT pins inside their holes;
+  - the body clear of the footprint's other holes.
+
+  Result: 119 of 119 per half, worst 0.033 mm, terminals 89–100 % on pad, socket bodies 0.70 mm
+  clear of the switch post. The wrong values fail it: U1 at 270 (6.1 mm off), USB-C at −1.572 (pegs
+  0.18 mm off), a socket at 0° (body 1.13 mm into the post hole), Y not negated (6.4 mm off).
+  `just pcb-cpl-images` draws the overlays `docs/images/cpl-*.svg`, and the CI `cpl-images` job
+  requires them current.
+- **Not documented by JLC:** its bottom-side CPL convention. The rows follow the one that KiKit,
+  kicad-jlcpcb-tools and KiBot use (top-view X/Y, 180° minus the KiCad angle plus the correction).
+  The placement preview is the last check ([ordering-jlcpcb.md](ordering-jlcpcb.md#placement-preview-checklist)).
+
+### PKG-3. The order files use JLC's own formats and are reproducible (§9 stage 13)
+
+- **Formats:**
+  - The BOM header is `Comment,Designator,Footprint,LCSC Part #`, JLC's name, not KiKit's `LCSC`.
+  - The CPL layer is written `Top` / `Bottom`, as on JLC's help page, not KiKit's `T` / `B`.
+  - The CSVs use LF line endings (`.gitattributes` stores text as LF).
+  - `gerbers.zip` leaves out KiKit's `Cmts.User` layer, which holds the mounting-hole circles under
+    KiKit's "V-CUT" layer name. It also leaves out the drill maps, the drill report and the gbrjob.
+- **Determinism:** KiCad's creation dates are stripped from the Gerbers, and the zips are built with
+  fixed entries. `just pcb-production-check <side>` rebuilds the package and diffs it byte for byte.
+  The CI `production` job runs it per half.
+- **`jlc_check.py`** checks:
+  - formats and headers;
+  - BOM = CPL = the 119 parts `design.py` fits;
+  - the panel size, rails, fiducials, tooling holes and tab clearances;
+  - that the panel carries the board's copper unchanged (footprints, tracks, vias, zone fills).
+
+  `--stock N` adds the live JLC stock check (`just pcb-stock <side>`).
+
+### PKG-4. `pcb/production/` is committed on `main`, not only on hardware tags (§12, §14 WS5)
+
+- **Spec / WS0:** `pcb/production/` is filled only on `v*-revA` tags. `.gitignore` ignores
+  `pcb/production/*`, and `layout/tests/test_repo.py` checks that.
+- **Change:** the two order packages are force-added (`git add -f`) and tracked on `main`, so the
+  order is reviewable and CI can hold it to the board. A new file there still needs `git add -f`.
+  The owner of `.gitignore` and the repo test should decide whether to un-ignore the directory.
+- **Open, WS5 / release:** `release.yml` still packs `build/<side>/jlc` (KiKit's raw bare-board
+  files). It should ship `pcb/production/<side>/` or `worxboard-<side>-jlc-order.zip` instead.
+
+## DOCS: the ordering documentation (`docs/`, `README.md`, `CHANGELOG.md`, `site/` status text)
+
+### DOCS-1. The ordering docs follow the order package; no drop-in alternate for J3 (§7, §14 WS4)
+
+- `docs/ordering-jlcpcb.md` is a step-by-step turnkey order from `pcb/production/`: every form
+  field, the parts-page and placement-preview checks per part type, the customs description, the
+  likely engineering questions, out-of-stock alternates and a cost estimate dated 2026-11-04.
+  `docs/shopping-list.md` lists the four orders and every off-board part.
+- **J3 alternates:** ELEC-3 named C46061764 (5.7 mm) as J3's fallback. The case pocket clears the
+  glass at 9.75 mm above the PCB, the full tolerance of the 5.0 mm socket, with the ceiling at
+  10.0 mm (CASE-1). A 5.7 mm socket raises the glass by 0.7 mm, to 10.45 mm at full tolerance, so
+  the docs list **no** drop-in alternate for J3. If C27985230 is out of stock: wait, or leave J3
+  off the order and solder the nice!view's own 5 mm socket by hand.
+- **Status flags:** `site/gen_docs.py` keeps no `[G3]` flag. The former `[G3]` lines are `[J]`:
+  checked against JLC's record and, through `cpl_check.py`, its footprint. The fee text follows
+  JLC's price page (updated 2026-10-22): in Standard PCBA basic and extended parts pay the same
+  $1.53 loading fee.
+- **Cost estimate inputs, not quoted:** the bare-PCB price and shipping (no public formula; given
+  as ranges), and whether JLC charges the fixture fee ($16.42 per design) and a loading fee for the
+  THT J3.

@@ -19,7 +19,8 @@ tables are generated: [pinout.md](pinout.md) (GPIOs, TRRS, J3, part positions) a
 ```
 
 - **One RP2040 per half**, on the PCB (QFN-56), with the Corne v4.1 support circuit: W25Q128 QSPI
-  flash, 12 MHz crystal, AP2112K 3.3 V LDO.
+  flash, 12 MHz crystal, AP2112K 3.3 V LDO. JLCPCB fits every part, on both sides
+  ([ordering-jlcpcb.md](ordering-jlcpcb.md)).
 - **Wired split**: ZMK `zmk,wired-split` on hardware UART0 (GP0 TX, GP1 RX), full duplex at
   115 200 baud. The TX/RX crossover is in the PCB netlist, so the firmware pinctrl is the same on
   both halves.
@@ -36,13 +37,13 @@ The same on both halves (deviations WS2a-1, WS2a-2):
 |---|---|
 | RP2040, flash, crystal | U1, U2, Y1 (load caps C6/C7, XOUT series R7) |
 | USB-C, ESD, CC and series resistors | J1, U4, R1/R2 (5.1 kΩ CC1/CC2), R3/R4 (27 Ω D+/D−) |
-| Power: Schottky, LDO, bulk caps | D1, U3, C1/C2 (VSYS), C3/C4 (3V3) |
+| Power: Schottky, LDO, bulk caps | D1, U3, C1 (VSYS, at D1 and U3), C2 (VSYS, at U4's reference pin), C3/C4 (3V3) |
 | Cable power: jumper, polyfuse | JP1, F1 |
 | VBUS sense divider | R5, R6 |
 | Decoupling | C5 (flash), C8–C15 (3V3 pins), C16/C17 (DVDD), C18/C19 (VREG_VIN/VOUT) |
 | BOOT and RESET | SW1 (BOOT) with R9 1 kΩ and R8 10k QSPI_SS pull-up; SW2 (RESET) with R10 10k RUN pull-up |
 | TRRS jack, ESD, series resistors, RX pull-up | J2, U5, R11/R12 (1 kΩ), R13 (10k) |
-| Display socket | J3 (DNP, hand-soldered) |
+| Display socket | J3 (1×5 2.54 mm, 5.0 mm THT socket C27985230, fitted by JLC) |
 | Test pads | TP1–TP3 display DC/RST/BL, TP4–TP7 GP22–GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET |
 | Key matrix | SK101–SK137 sockets, D101–D137 diodes ([matrix.md](matrix.md#sockets-and-diodes)) |
 | Mounting holes, stabiliser holes | H1–H8, STAB_T4/STAB_T5 |
@@ -52,10 +53,10 @@ The same on both halves (deviations WS2a-1, WS2a-2):
 The same on each half:
 
 ```
-USB-C VBUS ──┬── U4 USBLC6-2SC6 VBUS pin (USB ESD)
-             ├── R5 10k ─┬─ GP26 (VBUS_SENSE) ── R6 10k ── GND
+USB-C VBUS ──┬── R5 10k ─┬─ GP26 (VBUS_SENSE) ── R6 10k ── GND
              └── D1 B5819W (1 A Schottky, SOD-123) ──► VSYS (~4.6 V)
-VSYS ── C1, C2 10 µF ── GND
+VSYS ── C1 10 µF ── GND                        (at D1 and U3's input)
+VSYS ── U4 USBLC6-2SC6 VBUS pin (USB ESD clamp reference) ── C2 10 µF ── GND   (C2 at the pin)
 VSYS ── U3 AP2112K-3.3 (EN tied to VIN) ──► 3V3 (RP2040, flash, display)   C3 10 µF + C4 1 µF out
 VSYS ── JP1 SolderJumper_2_Bridged ── F1 PTC 1206, 250 mA hold ──► VLINK ── TRRS Ring2
 VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
@@ -74,14 +75,21 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
   roughly 300 mA rating.
 - **VBUS_SENSE** (GP26 / ADC0) sees VBUS through a 10k/10k divider, about 2.5 V. Rev A firmware does
   not use it; it is there for future host detection.
-- **VBUS is not a clean presence signal.** When a half runs from VLINK with no USB host but its USB
-  device is enabled (the left central firmware, or the UF2 bootloader), the RP2040's 1.5 kΩ D+
-  pull-up forward-biases U4's I/O1-to-VBUS steering diode. With R5 + R6 (20 kΩ) as the only load,
-  VBUS then sits near 2.5 V and VBUS_SENSE near 1.25 V instead of 0, and J1's VBUS pin is back-driven
-  (about 0.13 mA, above vSafe0V). D1 stays reverse-biased, so nothing else is affected, and the
-  peripheral builds do not enable USB. Firmware that uses VBUS_SENSE for host detection needs a
-  threshold above about 1.8 V (VBUS > 3.6 V); a later revision can take U4's VBUS pin from VSYS
-  instead.
+- **VBUS is a clean presence signal.** U4's clamp reference (its "VBUS" pin) is on **VSYS**, not
+  on the connector's VBUS (deviation ELEC-2). VBUS reaches only J1, D1's anode and R5. With the
+  reference on VBUS, the RP2040's 1.5 kΩ D+ pull-up forward-biased U4's I/O1-to-VBUS diode whenever a
+  half ran from VLINK with its USB device enabled. J1's VBUS was then back-driven to about 2.5 V. Now,
+  with no host, VBUS sits at D1's reverse leakage across R5 + R6, about 0.1 V. VSYS meets all four
+  needs of a clamp reference:
+  - it is at or above every I/O level whenever the I/Os can be driven;
+  - it stays under the 5.25 V stand-off;
+  - it carries 2 × 10 µF;
+  - D1 blocks any path from it back to J1.
+
+  `netcmp.py` fails if U4's reference leaves VSYS. C2 sits at U4's pin, 4.07 mm of copper away
+  (BOARD-5, `checks.py`). The trade-off: U4's TVS no longer clamps the VBUS line itself. A positive
+  surge goes through D1 into VSYS, where U4 and the bulk caps clamp it, and a negative one is
+  blocked by D1.
 
 ## TRRS link
 
@@ -95,8 +103,9 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
 - The 1 kΩ series resistors sit at the jack on both data lines; U5 clamps the jack side.
 - R13 pulls UART_RX up to 3V3 (10 kΩ) on the MCU side, so it idles high with no cable.
 - The jack is a PJ-320D-4A SMD part (C95562) on the top side, assembled by JLC. Its mouth is at the
-  inner board edge in a local bump, centred at y 103.0, between the inner-column keys. The case
-  leaves 0.5 mm above a 5.5 mm body (gate G2).
+  inner board edge in a local bump, centred at y 103.0, between the inner-column keys. Its body,
+  14.1 × 6.1 × 5.0 mm, is relieved in the case by 0.75 mm all round, with 1.0 mm headroom (gate G2;
+  CASE-9).
 - Use a **straight** 4-pole cable. **Do not hot-plug it**: the silkscreen next to the jack says
   `DO NOT HOT-PLUG TRRS` and `HOST → LEFT` on both halves.
 
@@ -121,7 +130,9 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
 Cloned from the Corne v4.1 production BOM, with these values:
 
 - **Flash** U2 W25Q128JVSIQ, C5 100 nF decoupling, R8 10k pull-up on QSPI_SS.
-- **Crystal** Y1 12 MHz 3225, 2 × 27 pF load capacitors (C6, C7), R7 1 kΩ in series on XOUT. Its
+- **Crystal** Y1 12 MHz 3225, YXC XL2EL89CRI-111YLC-12M (C49304726): CL 18 pF, ±10 ppm, ESR 80 Ω
+  maximum (ELEC-1). It has 2 × 27 pF load capacitors (C6, C7) and R7, 1 kΩ in series on XOUT. The
+  firmware waits 64× longer than the Pico SDK default for it to start (WS1-9). Its
   courtyard is within 3 mm of the XIN/XOUT pads (measured by `checks.py`, 2.93 mm on both halves).
   R7 sits beside the crystal, so XOUT runs about 5 mm without a via, and a B.Cu keepout over Y1
   keeps tracks and vias out from under it: both GND pours are solid there (deviation REVIEW-FIX-8).
@@ -141,6 +152,15 @@ Cloned from the Corne v4.1 production BOM, with these values:
 
   `checks.py` measures the copper path from every supply pin to its nearest cap and from every cap
   to its nearest pin, and fails above 12 mm and 7 mm.
+- **Ground return** (BOARD-14). U1's only GND pin is its exposed pad (EP). Locked 0.5 mm B.Cu spurs
+  run from the pad's vias to every cap's GND via, or into a GND fill that meets them. TESTEN
+  (pin 19, tied to GND) runs out on a locked 0.2 mm track to a via in the Y1 keepout's GND fill,
+  which reaches the back edge. `checks.py` measures the shortest GND copper path on both layers,
+  1.6 mm per via hop, and gates both distances:
+  - each cap's GND pad to the EP, at most 20 mm: as built 9.3–13.0 mm on the left and 8.6–13.0 mm
+    on the right;
+  - the EP to the main B.Cu GND plane, at most 8 mm: 5.7 mm on the left (through the TESTEN via)
+    and 1.6 mm on the right.
 - **Buttons**: SW1 (BOOT) pulls QSPI_SS to GND through R9 1 kΩ; SW2 (RESET) pulls RUN to GND (R10
   10k pull-up). Both are TS-1088R tact switches at (176, 50) and (180, 50) in the right frame,
   reachable through Ø3 pin holes in the case top.
@@ -151,8 +171,12 @@ Cloned from the Corne v4.1 production BOM, with these values:
 
 - Sharp LS011B7DH03 memory LCD, 160 × 68, on a nice!view-compatible module: 3-wire SPI, 3.3 V,
   under 10 µA. It replaces the top key of the inner column on both halves.
-- Plugged into J3, a 1×5 female socket (pin order MOSI, SCK, VCC, GND, CS; gate G1). J3 is DNP:
-  the builder solders it.
+- Plugged into J3, a 1×5 female socket 5.0 mm tall (C27985230), fitted by JLC as its only
+  through-hole part. The pin order is MOSI, SCK, VCC, GND, CS: pin *n* is the module's pin *n*.
+  Pin 1 is at high x in each half's frame, so the module lies LCD up with its header at the back
+  on both halves (gate G1, BOARD-1). `netcmp.py --board` fails stages C and D if J3 is turned
+  (ELEC-8). A stock nice!view plugs in on its own header, and its glass ends at most 9.75 mm above
+  the PCB (CASE-1). The firmware lays both screens out portrait (WS1-7).
 - Driven by **PIO1** as an SPI master (`raspberrypi,pico-spi-pio`): clock GP2, data GP3, chip
   select GP5, **active high**. The RP2040's PL022 hardware SPI cannot send LSB-first, which the
   memory LCD needs. The ZMK driver is `sharp,ls0xx` at 1 MHz with serial VCOM inversion.
@@ -224,7 +248,8 @@ Every stage is a script, run headless in pinned containers (spec §9; `just pcb 
 | — | `just pcb-route <side>` | Freerouting 2.5.0 |
 | 10–12 | `just pcb-finish <side>` | session import, completion router with rip-up (WS2b-6), pours, stitching, DRC gate, `checks.py` |
 | 11–12 | `just pcb-drc <side>` | the DRC gate and checks on the committed board only |
-| 13–14 | `just pcb-fab <side>` | KiKit JLC files, renders, Edge DXF, STEP (in `kicad/kicad:10.0.7-full`) |
+| 13–14 | `just pcb-fab <side>` | KiKit JLC files, the board part and J3 checks (`netcmp.py --board`), `cpl_check.py`, renders, Edge DXF, STEP (in `kicad/kicad:10.0.7-full`) |
+| P | `just pcb-production <side>` | the JLC order package in `pcb/production/<side>/`: panel, Gerbers, BOM, CPL, README ([ordering-jlcpcb.md](ordering-jlcpcb.md)) |
 
 The gate is `kicad-cli pcb drc --schematic-parity --severity-error`: both committed boards pass
 with 0 violations, 0 unconnected items and 0 parity issues. The layout stages are seeded, so a

@@ -152,15 +152,21 @@ Cloned from the Corne v4.1 production BOM, with these values:
 
   `checks.py` measures the copper path from every supply pin to its nearest cap and from every cap
   to its nearest pin, and fails above 12 mm and 7 mm.
-- **Ground return** (BOARD-14). U1's only GND pin is its exposed pad (EP). Locked 0.5 mm B.Cu spurs
-  run from the pad's vias to every cap's GND via, or into a GND fill that meets them. TESTEN
-  (pin 19, tied to GND) runs out on a locked 0.2 mm track to a via in the Y1 keepout's GND fill,
-  which reaches the back edge. `checks.py` measures the shortest GND copper path on both layers,
-  1.6 mm per via hop, and gates both distances:
+- **Ground return** (BOARD-14, ORDER-4). U1's only GND pin is its exposed pad (EP). Locked 0.5 mm
+  B.Cu spurs run from the pad's vias to every cap's GND via, or into a GND fill that meets them.
+  TESTEN (pin 19, tied to GND) runs out on a locked 0.2 mm track to a via in the Y1 keepout's GND
+  fill, which reaches the back edge. On the left, where routing had left the pad's B.Cu on that one
+  via, `gnd_ties.py` adds four locked 0.5 mm GND ties: two near U4 (the USB ESD clamp), one near
+  U2, and one from U2's GND pin 4 to its cap C5. `checks.py` measures the shortest GND copper path
+  on both layers, 1.6 mm per via hop, and gates:
   - each cap's GND pad to the EP, at most 20 mm: as built 9.3–13.0 mm on the left and 8.6–13.0 mm
     on the right;
-  - the EP to the main B.Cu GND plane, at most 8 mm: 5.7 mm on the left (through the TESTEN via)
-    and 1.6 mm on the right.
+  - the EP to the main B.Cu GND plane, at most 8 mm: 1.6 mm on both halves (all 9 EP vias sit in
+    the plane);
+  - at least 2 separate links from the EP to the planes, each over copper about 0.4 mm wide or
+    wider: 2 on the left, 6 on the right;
+  - U4 pin 2 to a J1 GND pad and C5 to U2 pin 4, at most 30 mm each: 22.3 and 11.4 mm on the left,
+    17.4 and 18.0 mm on the right.
 - **Buttons**: SW1 (BOOT) pulls QSPI_SS to GND through R9 1 kΩ; SW2 (RESET) pulls RUN to GND (R10
   10k pull-up). Both are TS-1088R tact switches at (176, 50) and (180, 50) in the right frame,
   reachable through Ø3 pin holes in the case top.

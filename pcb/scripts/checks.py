@@ -17,6 +17,11 @@
   largest filled B.Cu GND area) within EP_PLANE_MAX_MM, and each U1 cap's GND pad reaches the exposed
   pad within GND_RET_MAX_MM (its decoupling loop). Which EP and cap GND vias sit in the main plane
   over B.Cu alone is printed, not gated;
+- U1 GND links (deviations ORDER-4): the exposed pad reaches the edge of a window GND_LINK_WIN either
+  side of U1 by GND_LINKS_MIN separate paths (GND_LINK_APART apart, no shared via) over GND copper about
+  GND_NECK_W wide or wider, each at most GND_LINK_MAX_MM;
+  U4's clamp GND (pin 2) reaches a J1 GND pad, and the flash cap C5's GND pad reaches U2's GND pin,
+  within GND_PIN_MAX_MM of GND copper;
 - no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
@@ -63,6 +68,20 @@ GND_RET_GROW = 0.03          # mm: copper grown so that thin joins survive the r
 GND_RET_VIA_MM = 1.6         # mm charged per layer change (the board thickness)
 GND_RET_MAX_MM = 20.0        # each U1 cap's GND pad -> the exposed pad (its decoupling loop)
 EP_PLANE_MAX_MM = 8.0        # the exposed pad -> the main B.Cu GND plane
+# U1 GND links and the GND pins near U1 (deviations ORDER-4): a single thin track and one via once tied
+# the left EP, U2, U4 and 11 caps to the planes
+GND_NECK_W = 0.4             # mm: a link counts only over copper about this wide or wider ...
+GND_NECK_ERODE = 0.155       # ... the raster copper shrunk by this (less GND_RET_GROW): a 0.4 mm track
+                             # keeps 0.15 mm (8-neighbour connected at 0.1 mm), a 0.3 mm track breaks up
+GND_LINK_WIN = 24.0          # mm: links run from the EP to the edge of this window either side of U1
+GND_LINK_APART = 0.2         # mm: each next link keeps this clear of the earlier ones
+GND_LINKS_MIN = 2            # separate links ...
+GND_LINK_MAX_MM = 50.0       # ... each at most this long
+GND_LINKS_COUNT = 6          # links searched for (printed)
+GND_PIN_PATHS = (("U4 pin 2 (USB ESD clamp) -> J1 GND", "U4.2", ("J1.A1", "J1.A12", "J1.B1", "J1.B12", "J1.SH")),
+                 ("C5 (flash cap) GND -> U2 pin 4", "C5.2", ("U2.4",)))
+GND_PIN_MAX_MM = 30.0
+GND_PIN_WIN = 12.0           # mm: the raster covers both pads' box grown by this
 # U4's clamp reference pin 5 is on VSYS (deviations ELEC-2); C2 sits at its via (BOARD-5)
 U4_REF = ("U4.5", "VSYS", ("C1.1", "C2.1"))
 U4_CAP_MAX_MM = 5.0
@@ -257,86 +276,204 @@ def u1_gnd(board: pcbnew.BOARD) -> tuple[int, int, list[str], float]:
     return ep_in, len(ep_vias), caps_in, main.geoms[B].area
 
 
+class GndRaster:
+    """The GND copper of both layers (pour fill, tracks, vias, pads) on a GND_RET_GRID raster over a
+    window, for shortest GND copper paths: 8-neighbour steps, a hop between the layers inside a via or
+    a through-hole pad costs GND_RET_VIA_MM. With `erode`, the copper is shrunk by that much first, so
+    only copper about 2 x erode + 1.5 cells wide carries a path (deviations ORDER-4)."""
+
+    def __init__(self, board: pcbnew.BOARD, bounds: tuple[float, float, float, float], erode: float = 0.0):
+        import numpy as np
+        import shapely
+        from shapely.geometry import LineString
+        from shapely.ops import unary_union
+        F, B = pcbnew.F_Cu, pcbnew.B_Cu
+        gnd = board.FindNet("GND").GetNetCode()
+        h = GND_RET_GRID
+        x0, y0, x1, y1 = bounds
+        xs = np.arange(x0, x1, h)
+        ys = np.arange(y0, y1, h)
+        X, Y = np.meshgrid(xs, ys)
+        geo, hops, pads = {F: [], B: []}, [], {}
+        for z in board.Zones():
+            if not z.GetIsRuleArea() and z.GetNetCode() == gnd:
+                for layer in (F, B):
+                    if z.IsOnLayer(layer):
+                        geo[layer] += sps_polys(z.GetFilledPolysList(layer))
+        for t in board.GetTracks():
+            if t.GetNetCode() != gnd:
+                continue
+            if t.Type() == pcbnew.PCB_VIA_T:
+                disc = Point(mm_xy(t.GetPosition())).buffer(pcbnew.ToMM(t.GetWidth(F)) / 2)
+                geo[F].append(disc)
+                geo[B].append(disc)
+                hops.append(disc)
+            else:
+                line = LineString([mm_xy(t.GetStart()), mm_xy(t.GetEnd())])
+                geo[t.GetLayer()].append(line.buffer(pcbnew.ToMM(t.GetWidth()) / 2))
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if pad.GetNetCode() != gnd:
+                    continue
+                on = [layer for layer in (F, B) if pad.IsOnLayer(layer)]
+                for layer in on:
+                    for poly in sps_polys(pad.GetEffectivePolygon(layer, pcbnew.ERROR_INSIDE)):
+                        geo[layer].append(poly)
+                        pads.setdefault(f"{fp.GetReference()}.{pad.GetNumber()}", []).append((layer, poly))
+                if len(on) == 2:
+                    hops.append(Point(mm_xy(pad.GetPosition())).buffer(pcbnew.ToMM(min(pad.GetSize().x, pad.GetSize().y)) / 2))
+        self.X, self.Y, self.pads, self.h = X, Y, pads, h
+        self.copper = [shapely.contains_xy(unary_union(geo[layer]).buffer(GND_RET_GROW - erode), X, Y).ravel()
+                       for layer in (F, B)]
+        # the hop (via or through-hole pad) that owns each cell, -1 for none
+        self.hop = np.full(X.size, -1, dtype=np.int64)
+        ny, nx = X.shape
+        win = Polygon([(x0, y0), (x1, y0), (x1, y1), (x0, y1)])
+        for k, disc in enumerate(hops):
+            if not disc.intersects(win):
+                continue
+            bx0, by0, bx1, by1 = disc.bounds
+            i0, i1 = max(0, int((bx0 - x0) / h)), min(nx, int((bx1 - x0) / h) + 2)
+            j0, j1 = max(0, int((by0 - y0) / h)), min(ny, int((by1 - y0) / h) + 2)
+            if i0 < i1 and j0 < j1:
+                sub = shapely.contains_xy(disc, X[j0:j1, i0:i1], Y[j0:j1, i0:i1])
+                view = self.hop.reshape(ny, nx)[j0:j1, i0:i1]
+                view[sub] = k
+
+    def cells(self, geom, layer_index: int):
+        """Raster cells inside `geom` that carry copper on layer 0 (F.Cu) or 1 (B.Cu)."""
+        import numpy as np
+        import shapely
+        return np.flatnonzero(shapely.contains_xy(geom, self.X, self.Y).ravel() & self.copper[layer_index])
+
+    def pad_cells(self, name: str):
+        """(layer index, cell) of every copper cell of pad REF.n."""
+        out = []
+        for layer, poly in self.pads.get(name, []):
+            li = 0 if layer == pcbnew.F_Cu else 1
+            out += [(li, int(i)) for i in self.cells(poly, li)]
+        return out
+
+    def search(self, starts, goals=None):
+        """Dijkstra from the (layer, cell) starts. Without goals: the distance arrays of both layers.
+        With goals (a set of (layer, cell)): (length, [(layer, cell)] path to the nearest goal), or
+        (inf, [])."""
+        import numpy as np
+        h, nx = self.h, self.X.shape[1]
+        ny, size = self.X.shape[0], self.X.size
+        dist = [np.full(size, math.inf), np.full(size, math.inf)]
+        prev = {} if goals is not None else None
+        heap = []
+        for li, i in starts:
+            if dist[li][i] > 0.0:
+                dist[li][i] = 0.0
+                heap.append((0.0, li, int(i)))
+        heapq.heapify(heap)
+        d2 = h * math.sqrt(2)
+        steps = ((-1, 0, h), (1, 0, h), (0, -1, h), (0, 1, h), (-1, -1, d2), (-1, 1, d2), (1, -1, d2), (1, 1, d2))
+        copper, hop = self.copper, self.hop
+        while heap:
+            d, li, i = heapq.heappop(heap)
+            if d > dist[li][i]:
+                continue
+            if goals is not None and (li, i) in goals:
+                path = [(li, i)]
+                while path[-1] in prev:
+                    path.append(prev[path[-1]])
+                return d, path[::-1]
+            r, c = divmod(i, nx)
+            for dr, dc, w in steps:
+                rr, cc = r + dr, c + dc
+                if 0 <= rr < ny and 0 <= cc < nx:
+                    j = rr * nx + cc
+                    if copper[li][j] and d + w < dist[li][j]:
+                        dist[li][j] = d + w
+                        if prev is not None:
+                            prev[(li, j)] = (li, i)
+                        heapq.heappush(heap, (d + w, li, j))
+            k = hop[i]
+            if k >= 0 and copper[1 - li][i] and d + GND_RET_VIA_MM < dist[1 - li][i]:
+                dist[1 - li][i] = d + GND_RET_VIA_MM
+                if prev is not None:
+                    prev[(1 - li, i)] = (li, i)
+                heapq.heappush(heap, (d + GND_RET_VIA_MM, 1 - li, i))
+        return (math.inf, []) if goals is not None else dist
+
+
+def u1_window(board: pcbnew.BOARD) -> tuple[float, float, float, float]:
+    cx, cy = mm_xy(board.FindFootprintByReference("U1").GetPosition())
+    return cx - GND_RET_WIN, cy - GND_RET_WIN, cx + GND_RET_WIN, cy + GND_RET_WIN
+
+
 def gnd_return(board: pcbnew.BOARD) -> tuple[dict[str, float], float]:
     """Shortest GND copper paths, mm, from U1's exposed pad: to each U1 cap's GND pad (pad 2), and to the
-    main B.Cu GND plane. Dijkstra on a GND_RET_GRID raster of the GND copper of both layers (pour fill,
-    tracks, vias, pads) inside GND_RET_WIN of the U1 centre, 8-neighbour steps, a hop between the
-    layers inside a via or a through-hole pad costs GND_RET_VIA_MM. inf when a target cannot be
-    reached inside the window."""
+    main B.Cu GND plane, on a GndRaster inside GND_RET_WIN of the U1 centre. inf when a target cannot
+    be reached inside the window."""
     import numpy as np
-    import shapely
-    from shapely.geometry import LineString
-    from shapely.ops import unary_union
-    F, B = pcbnew.F_Cu, pcbnew.B_Cu
-    gnd = board.FindNet("GND").GetNetCode()
-    cx, cy = mm_xy(board.FindFootprintByReference("U1").GetPosition())
-    h = GND_RET_GRID
-    xs = np.arange(cx - GND_RET_WIN, cx + GND_RET_WIN, h)
-    ys = np.arange(cy - GND_RET_WIN, cy + GND_RET_WIN, h)
-    X, Y = np.meshgrid(xs, ys)
-    geo, hops, pads = {F: [], B: []}, [], {}
-    for z in board.Zones():
-        if not z.GetIsRuleArea() and z.GetNetCode() == gnd:
-            for layer in (F, B):
-                if z.IsOnLayer(layer):
-                    geo[layer] += sps_polys(z.GetFilledPolysList(layer))
-    for t in board.GetTracks():
-        if t.GetNetCode() != gnd:
-            continue
-        if t.Type() == pcbnew.PCB_VIA_T:
-            disc = Point(mm_xy(t.GetPosition())).buffer(pcbnew.ToMM(t.GetWidth(F)) / 2)
-            geo[F].append(disc)
-            geo[B].append(disc)
-            hops.append(disc)
-        else:
-            line = LineString([mm_xy(t.GetStart()), mm_xy(t.GetEnd())])
-            geo[t.GetLayer()].append(line.buffer(pcbnew.ToMM(t.GetWidth()) / 2))
-    for fp in board.GetFootprints():
-        for pad in fp.Pads():
-            if pad.GetNetCode() != gnd:
-                continue
-            on = [layer for layer in (F, B) if pad.IsOnLayer(layer)]
-            for layer in on:
-                for poly in sps_polys(pad.GetEffectivePolygon(layer, pcbnew.ERROR_INSIDE)):
-                    geo[layer].append(poly)
-                    pads.setdefault(f"{fp.GetReference()}.{pad.GetNumber()}", []).append((layer, poly))
-            if len(on) == 2:
-                hops.append(Point(mm_xy(pad.GetPosition())).buffer(pcbnew.ToMM(min(pad.GetSize().x, pad.GetSize().y)) / 2))
-    copper = [shapely.contains_xy(unary_union(geo[layer]).buffer(GND_RET_GROW), X, Y).ravel() for layer in (F, B)]
-    hop = shapely.contains_xy(unary_union(hops), X, Y).ravel() if hops else np.zeros(X.size, bool)
-    ny, nx = X.shape
-    dist = [np.full(X.size, math.inf), np.full(X.size, math.inf)]
-    ep = next(poly for layer, poly in pads["U1.57"] if layer == F)
-    heap = []
-    for i in np.flatnonzero(shapely.contains_xy(ep, X, Y).ravel() & copper[0]):
-        dist[0][i] = 0.0
-        heap.append((0.0, 0, int(i)))
-    heapq.heapify(heap)
-    d2 = h * math.sqrt(2)
-    steps = ((-1, 0, h), (1, 0, h), (0, -1, h), (0, 1, h), (-1, -1, d2), (-1, 1, d2), (1, -1, d2), (1, 1, d2))
-    while heap:
-        d, li, i = heapq.heappop(heap)
-        if d > dist[li][i]:
-            continue
-        r, c = divmod(i, nx)
-        for dr, dc, w in steps:
-            rr, cc = r + dr, c + dc
-            if 0 <= rr < ny and 0 <= cc < nx:
-                j = rr * nx + cc
-                if copper[li][j] and d + w < dist[li][j]:
-                    dist[li][j] = d + w
-                    heapq.heappush(heap, (d + w, li, j))
-        if hop[i] and copper[1 - li][i] and d + GND_RET_VIA_MM < dist[1 - li][i]:
-            dist[1 - li][i] = d + GND_RET_VIA_MM
-            heapq.heappush(heap, (d + GND_RET_VIA_MM, 1 - li, i))
+    r = GndRaster(board, u1_window(board))
+    dist = r.search([c for c in r.pad_cells("U1.57") if c[0] == 0])
     out = {}
     for c in U1_CAPS:
-        polys = [poly for layer, poly in pads.get(f"{c}.2", []) if layer == F]
-        cells = np.flatnonzero(shapely.contains_xy(polys[0], X, Y).ravel() & copper[0]) if polys else []
-        out[c] = float(dist[0][cells].min()) if len(cells) else math.inf
+        cells = [i for li, i in r.pad_cells(f"{c}.2") if li == 0]
+        out[c] = float(dist[0][np.array(cells)].min()) if cells else math.inf
     main = main_plane(board)
-    cells = np.flatnonzero(shapely.contains_xy(main.geoms[B], X, Y).ravel() & copper[1]) if main else []
+    cells = r.cells(main.geoms[pcbnew.B_Cu], 1) if main else []
     return out, float(dist[1][cells].min()) if len(cells) else math.inf
+
+
+def u1_gnd_links(board: pcbnew.BOARD) -> list[float]:
+    """Separate GND paths from U1's exposed pad out to the edge of a window GND_LINK_WIN either side of
+    U1, past any island round U1, where the board-wide planes run: over GND copper about GND_NECK_W wide
+    or wider (a GndRaster eroded by GND_NECK_ERODE), the shortest one, then the shortest that keeps
+    GND_LINK_APART clear of the earlier ones (outside the pad itself), and so on, up to GND_LINKS_COUNT.
+    Two links never share a via or a neck narrower than about GND_NECK_W + 2 x GND_LINK_APART, so the
+    count measures how much copper joins the pad to the planes. Returns their lengths in mm
+    (deviations ORDER-4)."""
+    import numpy as np
+    import shapely
+    cx, cy = mm_xy(board.FindFootprintByReference("U1").GetPosition())
+    r = GndRaster(board, (cx - GND_LINK_WIN, cy - GND_LINK_WIN, cx + GND_LINK_WIN, cy + GND_LINK_WIN),
+                  erode=GND_NECK_ERODE)
+    ny, nx = r.X.shape
+    ep = next(poly for layer, poly in r.pads["U1.57"] if layer == pcbnew.F_Cu)
+    starts = [c for c in r.pad_cells("U1.57") if c[0] == 0]
+    keep = shapely.contains_xy(ep.buffer(GND_RET_GRID), r.X, r.Y)
+    edge = np.zeros((ny, nx), bool)
+    edge[[0, -1], :] = True
+    edge[:, [0, -1]] = True
+    edge = np.flatnonzero(edge)
+    goals = {(li, int(i)) for li in (0, 1) for i in edge[r.copper[li][edge]]}
+    k = max(1, round(GND_LINK_APART / GND_RET_GRID))
+    out = []
+    while len(out) < GND_LINKS_COUNT:
+        d, path = r.search(starts, goals)
+        if not path:
+            break
+        out.append(d)
+        for (la, i), (lb, _) in zip(path, path[1:] + path[-1:]):
+            row, col = divmod(i, nx)
+            rows, cols = slice(max(0, row - k), row + k + 1), slice(max(0, col - k), col + k + 1)
+            for li in {la, lb}:                       # a via: both layers
+                r.copper[li].reshape(ny, nx)[rows, cols] &= keep[rows, cols]
+        goals = {(li, i) for li, i in goals if r.copper[li][i]}
+    return out
+
+
+def gnd_pin_paths(board: pcbnew.BOARD) -> dict[str, float]:
+    """Shortest GND copper path, mm, from each GND_PIN_PATHS source pad to the nearest of its target
+    pads, on a GndRaster over both pads' box grown by GND_PIN_WIN (deviations ORDER-4)."""
+    out = {}
+    for label, src, targets in GND_PIN_PATHS:
+        def where(name):
+            ref, num = name.split(".")
+            return [mm_xy(p.GetPosition()) for p in board.FindFootprintByReference(ref).Pads() if p.GetNumber() == num]
+        pts = where(src) + [q for t in targets for q in where(t)]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        r = GndRaster(board, (min(xs) - GND_PIN_WIN, min(ys) - GND_PIN_WIN, max(xs) + GND_PIN_WIN, max(ys) + GND_PIN_WIN))
+        goals = {c for t in targets for c in r.pad_cells(t)}
+        d, _ = r.search(r.pad_cells(src), goals)
+        out[label] = d
+    return out
 
 
 def sps_polys(sps) -> list[Polygon]:
@@ -461,6 +598,14 @@ def main(argv: list[str]) -> int:
                         f"{c} {v:.1f}" for c, v in ret.items()),
                     [f"{c} GND pad is {v:.1f} mm of GND copper from U1's exposed pad > {GND_RET_MAX_MM}"
                      for c, v in ret.items() if v > GND_RET_MAX_MM]))
+    links = u1_gnd_links(board)
+    good = [d for d in links if d <= GND_LINK_MAX_MM]
+    results.append((f"U1 exposed pad -> GND planes {GND_LINK_WIN:.0f} mm out, over copper >= {GND_NECK_W} mm wide: "
+                    f"{len(good)} separate links <= {GND_LINK_MAX_MM:.0f} mm ({', '.join(f'{d:.1f}' for d in links) or 'none'})",
+                    [f"{len(good)} < {GND_LINKS_MIN} links"] if len(good) < GND_LINKS_MIN else []))
+    for label, d in gnd_pin_paths(board).items():
+        results.append((f"{label}: {d:.1f} mm of GND copper",
+                        [f"{d:.1f} mm > {GND_PIN_MAX_MM}"] if d > GND_PIN_MAX_MM else []))
     pin, net, caps = U4_REF
     ref = dijkstra(copper_graph(board, board.FindNet(net).GetNetCode()), [pin], set(caps))
     results.append((f"U4 {net} reference: {ref:.2f} mm of copper to a {net} cap",

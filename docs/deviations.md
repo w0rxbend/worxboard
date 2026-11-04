@@ -1393,7 +1393,8 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   Which EP and cap GND vias sit in the main plane over B.Cu alone is now printed, not gated. On the
   left, the EP's B.Cu (148 mm²: the EP vias, the spine and the cap rows) reaches the plane through the
   TESTEN via over F.Cu, which is 5.7 mm. A path that would leave the window counts as failed, so
-  every figure is an upper bound on the whole-board value.
+  every figure is an upper bound on the whole-board value. **ORDER-4:** that via, behind a 0.15 mm
+  track, was the left domain's only link to the planes; this gate could not see it.
 - **Dangling copper** (`prune.py`): three more repairs, each kept only if its net keeps its island
   count.
   - A one-layer via is replaced by joins that may pass the copper they replace by 1e-3 mm. A join
@@ -1968,6 +1969,68 @@ JLC3DP's published rules and the parts they hold. Each defect below was confirme
   holes (STAB_T4/STAB_T5) leave 0.28 mm between them ... they may break into each other".
   `ordering-jlcpcb.md` has the same remark and a row in the likely-questions table. The panel
   README now has the whole remark to paste (it was only in `ordering-jlcpcb.md`).
+
+### ORDER-4. Left half: U1's ground reaches the planes by ties, not one 0.15 mm neck (§6.4, §9 stages 11–12; corrects BOARD-14)
+
+- **Problem** (left board only; the review's island analysis of all GND copper on both layers):
+  U1's whole ground domain met the board's GND planes through one 0.15 mm × 2.24 mm F.Cu track under
+  the QFN (EP to TESTEN), a 0.2 mm × 2.6 mm F.Cu track and the single TESTEN via at (94.595, 36.0385).
+  The domain was the exposed pad (EP, the RP2040's only GND pin), 11 of the 12 U1 caps, flash U2
+  pin 4, USB ESD U4 pin 2, SW1 and R1, with the EP's 148 mm² B.Cu island. Deleting that via alone,
+  fills untouched, made `kicad-cli pcb drc` report 1 unconnected GND item (re-checked here). On the
+  host-facing half, the USB ESD clamp's current ran through the MCU's ground. Shortest GND copper,
+  0.1 mm raster: U4 pin 2 to a J1 GND pad 49.2 mm (straight 5.1; right 19.1), and C5, the flash's
+  only cap, to U2 pin 4 110.1 mm (straight 10.1; right 18.0). DC drop was negligible (about 15 mΩ),
+  so not dead on arrival, but a ground-integrity and ESD defect. The BOARD-14 gate measured only the
+  shortest EP-to-plane path (5.7 mm), not its width, the number of parallel links, or U2's and U4's
+  ground, and BOARD-14 reported it as a pass.
+- **Gates** (`checks.py`, both halves; the shortest-path raster is now `GndRaster`):
+  - **links:** the EP reaches the edge of a window 24 mm either side of U1 by at least
+    `GND_LINKS_MIN` = 2 separate paths, each ≤ 50 mm, over GND copper about 0.4 mm wide or wider
+    (the raster eroded by `GND_NECK_ERODE`, so a 0.3 mm track breaks up). Each next path keeps
+    0.2 mm clear of the earlier ones, so two links never share a via or a neck;
+  - **pin paths:** U4 pin 2 to a J1 GND pad, and C5's GND pad to U2 pin 4, each ≤ 30 mm of GND copper.
+
+  On the committed boards before the fix, the left failed all three (0 links; both pin paths not
+  reachable within the raster window) and the right passed (6 links of 32.9–38.6 mm; 17.4 and
+  18.0 mm).
+- **Change** (`gnd_ties.py`, new, run in stage C after the DRC gate and before `prune.py`): while a
+  gate fails, it routes locked 0.5 mm GND ties with the completion router's A*, which may rip other
+  nets' unlocked copper and route them again. A tie is kept only if every net closes and the gates
+  improve; otherwise the board is restored. The kinds, in order: links from the EP's own B.Cu copper
+  to the main F.Cu/B.Cu pour near U4 pin 2, C5, U2 and U2 pin 4; pad-to-pad (U2 pin 4 to C5); a
+  pad's own via into the main B.Cu plane; links in eight wedges round the EP. A board that passes
+  is not touched, so the right board is unchanged. On the left it keeps four ties:
+  - near U4 pin 2: 4.8 mm with 1 via, (81.12, 46.40)–(84.12, 49.80); and 0.8 mm,
+    (79.92, 45.50)–(79.42, 46.10), which rips and re-routes COL0;
+  - near U2: 6.3 mm with 1 via, (93.50, 50.62)–(88.40, 51.32), which re-routes a piece of 3V3;
+  - U2 pin 4 to C5's GND pad: 14.4 mm on F.Cu round the north end of U2. It re-routes 16 items of
+    3V3, QSPI_SD2, QSPI_SD3 and QSPI_SS. U2's VCC is still 2.53 mm of copper from C5.
+
+  Tried and dropped: requiring 3 links (in a trial on the committed board, no wedge tie closed every
+  net: each was rejected or longer than 12 mm); pad ties alone for U2 (C5's own via gave no gain, U2 pin 4's needed 11.9 mm and
+  3 vias); pair ties at the link-tie costs (22.3 mm with 4 vias). The pair tie is allowed to rip
+  more (first cost 0.5 mm per cell instead of 2.0).
+- **Result** (left; the right is unchanged):
+
+  | Check | Before (BOARD-14) | After |
+  |---|---|---|
+  | EP vias / cap GND vias in the main B.Cu plane over B.Cu alone | 0/9, 1/12 | 9/9, 12/12 |
+  | EP to the main B.Cu plane | 5.7 mm, through the TESTEN via | 1.6 mm |
+  | Separate links ≥ 0.4 mm wide, ≤ 50 mm | 0 | 2 (27.0, 31.9 mm) |
+  | U4 pin 2 → J1 GND | none within the gate's window (the review: 49.2 mm) | 22.3 mm |
+  | C5 → U2 pin 4 | none within the gate's window (the review: 110.1 mm) | 11.4 mm |
+  | Delete the TESTEN via, fills untouched | 1 unconnected | 0 unconnected |
+  | U1 cap GND → EP | 9.3–13.0 mm | 9.3–13.0 mm |
+  | `checks.py` | 10/10 (the new gates did not exist) | 13/13 |
+  | DRC with schematic parity | 0 / 0 / 0 | 0 / 0 / 0 |
+  | Copper | 2620 tracks (498 locked), 331 vias | 2647 tracks (525 locked), 328 vias, all 0.3 / 0.6, narrowest 0.135 mm |
+
+  The USB pair (D+ 24.73, D− 23.92 mm), Y1, the decoupling distances, U4's VSYS reference
+  (4.07 mm), the outline and every part position are unchanged, so BOM and CPL are unchanged.
+  `prune.py` then leaves 0 unlocked dangling items (34 locked, as before). `netcmp --board`,
+  `cpl_check` (119/119) and `jlc_check` (12/12) pass. The left renders and order package are
+  regenerated; the CPL overlay drawings are unchanged.
 
 ### ORDER-5. Leg thumbscrews: a collarless DIN 653 only (§10 fasteners; corrects CASE-3)
 

@@ -13,7 +13,7 @@ docs. The gates block **ordering**, not the repository.
 | [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 111 passed, 0 expected failures, 0 skipped |
 | [CI on `main`](#ci) | **PASS**: layout, firmware, case and pcb on `f4c95bb`, every job, both from-scratch board rebuilds included |
 | [Order package](#order-package) (`pcb/production/`) | **PASS**: `jlc_check` on both halves, 119 of 119 placements per half proven against JLC's footprints, and the package rebuilds byte for byte |
-| [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 10 of 10 per half |
+| [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 13 of 13 per half |
 | [G1 display](#g1-niceview-display) | **PASS** |
 | [G2 TRRS jack](#g2-pj-320d-trrs-jack) | **PASS** |
 | [G3 parts, rules and placement](#g3-parts-stock-and-track-width) | **PASS**: every line in stock on 2026-11-04 at 05:17 UTC; re-check on the order day |
@@ -102,19 +102,21 @@ unchanged (deviations PKG-1 to PKG-4).
 
 ## Boards after the turnkey re-placement
 
-Both halves were re-placed and re-routed from the ELEC schematics (BOARD-1 to BOARD-14). Numbers
-are from BOARD-14; CI rebuilds both boards from scratch on every push and requires them to equal
-the committed ones.
+Both halves were re-placed and re-routed from the ELEC schematics (BOARD-1 to BOARD-14), and the
+left one got its U1 GND ties (ORDER-4). Numbers are from BOARD-14 and ORDER-4; CI rebuilds both
+boards from scratch on every push and requires them to equal the committed ones.
 
 | Check | Left | Right |
 |---|---|---|
 | `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
 | DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
-| `checks.py` | 10/10: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 to VSYS 4.07 mm | 10/10: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 to VSYS 4.07 mm |
+| `checks.py` | 13/13: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 to VSYS 4.07 mm | 13/13: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 to VSYS 4.07 mm |
 | U1 cap GND return to the exposed pad (gate ≤ 20 mm) | 9.3–13.0 mm | 8.6–13.0 mm |
-| Exposed pad to the main B.Cu GND plane (gate ≤ 8 mm) | 5.7 mm, through the TESTEN via | 1.6 mm |
+| Exposed pad to the main B.Cu GND plane (gate ≤ 8 mm) | 1.6 mm (9/9 EP vias in the plane) | 1.6 mm |
+| Separate EP links ≥ 0.4 mm wide (gate ≥ 2) | 2: 27.0, 31.9 mm | 6: 32.9–38.6 mm |
+| U4 pin 2 → J1 GND; C5 → U2 pin 4 (gate ≤ 30 mm) | 22.3; 11.4 mm | 17.4; 18.0 mm |
 | `netcmp.py --board` + kikit BOM/CPL (stage D) | 3/3, 119 fitted parts, J3 pin-1 gate | same |
-| Copper | 331 vias, all 0.3 / 0.6; narrowest track 0.135 mm | 389 vias, all 0.3 / 0.6; narrowest 0.135 mm |
+| Copper | 328 vias, all 0.3 / 0.6; narrowest track 0.135 mm | 389 vias, all 0.3 / 0.6; narrowest 0.135 mm |
 | Dangling copper | 0 unlocked; 34 locked warnings (column vias at the keys, U1 fan-out stubs) | 0 unlocked; 37 locked |
 
 - **U1 ground (BOARD-14).** U1's only GND pin is the exposed pad. Every one of its 12 caps has a
@@ -123,7 +125,11 @@ the committed ones.
     that meets them;
   - TESTEN (pin 19, GND) runs out on a locked 0.2 mm track to a via in the Y1 keepout's GND fill,
     which reaches the back edge;
-  - `checks.py` gates both distances. On the left, the pad joins the plane through that via.
+  - on the left, four locked GND ties from `gnd_ties.py` join the pad's B.Cu to the main plane
+    and U2's GND pin to its cap C5 (ORDER-4). Before them, the TESTEN via behind a 0.15 mm track
+    was the left pad's only link to the planes;
+  - `checks.py` gates the cap returns, the pad-to-plane distance, the number of separate links
+    and the U4 and U2 GND paths.
 - **Host independence.** The completion router keys its shape cache by the item, not by `id()`
   (BOARD-2), so the boards are the same on every host.
 - **U4's clamp reference** is VSYS, with its own 10 µF at the pin (ELEC-2, BOARD-5). VBUS can no

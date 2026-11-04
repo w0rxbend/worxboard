@@ -1,15 +1,16 @@
 # worxboard rev A build guide
 
 This guide follows the [Corne (crkbd) build guides](https://github.com/foostan/crkbd/tree/main/docs):
-check the parts, test the bare boards, then build up from the PCB. JLCPCB assembles every SMD part,
-including the RP2040, the USB-C and TRRS connectors, the hot-swap sockets and the diodes. You only
-hand-solder the display socket.
+check the parts, test the bare boards, then build up from the PCB. JLCPCB assembles **every** part
+on the PCB: the RP2040 and its support parts, the USB-C and TRRS connectors, the 37 hot-swap sockets
+and 37 diodes per half, and the display socket J3. **Nothing on the PCB needs soldering.** You
+solder only the displays' own header pins, then plug in the displays, the switches and the keycaps.
 
 > [!IMPORTANT]
-> Rev A has **not been built yet**. The boards are routed and pass DRC, the firmware and the case
-> build, but nothing has been tested on hardware. Gates G1–G3 in [bom.md](bom.md#gates) are still
-> open and must pass before you order boards. Read [electrical.md](electrical.md) once before you
-> start.
+> Rev A has **not been built yet**. Gates G1–G3 pass ([verification.md](verification.md#summary)),
+> the boards pass DRC and every scripted check, and the firmware and the case build, but nothing has
+> run on hardware. Order the boards as [ordering-jlcpcb.md](ordering-jlcpcb.md) describes. Read
+> [electrical.md](electrical.md) once before you start.
 
 > [!WARNING]
 > - **Plug the host into the LEFT half.** The left half is the ZMK central. The right USB-C gives power
@@ -24,7 +25,7 @@ hand-solder the display socket.
 - [1. Check the assembled PCBs](#1-check-the-assembled-pcbs)
 - [2. Flash and test the bare boards](#2-flash-and-test-the-bare-boards)
 - [3. Choose the power mode (JP1)](#3-choose-the-power-mode-jp1)
-- [4. Fit the display socket](#4-fit-the-display-socket)
+- [4. Plug in the displays](#4-plug-in-the-displays)
 - [5. Prepare the case](#5-prepare-the-case)
 - [6. Assemble the case](#6-assemble-the-case)
 - [7. Switches, stabilisers and keycaps](#7-switches-stabilisers-and-keycaps)
@@ -34,34 +35,41 @@ hand-solder the display socket.
 
 ## Parts
 
-For one keyboard (both halves). Part numbers and the assembled parts are in [bom.md](bom.md).
+For one keyboard (both halves). The full list with specs, quantities and shops is in
+[shopping-list.md](shopping-list.md); the parts JLC fits are in [bom.md](bom.md).
 
 | Part | Qty | Notes |
 |---|---|---|
-| worxboard-left PCB, JLC-assembled | 1 | RP2040, USB-C, TRRS jack, 37 hot-swap sockets and 37 diodes fitted |
+| worxboard-left PCB, JLC-assembled | 1 | RP2040, USB-C, TRRS jack, display socket J3, 37 hot-swap sockets and 37 diodes fitted |
 | worxboard-right PCB, JLC-assembled | 1 | the same circuit with the TRRS data lines crossed |
-| nice!view display (or an LS011B7DH03 breakout with the same pinout) | 2 | one per half, gate G1 |
-| 1×5 2.54 mm female socket and male header spacer | 2 | J3; the display module plugs into it. Socket + spacer must lift the module 6.0–6.3 mm (step 4) |
+| nice!view display (or an LS011B7DH03 breakout with the same pinout) | 2 | one per half, with the male header it ships with |
 | MX-compatible switches, 3- or 5-pin | 74 | 37 per half |
 | 2u plate-mount stabilisers | 4 | thumb keys T4 and T5 on each half |
-| Keycaps | 74 | 1.5u × 8 (outer column), vertical 1.5u × 4 (inner column), 2u × 4 (thumbs), 1u × 58 |
-| Case: top shell, bottom tray and plate spacer per half | 1 set | [case.md](case.md); CNC aluminium or 3D-printed |
-| M2.5 countersunk screws, ISO 10642 | 16 | per half 6 × M2.5 × 14 and 2 × M2.5 × 12 ([case.md](case.md#fasteners)) |
+| Keycaps | 74 | 58 × 1u, 8 × 1.5u (outer column), 4 × 1.5u mounted vertically (inner column), 4 × 2u (thumbs) |
+| Case: top shell, bottom tray, plate spacer per half; 6 tent legs; the TPU foot-cap tree | 1 set | [`case/production/`](../case/production/README.md), [case.md](case.md) |
+| M2.5 × 12 countersunk screws | 12 | 6 per half, in the edge bosses T2–T4 and T6–T8 |
+| M2.5 × 10 countersunk screws | 4 | 2 per half, in the bosses under the key well, T1 and T5 |
 | Rubber feet, Ø10 mm | 8 | 4 per half |
-| Tent legs, foot caps, stock ErgoDox EZ M3 spring thumbscrews | 6 each | [legs.md](legs.md) |
+| M3 × 12 knurled thumbscrews and friction washers | 6 + 6 | one per leg ([legs.md](legs.md)) |
 | TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm, with a **slim plug head: ≤ Ø6.3 mm for the first 3.7 mm** behind the metal shaft ([case.md](case.md#trrs-cable)) |
 | USB-C cable | 1–2 | the second is only needed in split-powered mode or for flashing the right half |
 
 ## Tools
 
-- Soldering iron and solder (only for J3, and to re-bridge JP1).
-- Flush cutters, tweezers.
+- Soldering iron and solder: only for the five header pins on each display module (and to
+  re-bridge JP1 if you ever cut it). Nothing on the PCB.
+- Flush cutters, tweezers, a small file or fine sandpaper (for the panel tab nubs).
 - A multimeter, for the power-mode and continuity checks.
 - A Ø2.5 mm or smaller pin (paper clip) to reach the BOOT and RESET buttons through the case.
-- A 1.5 mm hex key or a Phillips #0, depending on the M2.5 screws you buy.
+- A 1.5 mm hex key or a Phillips #1, depending on the M2.5 screws you buy.
 - Optional: a Raspberry Pi Debug Probe (or any SWD probe) for the SWD test pads.
 
 ## 1. Check the assembled PCBs
+
+The boards arrive in their panel frames. Break each board out at its 14 mouse-bite tabs, bending
+the frame gently away from the USB-C (J1) and TRRS (J2) connectors, which overhang the board edge.
+Then file or sand every tab nub **flush** with the edge: the case leaves only about 0.3 mm round the
+PCB.
 
 Lay out both boards and compare them with the KiCad renders of the committed boards:
 
@@ -73,17 +81,17 @@ Lay out both boards and compare them with the KiCad renders of the committed boa
 - The **top side** carries, all in the strip along the back edge: the USB-C receptacle (J1), the
   RP2040 (U1), flash (U2), crystal (Y1), regulator (U3), USB ESD (U4), the Schottky diode (D1),
   the polyfuse (F1) and solder jumper (JP1), the BOOT (SW1) and RESET (SW2) buttons, the test pads
-  and the empty J3 footprint at the inner end. The TRRS jack (J2), its ESD part (U5) and resistors
-  sit in the bump on the inner edge.
-- The **bottom side** carries the 37 Kailh hot-swap sockets (SK101–SK137) and their 37 diodes
-  (D101–D137).
+  and the 1×5 display socket J3. The TRRS jack (J2), its ESD part (U5) and resistors sit in the bump
+  on the inner edge.
+- The **bottom side** carries the 37 MX hot-swap sockets (SK101–SK137) and their 37 diodes
+  (D101–D137). Each socket's curved notch wraps the round switch-centre hole.
 - The silkscreen next to the jack reads `DO NOT HOT-PLUG TRRS` and `HOST → LEFT`; next to JP1 it
   reads `JP1: cut = split power`. The board label reads `worxboard L rev A` or `worxboard R rev A`.
 - Every part's position is in [pinout.md](pinout.md#part-positions). The left RP2040 is turned
   180° compared with the right one; that is intended (deviation WS2b-1).
 
 Look for solder bridges on the QFN and the USB-C pins with a loupe. Check that every socket sits
-flat.
+flat and that J3's five pins are soldered on the bottom side.
 
 ## 2. Flash and test the bare boards
 
@@ -128,61 +136,57 @@ To cut JP1, scratch through the thin trace between the two pads with a craft kni
 a multimeter that the pads are no longer connected. To restore it, bridge the pads with solder.
 Do not run one half bridged and the other cut.
 
-## 4. Fit the display socket
+## 4. Plug in the displays
 
-> [!WARNING]
-> On the rev A boards J3 is reversed: gate G1 found the module's MOSI pin at the other end, so a
-> module plugged in face-up has its clock tied to ground and stays blank
-> ([verification.md](verification.md#g1-niceview-display), open item 1). The steps below describe the
-> intended fit; the display works only once J3 is turned on the PCB.
+J3, a 1×5 female socket 5.0 mm tall, is already fitted at the back end of the display area. The
+display module (nice!view or compatible) plugs into it on its own male header and can be pulled out
+again.
 
-The display module (nice!view or compatible) plugs into a 1×5 female socket J3 at the back end of
-the display area, so it can be removed.
+1. **Solder the male header to the module**, if it is not on yet: the short pins go up through the
+   module from below, the long pins point down. Do not use the socket that ships with the nice!view
+   (J3 is the same height), and do not add an extra spacer.
+2. **Trim the pins flush on the glass side.** They must not stand above the module's glass
+   (0.9 mm above its PCB): untrimmed pins reach the ceiling of the display pocket in the case
+   (CASE-1).
+3. **Plug the module into J3 LCD up**, so that it lies flat over the inner column, where the top
+   key would be, and reaches toward you. Do this the same way on both halves. J3 pin 1 is MOSI, and
+   pin *n* is the module's pin *n* ([pinout.md](pinout.md#display-header-j3)). Pointing the module
+   the other way would put it off the board.
+4. Plug the board in again. The left display shows ZMK's status screen, upright: USB at the top,
+   the layer at the bottom. The right display shows `worx/board`, the Caps / Num / Scroll
+   indicators and `wired`. A lit indicator shows in upper case in a frame.
 
-1. Solder the 1×5 male header to the display module if it has none.
-2. Put the **female socket** J3 on the top side of the PCB at the `J3` footprint. Plug the display
-   into it first so the socket is held square, with the module lying flat over the inner column
-   where the top key would be.
-3. Solder the five pins from the bottom side. Trim them flush: the hot-swap sockets are nearby on
-   the bottom side, and the bottom tray has only 4 mm of cavity.
-4. Check the stack height. The module runs 0.7 mm further from the header than the case pocket
-   allows at plate level, so its underside must sit **above the plate top**: socket + header spacer
-   **6.0–6.3 mm** above the PCB (for example a 3.5 mm low-profile female socket on a standard
-   2.5 mm male-header spacer), which puts the top of the glass at **≤ 8.2 mm** (gate G1). A lower
-   socket, or a module soldered straight to the board, pushes its far end into the case wall; a
-   standard 8.5 mm socket is too tall for the pocket.
-5. J3 pad 1 (MOSI) is at low x in each half's own KiCad frame: the **inner** end of the socket
-   (towards the TRRS jack) on the right half, the **outer** end on the left half; see the
-   [J3 table in pinout.md](pinout.md#display-header-j3). The module mounts face-up the same way on
-   both halves, display towards the user.
-
-Plug the board in again. The left display shows the ZMK status screen (layer and output); the right
-display shows the `worxboard` logo, the lock indicators and `wired`.
-
-> [!NOTE]
-> Both screens are laid out for a landscape panel, but the module is mounted upright. Until the
-> firmware gets a rotation, expect the text to read turned by 90° ([firmware known issues](firmware.md#known-issues)).
+If both screens read upside down, the panel's pixel origin is at the other end from the one the
+firmware assumes. Set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in
+`firmware/zmk/config/worxboard.conf` and flash again ([firmware.md](firmware.md#known-issues)).
 
 ## 5. Prepare the case
 
-The case files are built by `just model` ([case.md](case.md)) and checked against the PCB STEP by
-`just fitcheck` (0 mm³ interference on both halves). If you machine aluminium, 3D-print a test fit
-first and check it against your PCB:
+The case order package is [`case/production/`](../case/production/README.md), case revision A3. It
+is checked against the PCB STEPs by `just fitcheck`, with 0 mm³ of interference on both halves.
+Before you machine aluminium, 3D-print a test top and check it against your assembled PCB:
 
-- The display sits under the window in the top shell and its pocket clears the header.
-- The USB-C notch on the back wall lines up with J1 on **both** halves.
-- The TRRS hole in the inner bump lines up with the jack mouth.
+- The display sits in its pocket under the window, with the glass below the bezel skin.
+- The USB-C notch on the back wall lines up with J1 on **both** halves, and the plug seats fully.
+- The TRRS hole in the inner bump lines up with the jack mouth, and the plug seats fully.
 - The BOOT and RESET pin holes in the top skin sit over the two buttons.
+- The C6R1 keycap clears the display module's far end.
 
 ## 6. Assemble the case
 
 1. Fit the four rubber feet into the recesses under each bottom tray.
-2. Lay the PCB, top side up, on the posts of the bottom tray.
+2. Lay the PCB, top side up, with its display plugged in, on the posts of the bottom tray.
 3. Lay the plate spacer over the PCB: each switch goes through its own opening.
-4. Put the top shell on, so its bosses meet the PCB. Feed the display module through its pocket.
-5. Fit the 8 M2.5 countersunk screws from below: the 2 × M2.5 × 12 go into the two bosses under
-   the key well (holes 0 and 4 in [pinout.md](pinout.md#mounting-holes)), the 6 × M2.5 × 14 into the
-   others. Tighten them gently: they clamp the PCB between the tray posts and the shell bosses.
+4. Put the top shell on, so its bosses meet the PCB and the display goes up into its pocket.
+5. Fit the 8 M2.5 countersunk screws from below:
+   - the **2 × M2.5 × 10** go into the two bosses under the key well, T1 and T5 (holes 0 and 4 in
+     [pinout.md](pinout.md#mounting-holes)). Tighten them **snug only**: their blind threads are
+     short;
+   - the **6 × M2.5 × 12** go into the others.
+
+   Do not use longer screws: every thread in the top shell is blind, and a longer screw stops
+   before its head seats. Tighten them gently: they clamp the PCB between the tray posts and the
+   shell bosses.
 
 ## 7. Switches, stabilisers and keycaps
 
@@ -193,14 +197,16 @@ first and check it against your PCB:
    socket and can push it off its pads.
 3. Re-test every key in a key tester.
 4. **Keycaps.** The outer column takes 1.5u caps, the inner column (`TG(1)`, `HYPER`/`MEH`) takes
-   vertical 1.5u caps, and the two large thumb keys take 2u caps. The top inner key is gone: the
-   display sits there.
+   1.5u caps turned vertical, and the two large thumb keys take 2u caps, also vertical. The top
+   inner key is gone: the display sits there.
 
 ## 8. Tent legs
 
 Each half has three leg mounts: the outer wall, the inner wall and the thumb-cluster end, at the
-stock ErgoDox EZ positions. Put a leg's hub on its boss, push the stock spring thumbscrew through,
-and tighten it at the angle you want. See [legs.md](legs.md).
+stock ErgoDox EZ positions. Snip the foot caps off their TPU tree at the base and push one onto each
+leg's spigot. Put a friction washer on the boss, the leg's hub on the washer, push the M3 × 12
+thumbscrew through, and tighten it at the angle you want. The washer is required with an M3 × 12:
+without it, the screw reaches past the end of the outer and thumb threads. See [legs.md](legs.md).
 
 ## 9. Connect and use
 
@@ -222,6 +228,6 @@ on layer 2.
 | Right half dark with one cable | Check JP1 is bridged on **both** halves and F1 has not tripped (unplug for a minute). |
 | One key dead | Re-seat the switch; check the socket's two pads and the diode next to it ([matrix.md](matrix.md#sockets-and-diodes) gives the SK/D references). |
 | A whole row or column dead | See [matrix.md](matrix.md) for the GPIO of that row or column and check that pin on the RP2040. |
-| Display blank | Re-seat the module in J3 and check the pin order against [pinout.md](pinout.md#display-header-j3). |
-| Display text sideways | Known firmware issue, see [firmware.md](firmware.md#known-issues). |
+| Display blank | Re-seat the module in J3, LCD up, reaching toward you. Check the header's five joints on the module, and the pin order against [pinout.md](pinout.md#display-header-j3). |
+| Display upside down | Set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y`, see [firmware.md](firmware.md#known-issues). |
 | Wrong characters on the right half | The left half needs the **central** firmware, the right half the **peripheral** firmware. |

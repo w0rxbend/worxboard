@@ -16,10 +16,11 @@ on each half and USB-C on both halves. Every part of it is generated from one la
 [![License: GPL v3](https://img.shields.io/badge/code-GPLv3-blue.svg)](LICENSE)
 [![License: CERN-OHL-S-2.0](https://img.shields.io/badge/hardware-CERN--OHL--S--2.0-blue.svg)](LICENSE-HARDWARE)
 
+[Order it](#order-it) ·
 [Build guide](docs/buildguide_en.md) ·
 [BOM](docs/bom.md) ·
+[Shopping list](docs/shopping-list.md) ·
 [Firmware](docs/firmware.md) ·
-[Ordering](docs/ordering-jlcpcb.md) ·
 [Case](docs/case.md) ·
 [Design spec](docs/design.md)
 
@@ -34,23 +35,38 @@ KiCad schematics and PCBs, the build123d case, the ZMK physical layout, the docs
 viewer. CI rebuilds all of it on every push.
 
 > [!WARNING]
-> **Status: rev A, designed and built in CI, not yet made.** The boards are routed and pass DRC,
-> the firmware builds, the case passes its fit check against the board STEPs and the layout part
-> envelopes, but no board has been ordered or tested on hardware. Gates **G1–G3** fail
-> ([verification.md](docs/verification.md)) and block ordering: the display socket J3 has pin 1 at
-> the wrong end, so neither display can work on the routed boards; the TRRS jack body is 2.1 mm
-> longer than the case allows for; and the hot-swap socket C2803348 is discontinued. The frozen design
-> is [`docs/design.md`](docs/design.md); every change from it is in
+> **Status: rev A, designed, checked and orderable, not yet built.** Gates **G1–G3** pass
+> ([verification.md](docs/verification.md)). The JLCPCB turnkey order of both PCBs and the case order
+> are committed and checked in CI on every push ([Order it](#order-it)). No board has been made or
+> tested on hardware yet, so order 2 assembled boards per side and test them before you machine the
+> case. The frozen design is [`docs/design.md`](docs/design.md); every change from it is in
 > [`docs/deviations.md`](docs/deviations.md).
 
 | Part | State |
 |---|---|
 | Layout (`layout/`) | **Done.** Keys, thumbs, display, jacks, holes, outline, zones and the GPIO map; `just layout-check` |
-| PCB (`pcb/`) | **Routed.** Both halves generated in KiCad 10: ERC clean, DRC with schematic parity 0 violations / 0 unconnected; the USB pair, crystal, decoupling-path, via-in-pad and outline checks pass. A seeded from-scratch rebuild reproduces the committed boards. CI writes gerbers, BOM, CPL, STEP and renders. |
-| Firmware (`firmware/`, `zephyr/`, `build.yaml`) | **Builds.** All six `build.yaml` rows (left central, right peripheral, two role-swap and two RP2350A rows) build locally and in CI. Untested on hardware. |
-| Case and plates (`case/`, `plates/`) | **Modelled.** Every case check passes; `just fitcheck` reports 0 mm³ against both PCB STEPs plus the layout envelopes of the USB-C, TRRS, display and hot-swap socket bodies the STEPs lack. Not printed or machined yet. |
-| Docs and microsite (`docs/`, `site/`) | **Done.** Build guide, generated BOM, pinout and matrix, electrical, ordering, case, legs, firmware; the viewer |
-| Gates and release | **Checked, failing.** [`docs/verification.md`](docs/verification.md) records the integration tests, a clean-clone `just all` and gates G1–G3, which fail and block ordering. `release.yml` is written; no tag or release exists yet. |
+| PCB (`pcb/`) | **Orderable.** Both halves are generated in KiCad 10. ERC is clean, and DRC with schematic parity gives 0 violations and 0 unconnected. The USB pair, crystal, decoupling and U1 ground-return, via-in-pad and outline checks pass. A seeded from-scratch rebuild reproduces the committed boards in CI. The JLC turnkey package (panel, BOM, CPL proven against JLC's footprints) is committed in [`pcb/production/`](pcb/production/). |
+| Firmware (`firmware/`, `zephyr/`, `build.yaml`) | **Builds.** All six `build.yaml` rows (left central, right peripheral, two role-swap and two RP2350A rows) build locally and in CI. Both screens are laid out portrait for the upright display. Untested on hardware. |
+| Case and plates (`case/`, `plates/`) | **Orderable.** Every case check and JLCCNC's internal-corner rule pass. `just fitcheck` reports 0 mm³ against both PCB STEPs plus the layout envelopes. The JLCCNC / JLC3DP package, case revision A3, is committed in [`case/production/`](case/production/README.md). Not printed or machined yet. |
+| Docs and microsite (`docs/`, `site/`) | **Done.** The turnkey ordering guide and shopping list, build guide, generated BOM, pinout and matrix, electrical, case, legs, firmware; the viewer |
+| Gates and release | **Pass.** [`docs/verification.md`](docs/verification.md) records the integration tests, CI, the order package checks and gates G1–G3. `release.yml` is written; no tag or release exists yet. |
+
+## Order it
+
+Everything for one keyboard is committed and rebuilt in CI on every push:
+
+| Order | Where | Files | How |
+|---|---|---|---|
+| Left and right PCBs, fully assembled (2 designs: 5 PCBs, 2 assembled each) | [JLCPCB](https://jlcpcb.com), Standard PCBA, both sides | [`pcb/production/left/`](pcb/production/left/README.md), [`pcb/production/right/`](pcb/production/right/README.md): `gerbers.zip`, `bom.csv`, `cpl.csv` | [ordering-jlcpcb.md](docs/ordering-jlcpcb.md) |
+| 2 top shells, 2 bottom trays, 6 tent legs (6061, anodized) | [JLCCNC](https://jlccnc.com) | [`case/production/jlccnc/`](case/production/jlccnc/ORDER_NOTES.md) | the order notes |
+| 2 plate spacers (MJF PA12), 1 tree of 8 leg caps (TPU) | [JLC3DP](https://jlc3dp.com) | [`case/production/jlc3dp/`](case/production/jlc3dp/ORDER_NOTES.md) | the order notes |
+| Switches, keycaps, stabilisers, 2 nice!view, cables, screws, feet, thumbscrews | keyboard and hardware shops | [`case/production/hardware.csv`](case/production/hardware.csv) | [shopping-list.md](docs/shopping-list.md) |
+
+JLC fits every part on the PCB, including the display socket, so nothing is soldered on the board.
+The only soldering is the displays' own header pins. Estimated on 2026-11-04, the JLCPCB order
+comes to about **$307–425** for both halves with 2 assembled each, shipping included and import duty
+not ([cost estimate](docs/ordering-jlcpcb.md#cost-estimate)). Run `just pcb-stock left 5` on the day
+you order. Then follow the [build guide](docs/buildguide_en.md).
 
 ## Spin it in your browser
 
@@ -74,7 +90,8 @@ GitHub Pages, on demand only; it has not been deployed yet.
   the right a custom screen with the lock indicators.
 - **On-board RP2040, assembled by JLCPCB.** No controller daughterboard. The support circuit (flash,
   crystal, LDO, ESD) is cloned from the Corne v4.1 production BOM. The 37 hot-swap sockets and
-  diodes per half are assembled on the bottom side.
+  diodes per half are assembled on the bottom side, and the display socket on the top: nothing is
+  soldered on the PCB.
 - **USB-C on both halves.** Plug the host into the **left** half. The right USB-C powers and flashes;
   Schottky diodes let both be plugged in at once.
 - **A careful wired split.** ZMK `zmk,wired-split` on UART0 over a straight TRRS cable. The tip
@@ -95,10 +112,10 @@ GitHub Pages, on demand only; it has not been deployed yet.
 | Display | 160 × 68 Sharp memory LCD per half, PIO1 SPI |
 | Split link | TRRS 3.5 mm, UART 115 200 baud, full duplex |
 | USB | USB-C 2.0 full speed on both halves (host on the left) |
-| PCB | 2 layers, 1.6 mm FR4, ENIG, 182.8 × 158.8 mm per half; 118 JLC-assembled parts per half |
+| PCB | 2 layers, 1.6 mm FR4, ENIG, 182.8 × 158.8 mm per half; 119 JLC-assembled parts per half, 74 of them on the bottom |
 | Switches | MX-compatible, Kailh hot-swap sockets; 2u plate-mount stabilisers on two thumb keys |
 | Firmware | ZMK (HWMv2 board `worxbend/worxboard`), ZMK Studio on the left central |
-| Case | Two-piece CNC 6061 case with integrated plate, 192.4 × 165.6 × 17.6 mm and about 348 g per half; 8 × M2.5 screws and three tent legs per half |
+| Case | Two-piece CNC 6061 case with integrated plate, 192.4 × 165.6 × 17.6 mm (19.6 at the display bezel) and about 349 g per half; 8 × M2.5 screws and three tent legs per half |
 
 ## How it fits together
 
@@ -106,7 +123,7 @@ GitHub Pages, on demand only; it has not been deployed yet.
 flowchart LR
     L["layout/<br/>keys · thumbs · display · jacks<br/>holes · outline · zones · pins"] -->|just layout| J["layout.json<br/>layout.svg · kle.json"]
     J -->|just pcb-sch / pcb-place| P["KiCad 10 schematics + PCBs<br/>ERC · Freerouting · DRC"]
-    P -->|just pcb-fab| F["gerbers · BOM · CPL<br/>(JLCPCB assembly)"]
+    P -->|just pcb-production| F["pcb/production<br/>panel gerbers · BOM · CPL<br/>(JLCPCB turnkey)"]
     P -->|just pcb-fab| S["PCB STEP · renders"]
     J -->|just model| C["build123d case<br/>STEP · STL · DXF · plates"]
     S -->|just fitcheck| C
@@ -130,9 +147,9 @@ Every push to `main` rebuilds everything. Download the artifacts of a green run:
 | Workflow | Artifact | Contents |
 |---|---|---|
 | [firmware](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml) | `worxboard-firmware` | six `.uf2` files: `worxboard_left_central`, `worxboard_right_peripheral` and the `*_EXPERIMENTAL` rows ([firmware.md](docs/firmware.md)) |
-| [pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) | `worxboard-pcb-left`, `worxboard-pcb-right` | `gerbers.zip`, `bom.csv`, `pos.csv` for JLCPCB, the board STEP, the Edge.Cuts DXF, the DRC report, the renders ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md)) |
+| [pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) | `worxboard-pcb-left`, `worxboard-pcb-right` | KiKit's raw bare-board fab files, the board STEP, the Edge.Cuts DXF, the DRC report, the renders. For an order use the committed [`pcb/production/`](pcb/production/) instead ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md)) |
 | [pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) | `worxboard-pcb-erc`, `worxboard-pcb-rebuild-*` | ERC reports and netlists; the from-scratch rebuilds and their Freerouting logs |
-| [case](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml) | `worxboard-case` | case STEP/STL/DXF, plates, renders, build report and the CNC order package with PDF drawings ([case.md](docs/case.md)) |
+| [case](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml) | `worxboard-case` | case STEP/STL/DXF, plates, renders, build report and the order package, also committed in [`case/production/`](case/production/README.md) ([case.md](docs/case.md)) |
 
 Tagged `v*-revA` releases with the same files are planned (WS5); no release exists yet.
 
@@ -170,9 +187,12 @@ just setup          # .venv with every Python group (Python 3.12)
 just layout-check   # layout tests + no-diff check of the committed contracts
 just fw             # ZMK firmware for every build.yaml row -> build/fw/artifacts/*.uf2 (Docker)
 just pcb-drc left   # DRC gate (schematic parity, 0 unconnected) + scripted checks on the committed board
-just pcb-fab left   # JLC gerbers/BOM/CPL, renders, Edge DXF, STEP -> build/left/ (Docker, -full image)
+just pcb-fab left   # KiKit fab files, CPL check, renders, Edge DXF, STEP -> build/left/ (Docker, -full image)
+just pcb-production left   # the JLC order package -> pcb/production/left/ (panel, BOM, CPL)
+just pcb-stock left 5      # package checks + live JLC stock for 5 + 5 boards (network)
 just pcb-all        # both PCBs from scratch: schematic, placement, routing, DRC, fab (~20 min per side)
 just model          # case STEP/STL/DXF -> case/exports/, plates/*.dxf
+just production     # the case order package -> case/production/
 just fitcheck       # case vs build/<side>/worxboard-<side>.step: 0 mm3
 just docs-check     # generated docs up to date + link check
 just site           # microsite into _site/ (just site-serve serves it on :8000)
@@ -188,23 +208,22 @@ their pinned Python packages into `pcb/.tools/` once.
 
 ## Known open issues
 
-- **Not built yet.** No board has been made; the displays, the wired split, the lock-indicator
-  forwarding and the role-swap firmware are untested on hardware.
-- **Gates G1–G3 fail** ([verification.md](docs/verification.md#open-items-that-block-ordering)):
-  - G1: J3 pin 1 is at the wrong end on both boards, so a module plugged in face-up meets its pins
-    reversed and the display cannot work as routed; the module also runs 0.7 mm past the display
-    pocket unless the socket stack lifts it above the plate (6.0–6.3 mm).
-  - G2: the PJ-320D's height and pad map pass, but its body is 14.1 mm long, 2.1 mm longer than the
-    case relief over it.
-  - G3: the hot-swap socket C2803348 is discontinued; the 0.127 mm track minimum passes.
-- **Display orientation.** The module is mounted upright, but both screens are laid out landscape;
-  expect rotated text until the firmware gets a rotation ([firmware.md](docs/firmware.md#known-issues)).
-- **Stock.** On 2026-11-02 JLC had 163 of the flash C113767 and 34 of the crystal C91749; same-footprint
-  basic parts (C97521, C9002) are listed in [verification.md](docs/verification.md#g3-parts-stock-and-track-width).
-- **JLC placement.** `pos.csv` carries rotation corrections from a community table; check every IC,
-  diode and connector in JLC's placement preview ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md#placement-preview)).
+- **Not built yet.** No board has been made. The displays, the wired split, the lock-indicator
+  forwarding, the role-swap firmware and the XOSC start-up of the new crystal are untested on
+  hardware ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)).
+- **Display orientation.** Both screens are laid out portrait and turned by the firmware. Which panel
+  end is pixel 0 comes from ZMK's code and the vendor's images, not a datasheet. If they read upside
+  down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` ([firmware.md](docs/firmware.md#known-issues)).
+- **JLC placement.** Every CPL placement is proven against JLC's own footprints, but JLC does not
+  document its bottom-side convention. Check the sockets and diodes in JLC's placement preview
+  ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md#placement-preview-checklist)). The hot-swap socket
+  C41430893 is a second-source part with no field report of JLC assembling it yet.
+- **Stock** moves daily. Run `just pcb-stock left 5` on the day you order. J3 (C27985230) has no
+  drop-in alternate that fits the case ([alternates](docs/ordering-jlcpcb.md#if-a-part-is-out-of-stock)).
 - **3D models.** KiCad has no model for the USB-C, the TRRS jack or the hot-swap socket, so the board
-  STEP and the JLC preview lack those bodies; the STEP also leaves out the DNP display socket J3.
+  STEP lacks those bodies; the case fit check adds their layout envelopes.
+- **Release packaging.** `release.yml` still packs KiKit's raw fab files, not `pcb/production/`
+  (deviation PKG-4).
 - **RP2350A target** (`worxboard2`): settings do not persist (flash map and NVS are forced off).
 - **Licence split** (below) awaits the maintainer's confirmation.
 
@@ -213,11 +232,13 @@ their pinned Python packages into `pcb/.tools/` once.
 ```
 layout/              single source of truth; layout/build/layout.json is the committed contract
 pcb/                 KiCad 10 projects per half (left/, right/), worxboard symbol/footprint library (lib/),
-                     generator scripts (scripts/: design, schematic, placement, routing, checks, fab)
+                     generator scripts (scripts/: design, schematic, placement, routing, checks, fab, panel),
+                     the JLC turnkey order packages (production/)
 firmware/zmk/        ZMK board module (RP2040 worxboard, RP2350A worxboard2), keymap, custom screen, scripts
 zephyr/module.yml    Zephyr module entry point for the ZMK build
 build.yaml           ZMK build matrix
-case/                build123d case, drawings, fit check, overlay, renders/ (exports/ is git-ignored)
+case/                build123d case, drawings, fit check, overlay, renders/, the JLCCNC/JLC3DP order package
+                     (production/; exports/ is git-ignored)
 plates/              plate DXFs
 docs/                build guide, BOM, electrical, pinout, matrix, ordering, case, legs, firmware, spec
 site/                microsite: web/ (three.js viewer), build_site.py, gen_docs.py, pcbdata.py
@@ -229,18 +250,19 @@ tools/               container helpers and pinned image digests
 
 | Document | Contents |
 |---|---|
-| [docs/buildguide_en.md](docs/buildguide_en.md) | Build guide: parts, bare-board flashing, JP1 power modes, display socket, assembly, troubleshooting |
-| [docs/bom.md](docs/bom.md) | Bill of materials with LCSC numbers and [G3] flags (generated), builder parts, the ordering gates |
+| [docs/buildguide_en.md](docs/buildguide_en.md) | Build guide: board check, bare-board flashing, JP1 power modes, displays, assembly, troubleshooting |
+| [docs/bom.md](docs/bom.md) | Bill of materials with LCSC numbers (generated), JLC fees, the ordering gates |
+| [docs/shopping-list.md](docs/shopping-list.md) | The four orders and every off-board part for one keyboard |
 | [docs/electrical.md](docs/electrical.md) | Power path, TRRS link, USB-C, MCU support circuit, display, reference designators, PCB rules and pipeline |
 | [docs/pinout.md](docs/pinout.md) | RP2040 GPIO map, TRRS contacts, display header, part positions, holes (generated) |
 | [docs/matrix.md](docs/matrix.md) | Key matrix per half, sockets and diodes, ZMK 6 × 14 transform, keymap order (generated) |
 | [docs/firmware.md](docs/firmware.md) | ZMK builds, flashing, host behaviour, keymap, displays, known issues |
-| [docs/ordering-jlcpcb.md](docs/ordering-jlcpcb.md) | Ordering assembled PCBs from JLCPCB, both sides |
-| [docs/case.md](docs/case.md) | The case: Z stack, changes from the ErgoDox case, files, fasteners, previews |
+| [docs/ordering-jlcpcb.md](docs/ordering-jlcpcb.md) | The turnkey JLCPCB order step by step: form fields, placement checks, alternates, cost estimate |
+| [docs/case.md](docs/case.md) | The case: Z stack, changes from the ErgoDox case, the order package, fasteners, previews |
 | [docs/legs.md](docs/legs.md) | Tent/tilt legs: mounts, positions, the custom leg |
 | [docs/design.md](docs/design.md) | The frozen rev A specification |
 | [docs/deviations.md](docs/deviations.md) | Every change from the specification, by work-stream |
-| [docs/verification.md](docs/verification.md) | Integration results, the clean-clone build and gates G1–G3 with the open items that block ordering |
+| [docs/verification.md](docs/verification.md) | Integration results, CI, the order package checks and gates G1–G3; what only a built board can confirm |
 | [docs/sources.md](docs/sources.md) | Prior art, tools and attribution |
 
 `docs/pinout.md`, `docs/matrix.md` and the BOM tables in `docs/bom.md` are generated by

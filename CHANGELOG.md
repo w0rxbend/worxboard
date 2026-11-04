@@ -45,11 +45,55 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
   runs the integration tests and publishes a GitHub pre-release with the per-half PCB zips
   (gerbers, BOM, CPL, STEP), the six UF2s, the case STEP/STL zips and `SHA256SUMS.txt`.
 - `docs/verification.md`: integration results, the clean-clone `just all` run and gates G1–G3.
+- **Turnkey JLCPCB order package** per half in `pcb/production/<side>/` (deviations PKG-1 to PKG-4):
+  - a KiKit customer panel: rails, a milled slot, 14 mouse-bite tabs, fiducials and tooling holes;
+  - Gerbers, BOM and CPL in JLC's own formats, a README, an order zip, and a `bare-board/` fallback;
+  - `just pcb-production`, `pcb-production-check` and `pcb-stock`, and the CI `production` job,
+    which requires a byte-identical rebuild.
+- `pcb/scripts/cpl_check.py` and `jlc_footprints.py`: every CPL placement is proven against JLC's
+  own footprint of the part, 119 of 119 per half. `docs/images/cpl-*.svg` are the overlays (CI
+  `cpl-images` job).
+- `netcmp.py --board` in stages C and D: the board must carry the `design.py` parts, LCSC numbers and
+  flags, no retired part, and J3 with its pin 1 under the nice!view's pin 1 (ELEC-6, ELEC-8).
+- **Case order package** in `case/production/`, case revision A3: JLCCNC STEP + PDF per part with the
+  order notes, JLC3DP STLs, `hardware.csv`. `just corners` checks every internal corner against
+  JLCCNC's radius-for-depth rule, and `just production-check` holds the package to the model, both
+  in CI (CASE-1 to CASE-9).
+- Firmware: both displays are laid out portrait and turned in the LVGL flush
+  (`worx_display_rotation.c`, Kconfig `WORXBOARD_DISPLAY_ROTATION`), with the `just fw-rotate-check`
+  host test (WS1-7).
+- Docs: the step-by-step turnkey guide `docs/ordering-jlcpcb.md`, with a cost estimate dated
+  2026-11-04; `docs/shopping-list.md`; the README "Order it" section.
 
 ### Changed
 
 - `.gitignore` no longer ignores `/zephyr/` (the ZMK module lives at `zephyr/module.yml`). It now
-  ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags.
+  ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags. The
+  two order packages are force-added on `main` (PKG-4).
+- Parts (ELEC-1 to ELEC-3):
+  - hot-swap sockets C41430893, replacing the discontinued C2803348;
+  - flash C97521 (basic) and crystal C49304726, replacing C113767 and C91749;
+  - J3 is now fitted by JLC: the 5.0 mm THT socket C27985230, which a stock nice!view plugs into;
+  - U4's clamp reference is on VSYS, so USB-C VBUS can no longer be back-driven.
+- Both boards re-placed and re-routed (BOARD-1 to BOARD-14):
+  - J3 turned 180° and moved to the module's header row (y 39.925);
+  - C2 at U4's reference pin;
+  - every U1 cap's GND return within 13 mm of the exposed pad, with a TESTEN via to the plane;
+  - no unlocked dangling copper.
+- CPL corrections: QFN-56 0° (was 270°) and USB-C 0;−1.394;0 (was 180°), plus new rows for the
+  PJ-320D, J3 and the hot-swap sockets (PKG-2).
+- Layout: the PJ-320D body is its drawing size, 14.1 × 6.1 × 5.0 mm (BOARD-13).
+- Case:
+  - a raised display bezel and a pocket to Z 18.6 over the 5.0 mm J3 stack;
+  - blind threads per JLCCNC's guideline, with M2.5 × 12 and × 10 screws;
+  - JLCCNC's corner radii;
+  - a 0.75 mm TRRS relief;
+  - the leg caps as one TPU tree, and the spacer without webs under 1.0 mm.
+- Firmware: the right screen sets its own paper and ink and gets an 8 KB LVGL heap (WS1-8); the
+  XOSC start-up waits 64× for the new crystal (WS1-9).
+- Docs: G1–G3 recorded as passed; the BOM regenerated from the turnkey parts (no `[G3]` flags, one
+  loading fee for basic and extended parts); the build guide without any PCB soldering; case, legs,
+  electrical and firmware pages updated to match.
 
 ### Fixed
 
@@ -75,13 +119,19 @@ Post-integration review (deviations REVIEW-FIX-1 to -8):
   BOM, case, ordering and microsite status brought in line with verification.md, which now records
   the re-checks of these fixes.
 
+Turnkey work (ELEC, BOARD, PKG, CASE, WS1-7 to WS1-9):
+
+- The completion router keyed its shape cache by `id()`, so the left board differed between hosts;
+  it now keys by the item (BOARD-2). `checks.py` no longer loops on a zero-length edge (BOARD-6).
+- The right status screen showed nothing: no theme on an uncleared I1 buffer (WS1-8).
+- The TRRS jack's far corners came within 0.022 mm of the case top; now 0.376 mm, gated (CASE-9).
+- `just docs-gen` crashed on the new LCSC numbers (`KeyError: 'C97521'`).
+
 ### Known issues
 
-- Not built or tested on hardware.
-- Gates G1–G3 fail and block ordering ([verification.md](docs/verification.md)): the display socket
-  J3 has pin 1 at the wrong end and the module and window are offset from the drawing (G1); the
-  PJ-320D body is longer than the case allows for (G2); the hot-swap socket C2803348 is discontinued
-  (G3).
-- The completion router caches shapes by `id()`, so the left board's rebuild can differ between
-  hosts in track UUIDs; the committed left board is the CI build
-  ([verification.md](docs/verification.md#review-fixes)).
+- Not built or tested on hardware: the displays (including their orientation), the wired split,
+  the forwarded lock indicators and the crystal start-up
+  ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)).
+- JLC does not document its bottom-side CPL convention; check the sockets and diodes in its
+  placement preview. The hot-swap socket C41430893 has no field report of JLC assembling it.
+- `release.yml` still packs KiKit's raw fab files instead of `pcb/production/` (PKG-4).

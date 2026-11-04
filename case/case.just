@@ -13,6 +13,10 @@ model:
 fitcheck:
     {{case_py}} case/check_fit.py {{case_exports}}
 
+# Every internal corner of the machined parts meets JLCCNC's radius-vs-depth rule (needs model; CASE-8)
+corners:
+    {{case_py}} case/corner_check.py {{case_exports}}
+
 # Regenerate the PNG previews in case/renders (needs model)
 renders:
     @mkdir -p {{case_renders}}

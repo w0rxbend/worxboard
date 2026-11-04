@@ -17,8 +17,9 @@ part of this package.
 1. The PCB order must be final: `just fitcheck` reports 0 mm³ against both PCB STEPs (the `fit` job
    of the `pcb` workflow runs it on every push, with the J3 socket and the layout envelopes of the
    USB-C, TRRS, nice!view and hot-swap socket bodies).
-2. `just model order production-check` passes: this folder matches the model (the `case` workflow
-   runs it on every push).
+2. `just model corners order production-check` passes: every internal corner meets JLCCNC's
+   radius-for-depth rule and this folder matches the model (the `case` workflow runs both on every
+   push).
 3. Read the two `ORDER_NOTES.md` and paste their remarks into the order forms.
 
 ## What the case expects from the parts it holds
@@ -55,6 +56,7 @@ every other export, the renders and this package.
 
 ```sh
 just model        # case/exports: STEP/STL/DXF, every case check
+just corners      # every internal corner of the machined STEPs vs JLCCNC's radius-for-depth rule
 just order        # case/exports/order: this package, plus the plate DXFs
 just production   # copy the generated files into case/production
 just production-check

@@ -40,6 +40,9 @@ jobs:
       - name: just fitcheck (PCB STEP when present, layout envelopes otherwise)
         run: just fitcheck | tee -a case/exports/build-report.txt
 
+      - name: just corners (internal corners vs JLCCNC's radius-vs-depth rule)
+        run: just corners | tee -a case/exports/build-report.txt
+
       - name: Renders
         run: just renders
 

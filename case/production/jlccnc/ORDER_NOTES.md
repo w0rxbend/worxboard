@@ -47,6 +47,7 @@ Case revision **A2** (corners):
   its two back corners now have **R2 dog-bones** for the Ø3 tool (were R1.5). The pad and web fillets
   and the relief pockets above the plate are R1.5 (were R1.0 or sharp), the bottom web fillets R1.0
   (were R0.5). A boss that stood 1.0 mm into the key well beside T2 is cut back flush with the well.
+  `just corners` now checks every internal corner of the STEPs against this rule.
 
 Case revision **A1**:
 

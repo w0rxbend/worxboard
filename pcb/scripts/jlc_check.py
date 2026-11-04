@@ -19,7 +19,9 @@
     4 NPTH tooling holes on the rails, rails >= 5 mm
   - --stock N (network): every LCSC number in stock at JLC for N boards per half on both halves plus
     JLC's attrition, not discontinued (tests/integration/stock.py's rules). CI does not run it.
-`facts` measures the panel for the README (package.py).
+`facts` measures the panel for the README (package.py), and fails if two pad holes leave less than
+HOLE_GAP of board between them anywhere but between two stabiliser footprints (STAB_*: non-plated
+clearance holes, named in the README's remark; deviations ORDER-3).
 """
 from __future__ import annotations
 
@@ -47,6 +49,8 @@ SINGLE_LIMIT = ((70.0, 70.0), (460.0, 500.0))
 FID_EDGE_MIN = 3.85
 RAIL_MIN = 5.0
 BITE_CLEAR = 1.0                     # mm from a mouse-bite hole to any part's courtyard
+HOLE_GAP = 0.45                      # mm, JLC's pad hole-to-hole spacing (capabilities page)
+HOLE_GAP_OK = re.compile(r"^STAB_\w+$")   # closer pairs allowed only between these (ORDER-3)
 NOT_FITTED = re.compile(r"^(JP\d+|TP\d+|H\d+|STAB_\w+)$")
 DATE = re.compile(r"20\d\d-\d\d-\d\d")
 
@@ -393,17 +397,45 @@ def report(ck: Check, side: str) -> int:
     return 1 if ck.errors else 0
 
 
+def close_holes(board) -> list[list]:
+    """Pairs of pad holes (plated or not, vias aside) with less than HOLE_GAP of board between them:
+    [ref, ref, gap mm, x, y] (deviations ORDER-3)."""
+    import pcbnew
+    from shapely.geometry import LineString, Point
+    from shapely.strtree import STRtree
+    holes = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.HasHole():
+                h = pad.GetEffectiveHoleShape()
+                a, b = h.GetSeg().A, h.GetSeg().B
+                a, b = (pcbnew.ToMM(a.x), pcbnew.ToMM(a.y)), (pcbnew.ToMM(b.x), pcbnew.ToMM(b.y))
+                holes.append((fp.GetReference(), (LineString([a, b]) if a != b else Point(a)).buffer(pcbnew.ToMM(h.GetWidth()) / 2, 32)))
+    tree = STRtree([g for _, g in holes])
+    out = []
+    for i, (ref, g) in enumerate(holes):
+        for j in sorted(int(k) for k in tree.query(g.buffer(HOLE_GAP))):
+            gap = g.distance(holes[j][1])
+            if j > i and gap < HOLE_GAP:
+                c = g.union(holes[j][1]).centroid
+                out.append(sorted([ref, holes[j][0]], key=natural) + [round(gap, 3), round(c.x, 2), round(c.y, 2)])
+    return sorted(out)
+
+
 def cmd_facts(argv: list[str]) -> int:
     panel_path, board_path, kikit, drc_path, out = argv
     import pcbnew
     p = panel_features(panel_path)
     bps = pcbnew.SHAPE_POLY_SET()
-    pcbnew.LoadBoard(board_path).GetBoardPolygonOutlines(bps, True)
+    board = pcbnew.LoadBoard(board_path)
+    board.GetBoardPolygonOutlines(bps, True)
     b = bps.BBox()
     rows = list(csv.reader(open(Path(kikit) / "pos.csv", newline="", encoding="utf-8")))[1:]
     bom_rows = list(csv.reader(open(Path(kikit) / "bom.csv", newline="", encoding="utf-8")))[1:]
     drc = json.loads(Path(drc_path).read_text())
     preset = json.loads((HERE / "panel.json").read_text())
+    turned = sorted((r for r in rows if r[3] == "B" and float(r[4]) % 180),
+                    key=lambda r: natural(r[0]))
     facts = {
         "panel": {k: p[k] for k in ("w", "h", "fiducials_top", "fiducials_bottom", "tooling")},
         "bare": {"w": round(pcbnew.ToMM(b.GetWidth()), 3), "h": round(pcbnew.ToMM(b.GetHeight()), 3)},
@@ -425,9 +457,19 @@ def cmd_facts(argv: list[str]) -> int:
         "lcsc_numbers": len({r[3] for r in bom_rows}),
         "drc_errors": sum(1 for v in drc["violations"] if v["severity"] == "error"),
         "drc_unconnected": len(drc.get("unconnected_items", [])),
+        "close_holes": close_holes(board),
+        "hole_gap": HOLE_GAP,
+        # bottom parts at an angle other than 0 / 180: the only ones whose look in JLC's viewer depends
+        # on which way it turns bottom parts (deviations ORDER-2)
+        "bottom_turned": {"refs": compress([r[0] for r in turned]), "n": len(turned),
+                          "rot": sorted({float(r[4]) for r in turned})},
     }
     Path(out).write_text(json.dumps(facts, indent=1, sort_keys=True) + "\n")
-    return 0
+    bad = [h for h in facts["close_holes"] if not all(HOLE_GAP_OK.match(r) for r in h[:2])]
+    for a, b, gap, x, y in bad:
+        print(f"jlc_check facts: holes of {a} and {b} {gap} mm apart at ({x}, {y}) < {HOLE_GAP} "
+              "(JLC's pad hole-to-hole spacing)", file=sys.stderr)
+    return 1 if bad else 0
 
 
 def main(argv: list[str]) -> int:

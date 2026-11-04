@@ -116,14 +116,23 @@ Turn on **PCB Assembly** at the bottom of the form.
 | Depanel / remove edge rails | No | break the tabs yourself ([below](#when-the-boards-arrive)) |
 | Other advanced options | defaults | |
 
-You can paste this as the assembly remark. It is optional, but it saves a question:
+Paste this into the order's remark field. It answers what JLC's engineers would otherwise ask
+about, and each question puts the order on hold. The same text is in each side's README:
 
 ```
 Panel by customer: 1 board in a frame, 6 mm rails, 3 fiducials per side, 4 tooling holes (2.0 mm).
 J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.
 Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).
+NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
+Intended: no plating, no copper; they may break into each other.
 Ship with the frame attached.
 ```
+
+The stabiliser holes: where the two 2u thumb keys meet, the Ø3.05 mm hole of one stabiliser and the
+Ø4.0 mm hole of the next leave 0.28 mm of board between them, twice per half. JLC's
+[capabilities](https://jlcpcb.com/capabilities/pcb-capabilities) give 0.45 mm as the pad
+hole-to-hole spacing. They are non-plated clearance holes for the plate-mounted stabilisers, with no
+copper near, so it does no harm if the web between them breaks (deviation ORDER-3).
 
 ### 4. Check the board views
 
@@ -208,10 +217,18 @@ bottom-side convention, and the CPL follows the one that KiKit, kicad-jlcpcb-too
 ![U1: JLC's QFN-56 footprint over the KiCad pads, left and right](images/cpl-u1-rp2040-qfn56.svg)
 
 > [!WARNING]
-> If **every** socket and diode on the bottom shows turned by 180°, JLC's viewer uses another
-> bottom-side convention. Do not edit the files: say so in the remark, or answer when JLC sends the
-> placement for confirmation. A single part that is off is more likely a slip in JLC's viewer. Note
-> it the same way.
+> JLC's viewer could read the bottom side another way than KiKit. The **thumb parts** tell. All
+> other bottom parts sit at 180°, which looks the same whichever way the viewer turns them. Only
+> the 12 thumb parts, SK132–SK137 and D132–D137, sit at 205° (left) or 155° (right).
+>
+> - **Only the 12 thumb parts look turned by about 50°**, with the sockets several mm off their
+>   pads, and everything else looks right: the viewer turns bottom parts the other way round.
+>   The thumb parts then need 360° minus the CPL value: **155° on the left, 205° on the right**.
+> - **Every socket and diode on the bottom looks turned by 180°:** the viewer mirrors bottom parts
+>   about the other axis.
+>
+> In either case, do not edit the files. Ask for the correction in the placement confirmation,
+> with the designators and the rotation they need (deviation ORDER-2).
 
 ## If a part is out of stock
 
@@ -296,6 +313,7 @@ Likely questions and the answers:
 | Bottom-side rotation of the sockets or diodes | As the CPL gives it: each socket's notch wraps the round switch-centre hole, and each diode's cathode band is at pad 1. |
 | Silkscreen over pads or past the edge | Clip it. |
 | J3 is through-hole | Yes: C27985230, hand-soldered from the top, 5 joints. |
+| Hole-to-hole spacing under 0.45 mm (STAB_T4 / STAB_T5) | Intended: non-plated stabiliser clearance holes, no copper near. They may break into each other. |
 
 ## When the boards arrive
 

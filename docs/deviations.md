@@ -1933,6 +1933,42 @@ Written by DOCS from the PKG commits (4396f6c, 653659a, 0c692a9, 73ec186) on 202
 The review of 2026-11-04 checked the PCB and case order packages against JLCPCB's, JLCCNC's and
 JLC3DP's published rules and the parts they hold. Each defect below was confirmed before it was fixed.
 
+### ORDER-2. The bottom-side warning names the thumb parts as the tell (§9 stage 13; amends PKG-2)
+
+- **Problem:** the warning in `ordering-jlcpcb.md` and in the generated READMEs said that, if JLC's
+  viewer used another bottom-side convention, every bottom socket and diode would show turned by
+  180°, and that a single part off was more likely a viewer slip. That covers only a viewer that
+  mirrors about the other axis. KiKit's reading, which `cpl_check.py` checks, is `Mx · Rot(r)`:
+  in the top view, mirror and then turn clockwise by r. A viewer that mirrors and then turns
+  counter-clockwise differs from it by twice the angle, 2r. It shows the 62 parts at 180° exactly
+  as before. Only the 12
+  thumb parts, SK132–SK137 and D132–D137 at 205° (left) or 155° (right), come out about 50° off,
+  the sockets up to 5.8 mm and the diodes 1.5 mm off their pads (JLC's footprints from
+  `jlc_footprints.json` placed both ways). A builder following the old warning would not have
+  recognised that.
+- **Change:** `jlc_check.py facts` lists the bottom parts at an angle other than 0° or 180°, and
+  `package.py` writes the preview check from it: the thumb parts tell the two readings apart; if
+  only they are off by about 50°, they need 360° minus the CPL value (155° left, 205° right); if
+  every bottom part is off by 180°, the viewer mirrors the other way; in either case ask for the
+  correction in the placement confirmation. `ordering-jlcpcb.md` says the same. The CPL is
+  unchanged.
+
+### ORDER-3. Two stabiliser hole pairs per half are closer than JLC's 0.45 mm hole spacing (§9 stage 13)
+
+- **Problem:** where the two 2u thumb keys meet, the Ø3.05 mm hole of `STAB_T4` and the Ø4.0 mm
+  hole of `STAB_T5` leave 0.285 mm of board between them, twice per half. JLC's PCB capabilities
+  give "Pad Hole-to-Hole Spacing 0.45mm". The board rule `min_hole_to_hole` is 0.25 mm, so KiCad's
+  DRC passes it, and nothing told JLC. Expect an engineering question that holds the order.
+- **Change:** the holes stay: they are non-plated clearance holes for the plate-mounted
+  stabilisers, with no copper near, so a broken web between them does no harm, and moving or
+  shrinking them would change the routed boards and the Cherry stabiliser footprint. Instead
+  `jlc_check.py facts` measures every pair of pad holes (`close_holes`, `HOLE_GAP` = 0.45 mm) and
+  fails if any pair but two `STAB_*` holes is closer, and `package.py` writes the pairs it finds
+  into the remark of both READMEs (panel and bare board): "NPTH: 2 pairs of stabiliser clearance
+  holes (STAB_T4/STAB_T5) leave 0.28 mm between them ... they may break into each other".
+  `ordering-jlcpcb.md` has the same remark and a row in the likely-questions table. The panel
+  README now has the whole remark to paste (it was only in `ordering-jlcpcb.md`).
+
 ### ORDER-5. Leg thumbscrews: a collarless DIN 653 only (§10 fasteners; corrects CASE-3)
 
 - **Problem:** `hardware.csv`, the shopping list, `legs.md` and CASE-3 allowed "DIN 464 or DIN 653".

@@ -57,6 +57,18 @@ Option names follow JLC's order form, whose wording changes now and then: pick t
 J3 (display socket, C27985230) is a through-hole part: JLC solders it by hand, so the quote carries a
 small THT fee. Every other part is SMT. Nothing is left for you to solder on the board.
 
+## Remark
+
+Paste this into the order's remark field. It answers what JLC's engineers would otherwise ask about,
+and each question puts the order on hold:
+
+> Panel by customer: 1 board in a frame, 6 mm rails, 3 fiducials per side, 4 tooling holes (2.0 mm).
+> J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.
+> Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).
+> NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
+> Intended: no plating, no copper; they may break into each other.
+> Ship with the frame attached.
+
 ## Placement preview: what to check
 
 `cpl.csv` was checked by `pcb/scripts/cpl_check.py`, which places JLC's own footprint of every part
@@ -74,9 +86,18 @@ small THT fee. Every other part is SMT. Nothing is left for you to solder on the
 - **J3**: on its five holes.
 
 The bottom rows follow the convention KiKit, kicad-jlcpcb-tools and KiBot use for JLC (top-view X/Y,
-rotation 180° minus the KiCad angle plus the correction). If the bottom preview shows every socket
-and diode turned 180°, JLC has changed that convention: say so in the placement confirmation
-instead of editing the files.
+rotation 180° minus the KiCad angle plus the correction). JLC does not document its bottom side.
+A viewer that reads it another way shows one of two patterns:
+
+- **Only the 12 thumb parts D132-D137, SK132-SK137 turned by about 50°** (the sockets several mm
+  off their pads), and every other bottom part right: the viewer turns bottom parts the other
+  way round. Parts at 180° look the same either way, so these 12 are the ones to look at.
+  They need 360° minus the CPL value: **205°** instead of 155°.
+- **Every socket and diode on the bottom turned 180°:** the viewer mirrors bottom parts about the
+  other axis.
+
+In either case, do not edit the files: ask for the correction in the placement confirmation, with
+the designators and the rotation they need.
 
 ## After delivery
 
@@ -91,4 +112,6 @@ board edge: the case leaves about 0.3 mm round the PCB.
 - `pcb/scripts/jlc_check.py`: file formats and headers, BOM and CPL list the same parts, exactly the
   parts design.py fits (JP1, TP*, H*, STAB_* stay out), panel size, rails, fiducials, tooling holes.
   `--stock 5` adds a live JLC stock check; run it on the day you order.
+- `pcb/scripts/jlc_check.py facts`: no two pad holes closer than 0.45 mm (JLC's pad
+  hole-to-hole spacing) but the stabiliser pairs in the remark.
 - KiCad DRC on the panel, and on the board itself in the PCB pipeline.

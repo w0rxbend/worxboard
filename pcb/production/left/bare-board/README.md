@@ -18,5 +18,7 @@ Form differences from the panel order: Delivery format **Single PCB**; Edge rail
 > mouse-bite tabs (no V-cut). J1 (USB-C) overhangs the back edge by 0.5 mm and J2 (TRRS) the
 > bump edge: no rail or tab in front of J1/J2. Keep tooling holes and fiducials on the rails
 > only, no holes inside the board outline. Deliver with rails attached.
+> NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
+> Intended: no plating, no copper; they may break into each other.
 
 Everything else (settings, preview checks, after delivery) is as in `../README.md`.

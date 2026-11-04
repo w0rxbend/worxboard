@@ -92,6 +92,44 @@ def cpl(kikit: Path) -> bytes:
     return csv_bytes([CPL_HEADER] + [[d, x, y, LAYER[layer], r] for d, x, y, layer, r in rows[1:]])
 
 
+def hole_remark(facts: dict) -> list[str]:
+    """Remark lines for the hole pairs closer than JLC's pad hole-to-hole spacing (jlc_check.py facts
+    allows them only between stabiliser footprints; deviations ORDER-3)."""
+    pairs = facts["close_holes"]
+    if not pairs:
+        return []
+    refs = sorted({r for h in pairs for r in h[:2]})
+    gap = min(h[2] for h in pairs)
+    return [f"NPTH: {len(pairs)} pairs of stabiliser clearance holes ({'/'.join(refs)}) leave {gap:.2f} mm between "
+            f"them, under the {facts['hole_gap']} mm hole-to-hole spacing.",
+            "Intended: no plating, no copper; they may break into each other."]
+
+
+def turned_check(facts: dict) -> list[str]:
+    """The preview check that tells JLC's bottom-side reading from KiKit's (deviations ORDER-2): a viewer
+    that turns bottom parts the other way shows every part at 0 or 180 degrees as before and only the
+    others off, by twice their angle."""
+    t = facts["bottom_turned"]
+    out = ["The bottom rows follow the convention KiKit, kicad-jlcpcb-tools and KiBot use for JLC (top-view X/Y,",
+           "rotation 180° minus the KiCad angle plus the correction). JLC does not document its bottom side.",
+           "A viewer that reads it another way shows one of two patterns:",
+           ""]
+    if t["n"]:
+        rot = ", ".join(f"{r:g}°" for r in t["rot"])
+        alt = ", ".join(f"{(360 - r) % 360:g}°" for r in t["rot"])
+        off = ", ".join(f"{min(2 * r % 360, 360 - 2 * r % 360):g}°" for r in t["rot"])
+        out += [f"- **Only the {t['n']} thumb parts {t['refs']} turned by about {off}** (the sockets several mm",
+                "  off their pads), and every other bottom part right: the viewer turns bottom parts the other",
+                f"  way round. Parts at 180° look the same either way, so these {t['n']} are the ones to look at.",
+                f"  They need 360° minus the CPL value: **{alt}** instead of {rot}."]
+    out += ["- **Every socket and diode on the bottom turned 180°:** the viewer mirrors bottom parts about the",
+            "  other axis.",
+            "",
+            "In either case, do not edit the files: ask for the correction in the placement confirmation, with",
+            "the designators and the rotation they need."]
+    return out
+
+
 def readme(side: str, facts: dict, bare: bool) -> bytes:
     p, b = facts["panel"], facts["bare"]
     n, nb = facts["parts"], facts["bottom_parts"]
@@ -118,6 +156,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
             "> mouse-bite tabs (no V-cut). J1 (USB-C) overhangs the back edge by 0.5 mm and J2 (TRRS) the",
             "> bump edge: no rail or tab in front of J1/J2. Keep tooling holes and fiducials on the rails",
             "> only, no holes inside the board outline. Deliver with rails attached.",
+        ] + [f"> {line}" for line in hole_remark(facts)] + [
             "",
             "Everything else (settings, preview checks, after delivery) is as in `../README.md`.",
             ""]
@@ -187,6 +226,18 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "J3 (display socket, C27985230) is a through-hole part: JLC solders it by hand, so the quote carries a",
         "small THT fee. Every other part is SMT. Nothing is left for you to solder on the board.",
         "",
+        "## Remark",
+        "",
+        "Paste this into the order's remark field. It answers what JLC's engineers would otherwise ask about,",
+        "and each question puts the order on hold:",
+        "",
+        f"> Panel by customer: 1 board in a frame, {facts['rail_min']:g} mm rails, {len(p['fiducials_top'])} "
+        f"fiducials per side, {len(p['tooling'])} tooling holes ({facts['tool_d']:.1f} mm).",
+        "> J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.",
+        "> Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).",
+    ] + [f"> {line}" for line in hole_remark(facts)] + [
+        "> Ship with the frame attached.",
+        "",
         "## Placement preview: what to check",
         "",
         "`cpl.csv` was checked by `pcb/scripts/cpl_check.py`, which places JLC's own footprint of every part",
@@ -203,10 +254,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "- **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.",
         "- **J3**: on its five holes.",
         "",
-        "The bottom rows follow the convention KiKit, kicad-jlcpcb-tools and KiBot use for JLC (top-view X/Y,",
-        "rotation 180° minus the KiCad angle plus the correction). If the bottom preview shows every socket",
-        "and diode turned 180°, JLC has changed that convention: say so in the placement confirmation",
-        "instead of editing the files.",
+    ] + turned_check(facts) + [
         "",
         "## After delivery",
         "",
@@ -221,6 +269,8 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "- `pcb/scripts/jlc_check.py`: file formats and headers, BOM and CPL list the same parts, exactly the",
         "  parts design.py fits (JP1, TP*, H*, STAB_* stay out), panel size, rails, fiducials, tooling holes.",
         "  `--stock 5` adds a live JLC stock check; run it on the day you order.",
+        f"- `pcb/scripts/jlc_check.py facts`: no two pad holes closer than {facts['hole_gap']} mm (JLC's pad",
+        "  hole-to-hole spacing) but the stabiliser pairs in the remark.",
         "- KiCad DRC on the panel, and on the board itself in the PCB pipeline.",
         ""]
     return "\n".join(lines).encode()

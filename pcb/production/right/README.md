@@ -24,6 +24,8 @@ board without the panel frame, for an order where JLC adds the rails.
 
 ## PCB order form
 
+Option names follow JLC's order form, whose wording changes now and then: pick the closest match.
+
 | Option | Value |
 |---|---|
 | Base material / layers | FR-4, **2** layers |
@@ -70,6 +72,11 @@ small THT fee. Every other part is SMT. Nothing is left for you to solder on the
 - **J1** (USB-C): the two plastic pegs in the two small holes, the mouth over the back edge.
 - **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.
 - **J3**: on its five holes.
+
+The bottom rows follow the convention KiKit, kicad-jlcpcb-tools and KiBot use for JLC (top-view X/Y,
+rotation 180° minus the KiCad angle plus the correction). If the bottom preview shows every socket
+and diode turned 180°, JLC has changed that convention: say so in the placement confirmation
+instead of editing the files.
 
 ## After delivery
 

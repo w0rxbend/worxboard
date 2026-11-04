@@ -1,5 +1,8 @@
 "Footprint pattern","Part pattern","X correction","Y correction","Rotation"
 "^Package_TO_SOT_SMD:SOT-23-[56]$",".*",0,0,-90
-"^Package_DFN_QFN:QFN-56-",".*",0,0,270
-"^Package_SO:SOIC-8_",".*",0,0,270
-"^Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12$",".*",0,0,180
+"^Package_SO:SOIC-8_5\.3x5\.3mm_P1\.27mm$",".*",0,0,270
+"^Package_DFN_QFN:QFN-56-1EP_7x7mm_P0\.4mm_EP3\.2x3\.2mm$",".*",0,0,0
+"^Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12$",".*",0,-1.394,0
+"^Connector_Audio:Jack_3\.5mm_PJ320D_Horizontal$",".*",0.776,0,90
+"^worxboard:SW_MX_Hotswap_Kailh$",".*",0.635,3.81,180
+"^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$",".*",0,5.08,270

@@ -1597,8 +1597,11 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
       with theirs).
     - Only then is it opened by `relief_r()` = R1.5, so every corner the clipping leaves is a
       cutter's arc.
-    - The J2 relief is R1.5. The J2 body's corners keep 0.08 mm to it (d ≥ 0.293 R), and the fit
-      check gives 0 mm³. This changes the plate DXFs and the spacers.
+    - The J2 relief is R1.5, and the fit check gives 0 mm³. This changes the plate DXFs and the
+      spacers. *Corrected by CASE-9:* the J2 body's corners kept 0.084 mm only to
+      `jack_relief_poly()` (the spacer and the plate DXF). In the top, `relief_poly()` opens the union
+      a second time with 4-chord arcs, which left **0.022 mm** at J2's two far corners on both halves
+      (A1: 0.28). No gate checked a margin. CASE-9 makes it 0.38 mm and gates it.
     - The relief arcs are 4 chords per quarter circle (`RELIEF_QUAD_SEGS`, 0.03 mm off a true R1.5).
       At 16 chords the top STEPs were 5.7 MB; now they are 4.88 and 4.90 MB.
   - **Key well:**
@@ -1676,3 +1679,86 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
     `corner_r` line in `design.md` §10 is still right.
   - BOARD-13's "J2 relief rounded to `TOOL_R` (1.0)" is now R1.5.
   - No other stream's files change: the PCB, layout and STEP envelopes are as before.
+
+### CASE-9. The TRRS jack keeps 0.38 mm to the top at its corners, and a gate holds every jack ≥ 0.3 mm clear; case revision A3 (§4 G2, §10.6; corrects CASE-8, supersedes the J2 clearance of BOARD-13 and CASE-2)
+
+- **Problem** (verifier, on the committed A2 package): at plate level (Z 12.1–13.6, the top 1.5 mm
+  of the 5.0 mm jack body), the top's J2 relief came within **0.022 mm** of the J2 body's two far
+  corners, on both halves. These are KiCad (63.1, 99.95) and (63.1, 106.05) on the right and
+  (196.9, 99.95) and (196.9, 106.05) on the left. A1 had 0.28.
+  - `jack_relief_poly()` (body + 0.5 mm, mitred, opened by R1.5) left 0.084 mm at the corners:
+    r − √2 (r − c) = 1.5 − 1.414 = 0.086, less 4-chord arc error.
+  - `relief_poly()` then opens the whole union a second time, with 4-chord arcs again, which pulls
+    the corners another 0.06 mm in.
+  - CASE-8's "0.08 mm" held only for the spacer and the plate DXF. No gate checked any margin:
+    `jack_check` only asked that the relief contain the body, and the 0 mm³ fit check is nominal.
+  - The case is ISO 2768-m, JLC places the jack by SMT, and the PCB floats in the cavity as far as
+    its screw holes allow. So the plate edge would likely land on the jack's corners when the case is
+    screwed shut, loading the SMD joints of the split link.
+- **Change** (`case/worxboard_case.py`):
+  - **`J2_RELIEF_CLEAR` 0.5 → 0.75.** At R1.5 that gives 0.44 at a body corner on a true arc.
+  - **New `JACK_MIN_CLEAR` = 0.3 mm.** It is the least plan clearance from a jack body (layout
+    envelope) to anything that cuts round it.
+  - **`jack_check`** now fails, for J1 and J2, if the body is closer than that to:
+    - the top's relief (`relief_poly`, as `sp_faces` simplifies it);
+    - for J2, its own relief (`jack_relief_poly`, the spacer cut-out) and the plate DXF's notch
+      (`plate_face`).
+  - On the built top, `jack_check` also takes the solid's least 3D distance to the body
+    (`jack_body()`, a box from the PCB top to the jack height). That is the plate edge, the relief,
+    the wall at the mouth or the ceiling, whichever is nearest.
+  - **`spacer_check`** does the same for the spacer solid.
+  - `CASE_REVISION` **A3**.
+  - Not changed: `RELIEF_QUAD_SEGS` (finer arcs would push the top STEPs past 5 MB). The double
+    opening also stays, since the gate now bounds what it costs.
+- **Result** (both halves identical):
+
+  | Clearance to the J2 body | A1 (73ec186) | A2 | A3 |
+  |---|---|---|---|
+  | Top part, built STEP (3D, = plan at plate level) | 0.283 | **0.022** | **0.376** |
+  | Spacer (`jack_relief_poly`; committed STL section) | ≈ 0.29 | 0.084 | 0.431 |
+  | Plate DXF notch (committed DXF) | ≈ 0.29 | 0.084 | 0.431 |
+  | Body sides | 0.5 | 0.5 | 0.75 |
+
+  - J1 keeps 0.49 to the relief and 0.50 to the built top, limited by the back wall at its mouth,
+    the same as before.
+  - The plate keeps 4.39 / 4.72 mm between the notch and the C6R1 / C6R2 switch cut-outs (A2:
+    4.74 / 5.07). The notch now spans x 48.25–63.85 by y 99.2–106.8 (right frame; left
+    196.15–211.75).
+  - **Independent probes:**
+    - Sections of the committed top STEPs at Z 12.15, 12.85 and 13.55 give 0.376 on both halves
+      (A2: 0.022).
+    - `is_inside` finds no solid at the far corners 0.03–0.35 mm out, along the diagonal or in x or y.
+      On A2 it found solid at 0.03 on the diagonal and 0.04 in x or y.
+  - **Negative test:** with `J2_RELIEF_CLEAR` = 0.5, `jack_check` stops with "right J2 body is
+    0.022 mm from the top relief". The built-part measure gives 0.0223 mm on the A2 right top STEP.
+- **Checks:**
+  - `just model`: every case check passes; the parts are valid, one solid each; top mirror dV
+    6.4e-6. The top is 52.08 cm³ (140.6 g) and the spacer 20.88 cm³.
+  - `just fitcheck`: 0.0000 mm³ on both halves, against the PCB STEPs of the committed boards plus
+    the layout envelopes of J1, J2, J3 + display and the bottom-side parts (90 bodies each). The
+    PCB STEPs were built by `just pcb-fab` in kicad/kicad:10.0.7 from a tree whose boards,
+    `pcb/lib` and `layout.json` are byte-identical to HEAD's.
+  - `just corners` passes: per top, 288 / 287 arc vertices and 53 fillets.
+  - `just order production production-check`: 15 files match.
+  - Top STEPs: 4,884,988 (right) and 4,901,054 (left) bytes, still under 5 MB.
+  - `pytest layout` 32 passed; `pytest tests/integration` 111 passed.
+  - **CI on dec5f7b:**
+    - The `case` run 41773758643 passes, with the same clearances as locally. All 15 files of
+      `case/production` are byte-identical, and the plates are unchanged.
+    - The `pcb` workflow's fit job (run 41773758599, job 126390418543) gives 0.0000 mm³ on both
+      halves against the CI-built PCB STEPs.
+- **Files that change:**
+  - The two tops (STEP, PDF), the two spacers (STL) and `plates/*.dxf`.
+  - The bottom and leg PDFs, for the revision letter only. Their STEPs and `hole_table.csv` are
+    byte-identical.
+  - The renders.
+  - The production README and both `ORDER_NOTES.md`, which say A3. The JLCCNC notes' "What changed"
+    section explains the change.
+- **Consumers:**
+  - BOARD-13's and CASE-2's "J2 body + 0.5 mm" is now + 0.75 mm. Its "≥ 3 mm to the C6R1 / C6R2
+    cut-outs" still holds (4.39).
+  - DOCS: `case.md`'s TRRS row still describes the pre-G2 relief (0.5 mm over a 5.5 mm body; 14.1 mm
+    "2.1 mm longer than the relief"). It should say: the J2 body 14.1 × 6.1 × 5.0 with 0.75 mm round
+    it (corners ≥ 0.38) in the top, the spacer and the plate; 1.0 mm headroom; gated by
+    `JACK_MIN_CLEAR`.
+  - No other stream's files change: the PCB, `layout` and the STEP envelopes are as before.

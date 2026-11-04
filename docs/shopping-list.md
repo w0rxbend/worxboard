@@ -70,7 +70,9 @@ hardware shops.
 
 ### Case hardware
 
-From [`case/production/hardware.csv`](../case/production/hardware.csv) (case revision A3, CASE-3):
+From [`case/production/hardware.csv`](../case/production/hardware.csv) (case revision A3, CASE-3).
+No threaded inserts are needed: JLCCNC taps every thread into the aluminium top, and the plate is
+milled into it.
 
 | Item | Qty | Spec | Where |
 |---|---|---|---|

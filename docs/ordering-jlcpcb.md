@@ -96,7 +96,7 @@ uploaded the bare board.
 | Min via hole size / diameter | 0.3 mm / (0.4/0.45 mm), the default | every via is 0.3 / 0.6 mm |
 | Board outline tolerance | ±0.2 mm (regular) | |
 | Confirm production file | **Yes** | you approve the panel JLC will make |
-| Mark on PCB | none (the default since 2026-05) | the boards carry their own label |
+| Mark on PCB | none: JLC adds no mark by default (its order-number option was dropped in 2026-05) | the boards carry their own label |
 | Electrical test | flying probe, the default | |
 | Gold fingers, castellated holes, edge plating, press-fit | No | |
 | Build time | standard | JLC adds $15.71 per design for an expedited panel order |

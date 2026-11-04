@@ -84,15 +84,15 @@ UART0, GP0 TX and GP1 RX at 115200 baud, ZMK `zmk,wired-split`. Use a **straight
 
 ## Display header J3
 
-1×5 2.54 mm female socket, hand-soldered (DNP at JLC). Pin 1 is at low x in each half's own frame: the **inner** end of the socket on the right half and the **outer** end on the left (the module is one part mounted face-up the same way; deviation WS0-5). The order matches the nice!view, but gate **G1** found its MOSI pin at the other end: plugged in face-up, the module meets J3 reversed, so the display cannot work until J3 is turned ([verification.md](verification.md#open-items-that-block-ordering), item 1).
+1×5 2.54 mm female socket, 5.0 mm tall (C27985230), fitted by JLC as a through-hole part. Pin *n* is nice!view pin *n*. Pin 1 (MOSI) is at **high x** in each half's own frame: the **outer** end of the socket on the right half and the **inner** end on the left, because the module is one part mounted LCD up the same way on both halves, header at the back (deviation BOARD-1). `netcmp.py --board` stops stages C and D if J3 is turned the wrong way (deviation ELEC-8; [verification.md](verification.md#g1-niceview-display)).
 
 | Pin | Function | Net | GPIO | Right frame (mm) | Left frame (mm) |
 |---|---|---|---|---|---|
-| 1 | MOSI | `DISP_MOSI` | GP3 | (67.31, 40.6) | (182.53, 40.6) |
-| 2 | SCK | `DISP_SCK` | GP2 | (69.85, 40.6) | (185.07, 40.6) |
-| 3 | VCC | `3V3` | — | (72.39, 40.6) | (187.61, 40.6) |
-| 4 | GND | `GND` | — | (74.93, 40.6) | (190.15, 40.6) |
-| 5 | CS | `DISP_CS` | GP5 | (77.47, 40.6) | (192.69, 40.6) |
+| 1 | MOSI | `DISP_MOSI` | GP3 | (77.47, 39.925) | (192.69, 39.925) |
+| 2 | SCK | `DISP_SCK` | GP2 | (74.93, 39.925) | (190.15, 39.925) |
+| 3 | VCC | `3V3` | — | (72.39, 39.925) | (187.61, 39.925) |
+| 4 | GND | `GND` | — | (69.85, 39.925) | (185.07, 39.925) |
+| 5 | CS | `DISP_CS` | GP5 | (67.31, 39.925) | (182.53, 39.925) |
 
 ## Part positions
 
@@ -101,7 +101,7 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | Ref | Value | Nets | Left (x, y) rot | Right (x, y) rot |
 |---|---|---|---|---|
 | `C1` | 10u | `GND`, `VSYS` | (63.9, 44.2) 90° | (196.1, 44.2) 90° |
-| `C2` | 10u | `GND`, `VSYS` | (63.9, 48.6) 90° | (196.1, 48.6) 90° |
+| `C2` | 10u | `GND`, `VSYS` | (74.41, 44.39) -118.5° | (179.79, 36) 90° |
 | `C3` | 10u | `3V3`, `GND` | (57.2, 45.2) 90° | (202.8, 45.2) 90° |
 | `C4` | 1u | `3V3`, `GND` | (57.2, 48) 90° | (202.8, 48) 90° |
 | `C5` | 100n | `3V3`, `GND` | (90, 55.4) 90° | (160.6, 33.2) 90° |
@@ -123,7 +123,7 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `F1` | 250mA | `VLINK`, `VLINK_JP` | (67.2, 52.8) 180° | (192.8, 52.8) 0° |
 | `J1` | TYPE-C-31-M-12 | `CC1`, `CC2`, `GND`, `USB_C_DM`, `USB_C_DP`, `VBUS` | (74, 34.25) 180° | (186, 34.25) 180° |
 | `J2` | PJ-320D-4A | `GND`, `TRRS_A`, `TRRS_B`, `VLINK` | (202.62, 103) 180° | (57.38, 103) 0° |
-| `J3` | nice!view | `3V3`, `DISP_CS`, `DISP_MOSI`, `DISP_SCK`, `GND` | (182.53, 40.6) 90° | (67.31, 40.6) 90° |
+| `J3` | HC-PM254-5.0H-1x5PZ | `3V3`, `DISP_CS`, `DISP_MOSI`, `DISP_SCK`, `GND` | (192.69, 39.92) -90° | (77.47, 39.92) -90° |
 | `JP1` | VLINK | `VLINK_JP`, `VSYS` | (73.4, 51.6) 180° | (186.6, 51.6) 0° |
 | `R1` | 5.1k | `CC1`, `GND` | (80.5, 39.6) 0° | (189.4, 42.4) 90° |
 | `R2` | 5.1k | `CC2`, `GND` | (70.2, 43.4) 0° | (183.4, 43.2) 0° |
@@ -154,7 +154,7 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `U1` | RP2040 | [RP2040 pins](#rp2040-pins) | (93.4, 42) 180° | (166, 44) 0° |
 | `U2` | W25Q128JVSIQ | `3V3`, `GND`, `QSPI_SCLK`, `QSPI_SD0`, `QSPI_SD1`, `QSPI_SD2`, `QSPI_SD3`, `QSPI_SS` | (96, 53.7) 180° | (154.6, 35) 0° |
 | `U3` | AP2112K-3.3 | `3V3`, `GND`, `VSYS` | (60.4, 46.4) 180° | (199.6, 46.4) 0° |
-| `U4` | USBLC6-2SC6 | `GND`, `USB_C_DM`, `USB_C_DP`, `VBUS` | (78.04, 42.49) 151.5° | (177.5, 39.4) 0° |
+| `U4` | USBLC6-2SC6 | `GND`, `USB_C_DM`, `USB_C_DP`, `VSYS` | (78.04, 42.49) 151.5° | (177.5, 39.4) 0° |
 | `U5` | USBLC6-2SC6 | `GND`, `TRRS_A`, `TRRS_B`, `VLINK` | (204.6, 94.6) 180° | (55.4, 94.6) 0° |
 | `Y1` | 12MHz | `GND`, `XIN`, `XTAL_OUT` | (94.47, 33.1) 90° | (164.93, 52.9) -90° |
 

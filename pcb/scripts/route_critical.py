@@ -14,9 +14,10 @@
 - Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
 - Decoupling: every supply cap (placed at an exit by place.CLUSTER) joined to that exit, and its
   GND pad to a via; XOUT -> R7 -> Y1 beside the crystal; a B.Cu track/via keepout under Y1.
-- U1 GND (EP_LINK): a B.Cu GND spoke from the exposed pad's via array to the board edge on the side
-  of U1 that faces it, so routes cannot wall the pad's B.Cu off from the plane; on the right it also
-  joins the north and east caps' GND vias.
+- U1 GND: the TESTEN pad (GND) out to a B.Cu via at the GND fill under Y1, which reaches the back
+  edge, and on the right a B.Cu spine from the exposed pad's via array to the back edge (EDGE_SPOKE),
+  so routes cannot wall the pad off from the plane; B.Cu spurs from the pad's vias to every U1 cap's
+  GND via (ep_caps), so each cap's GND return is short.
 
 Geometry is written in the U1 frame (place.U1_ROT) where it is the same on both halves; the
 J1 end is laid per side.
@@ -92,24 +93,30 @@ CAP_LINK_W = 0.25            # 1V1 and crystal links (Default width)
 CAP_GND_OUT = 0.84           # C2 (U4's VSYS cap): GND via this far past its pad 2
 XOUT_PIN = "21"
 Y1_KEEPOUT_GROW = 0.25       # B.Cu track / via keepout: Y1 courtyard + this (spec §6.4)
-# U1 GND on B.Cu (docs/deviations.md BOARD-9). The exposed pad is the RP2040's only GND pin, and B.Cu
-# routes under and around U1 could ring its B.Cu copper off from the plane (the left board of 4e5fc30
-# hung it on one via). A locked 0.5 mm B.Cu GND spoke now runs from the pad's via array to the board
-# edge on the side of U1 that faces the back edge, where no fan-out runs, so no route can pass between:
-# - right ("north"): up under the 3V3 north exit (x 0.6) through the north caps' GND via row
-#   (C14 / C15 / C13 / C10, with C16 / C19 on its end) and on from C19's via to the edge; the east caps'
-#   GND vias (C18 / C11 / C12) in a row feed the GND fill under the USB pair (USB_KEEPOUT), which meets
-#   the spoke at its west end;
-# - left ("south", U1 turned 180 deg): down under XIN into the GND fill under Y1 (Y1_KEEPOUT), which
-#   reaches the back edge.
-# One spoke per half: a second one on the other side walls off the routes that cross under U1. On the
-# left the cap side faces U2 and the matrix, and the GND links to the caps tried there left nets open.
-EP_LINK = {"right": "north", "left": "south"}
+# U1 GND (docs/deviations.md BOARD-9, BOARD-14). The exposed pad (EP) is the RP2040's only GND pin, and
+# B.Cu routes under and around U1 can ring its B.Cu copper, or a cap's GND via, off from the plane (the
+# left board of 4e5fc30 hung the EP on one via; on the left of 68f812e eleven caps returned to the EP
+# over 125-180 mm of GND copper). Locked GND copper therefore ties, on both halves:
+# - the EP to the GND plane at the back edge: the TESTEN pad (pin 19, GND), which qfn_inner joins to
+#   the EP on F.Cu, runs on out between pins 18 and 20 to a B.Cu via at the GND fill under Y1
+#   (Y1_KEEPOUT), which reaches the back edge (testen_via). On the right a 0.5 mm B.Cu spine also runs
+#   from the EP up under the 3V3 north exit (x 0.6), through the north caps' GND via row and on from
+#   C19's via to the back edge (EDGE_SPOKE), on the side of U1 where no fan-out runs. On the left (U1
+#   turned 180 deg) that side faces the matrix, and the B.Cu spoke under XIN of BOARD-9 walled off every
+#   route under U1's south side: the F.Cu escape replaces it;
+# - every U1 cap's GND via to the EP over B.Cu (ep_caps), as spurs that end at a cap or in a fill: the
+#   spine to the north row (C14 / C15 / C13 / C10, with C16 / C19 on its west end), the east caps' GND
+#   vias (C18 / C11 / C12) in a row fed into the GND fill under the USB pair (USB_KEEPOUT), which meets
+#   the spine, a diagonal from the EP's north-west via to the west caps' (C8 / C9) via, and C17's via
+#   stubbed into the GND fill under Y1, which the TESTEN via joins.
+EDGE_SPOKE = {"right": True, "left": False}
 SPOKE_W = 0.5
-N_SPOKE_X = 0.6              # north spoke: under the 3V3 north exit (x 0.4), beside the USB keepout (x >= 1.0)
+N_SPOKE_X = 0.6              # north spine: under the 3V3 north exit (x 0.4), beside the USB keepout (x >= 1.0)
 SPOKE_KO_GAP = 0.05          # GND copper stops this far short of a keepout whose fill it joins, or of the
                              # copper-to-edge clearance
-GND_LINKED_CAPS = {"right": N_CAPS + V11_N_CAPS + E_CAPS, "left": ()}   # their GND vias join the spoke
+VIA_R = 0.3                  # locked via pad radius (Router.via)
+T_W = 0.2                    # TESTEN escape: 0.225 mm from the pin 18 / XIN tracks on the 0.4 mm pitch
+T_MARGIN = 0.02              # its via: this much over the clearance to pin 18 / XIN / the Y1 keepout
 
 
 class Router:
@@ -276,16 +283,26 @@ class Router:
                 self.via(gnd, self.g(*v))
                 done.add(v)
 
-    def ep_south(self) -> None:
-        """Left (EP_LINK "south"): locked B.Cu GND from the exposed pad's south-west via, under XIN,
-        to just short of the GND fill under Y1, whose keepout reaches the back edge (BOARD-9)."""
-        if EP_LINK[self.side] != "south":
-            return
+    def testen_via(self) -> None:
+        """The TESTEN pad (pin 19) is GND and joined to the exposed pad on F.Cu (qfn_inner). A T_W track
+        runs on out of it, between the pin 18 fan-out and XIN, past pin 18's turn, to a locked B.Cu GND
+        via just short of the Y1 keepout, whose GND fill reaches the back edge: a GND path from the pad to
+        the plane south of U1 that walls no B.Cu route off (deviations BOARD-14)."""
+        pads = self.u1_pads()
+        (lx, ly), x20 = pads[TESTEN], pads["20"][0]
+        ex, ey = self.fan_ends["18"]                          # pin 18 bends at (x18, ty), then 45 deg away
+        tx, ty = pads["18"][0], ey - FAN_RUN / math.sqrt(2)
+        keep = VIA_R + CLEAR + FAN_W / 2 + T_MARGIN           # via centre to a FAN_W track's centre line
+        vx = x20 - keep
+        dx = vx - tx
+        vy = max(ty + math.sqrt(keep ** 2 - dx ** 2), ty + keep * math.sqrt(2) - dx)   # turn point, diagonal
         cy = self.board.FindFootprintByReference("Y1").GetCourtyard(pcbnew.F_CrtYd).Outline(0)
         top = min(self.local(*self.xy(cy.CPoint(i)))[1] for i in range(cy.PointCount())) - Y1_KEEPOUT_GROW
-        xs, (sx, sy) = self.lpad("U1", "20")[0], (min(EP_VIAS), max(EP_VIAS))
-        self.ltrack(self.net("U1", "57"), [(sx, sy), (xs, sy + (xs - sx)), (xs, top - SPOKE_W / 2 - SPOKE_KO_GAP)],
-                    SPOKE_W, pcbnew.B_Cu)
+        if vy + VIA_R + T_MARGIN > top:
+            raise SystemExit(f"TESTEN via at y {vy:.3f} reaches the Y1 keepout at {top:.3f}")
+        gnd = self.net("U1", TESTEN)
+        self.ltrack(gnd, [(lx, ly), (lx, vy - (lx - vx)), (vx, vy)], T_W)
+        self.via(gnd, self.g(vx, vy))
 
     def zone_polys(self, name: str) -> list:
         """Outlines of the rule areas called `name`, in the U1 frame."""
@@ -321,13 +338,13 @@ class Router:
         p = min(getattr(hit, "geoms", [hit]), key=start.distance)
         return self.local(p.x, p.y)
 
-    def ep_north(self) -> None:
-        """Right (EP_LINK "north"): locked B.Cu GND from the exposed pad's north-east via under the
-        3V3 north exit into the north caps' GND via row (C16 / C19 on its west end), on from C19's via
-        to the back edge; the east caps' GND vias in a row, fed into the GND fill under the USB pair,
-        which meets the spoke (BOARD-9). Needs USB_KEEPOUT: runs after keepout()."""
-        if EP_LINK[self.side] != "north":
-            return
+    def ep_caps(self) -> None:
+        """Locked B.Cu GND from the exposed pad to every U1 cap's GND via (BOARD-9, BOARD-14): from its
+        north-east via under the 3V3 north exit into the north caps' GND via row (C16 / C19 on its west
+        end), on the right (EDGE_SPOKE) on from C19's via to the back edge; the east caps' GND vias in a
+        row, fed into the GND fill under the USB pair, which meets the spine; C17's via into the GND fill
+        under Y1; a diagonal from its north-west via to the west caps' via. Needs USB_KEEPOUT: runs after
+        keepout()."""
         from shapely.geometry import Point
         gnd, B = self.net("U1", "57"), pcbnew.B_Cu
 
@@ -342,9 +359,18 @@ class Router:
         x, yn = N_SPOKE_X, north[0][1]
         self.ltrack(gnd, [(x16, y19), (x19, y19), (x, y19 + (x - x19)), (x, yn), north[0], north[-1]], SPOKE_W, B)
         self.ltrack(gnd, [(hi, lo), (x, lo - (hi - x)), (x, yn)], SPOKE_W, B)
-        self.ltrack(gnd, [(x19, y19), self.to_edge((x19, y19), (0.0, -1.0))], SPOKE_W, B)
+        if EDGE_SPOKE[self.side]:
+            self.ltrack(gnd, [(x19, y19), self.to_edge((x19, y19), (0.0, -1.0))], SPOKE_W, B)
         self.ltrack(gnd, [east[0], east[-1]], SPOKE_W, B)
+        if self.side == "left":
+            # only the piece of the keepout under the pair's first run (U1 -> R3 / R4) lies against the
+            # spine; the next one starts past the R3 / R4 gap, which routes may cross
+            strip = [min(strip, key=lambda p: p.distance(Point(x, yn)))]
         self.stub(gnd, min(east, key=lambda v: min(p.distance(Point(v)) for p in strip)), strip)
+        self.stub(gnd, via_of(V11_S_CAP), self.zone_polys("Y1_KEEPOUT"))
+        wv = via_of(W_CAPS[0])                                    # C8 / C9 share it
+        d = lo - wv[1]
+        self.ltrack(gnd, [(lo, lo), (lo - d, lo - d), wv], SPOKE_W, B)
 
     def crystal(self) -> None:
         """XOUT from its fan end down to R7 beside the crystal, R7 -> Y1 pad 3, and a B.Cu
@@ -696,10 +722,10 @@ def main(argv: list[str]) -> int:
     r.power_escapes()
     r.fanout()
     r.decoupling()
-    r.ep_south()                 # the copper order fixes the seeded KIIDs: keep it (deviations WS2c-4)
+    r.testen_via()               # the copper order fixes the seeded KIIDs: keep it (deviations WS2c-4)
     r.crystal()
     r.keepout(r.usb())
-    r.ep_north()
+    r.ep_caps()
     r.matrix(layout_side(side)["keys"])
     board.Save(str(path))
     print(f"{side}: {r.tracks} locked track segments")

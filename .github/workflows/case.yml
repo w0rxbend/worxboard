@@ -43,8 +43,11 @@ jobs:
       - name: Renders
         run: just renders
 
-      - name: Order package (PDF drawings)
-        run: just version="${GITHUB_REF_NAME//\//-}" order
+      - name: Order package (JLCCNC STEP + PDF drawings, JLC3DP parts, hardware list)
+        run: just order
+
+      - name: case/production is the order package of this model
+        run: just production-check
 
       - uses: actions/upload-artifact@v4
         with:

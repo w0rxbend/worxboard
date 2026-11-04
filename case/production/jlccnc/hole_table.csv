@@ -1,0 +1,65 @@
+part,id,thread_or_feature,hand,class,tap_drill,drill_depth,min_full_thread,screw,max_screw_reach,x,y,z,direction,note
+worxboard_right_top,T1,M2.5x0.45,RH,6H,2.05,3.6,2.3,M2.5x10 CSK,1.6,-76.101,-65.837,8.600,+Z (from PCB face),"BLIND under key well, 0.78 skin: no break-through"
+worxboard_right_top,T2,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-70.335,-21.666,8.600,+Z (from PCB face),blind
+worxboard_right_top,T3,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-24.565,-57.759,8.600,+Z (from PCB face),blind
+worxboard_right_top,T4,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,71.778,-40.056,8.600,+Z (from PCB face),blind
+worxboard_right_top,T5,M2.5x0.45,RH,6H,2.05,3.6,2.3,M2.5x10 CSK,1.6,9.040,8.408,8.600,+Z (from PCB face),"BLIND under key well, 0.78 skin: no break-through"
+worxboard_right_top,T6,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,71.143,62.865,8.600,+Z (from PCB face),blind
+worxboard_right_top,T7,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-11.788,62.865,8.600,+Z (from PCB face),blind
+worxboard_right_top,T8,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-42.000,62.865,8.600,+Z (from PCB face),blind
+worxboard_right_top,L1,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,82.118,36.000,12.000,"normal to wall, into part (-1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_right_top,L2,M3x0.5,RH,6H,2.5,7.5,6.0,M3 leg thumbscrew,5.7,-77.100,36.000,12.000,"normal to wall, into part (+1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_right_top,L3,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,-105.207,-59.659,12.000,"normal to wall, into part (+0.906, +0.423, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_right_top,W1,"display window 12 x 26 R1.0 THRU the bezel skin, 0.5 x 45° chamfer on the top edge",,,,,,,,-57.61,44.13,,,no thread
+worxboard_right_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (bezel skin 1.0); front end open into the key well",,,,,,,,-57.61,43.37,,,no thread
+worxboard_right_top,B1,"raised display bezel 18.42 x 37.90, top Z 19.6 (2.0 above the top face), top edges 0.5 x 45°, R2.0 free corners; flush with the key-well walls on its well sides",,,,,,,,-57.90,44.93,,,no thread
+worxboard_right_top,J1,USB-C notch 9.4 x 3.6 R1.6 thru back wall at Z 10.2; outside recess 13 x 8 x 1.8 deep,,,,,,,,56.00,72.90,,,no thread
+worxboard_right_top,J2,"TRRS hole Ø6.5 thru inner bump wall, axis Z 11.1",,,,,,,,-84.50,-3.00,,,no thread
+worxboard_right_top,P1,Ø3.0 THRU top skin (SW_BOOT pin-hole),,,,,,,,46.00,50.00,,,no thread
+worxboard_right_top,P2,Ø3.0 THRU top skin (SW_RST pin-hole),,,,,,,,50.00,50.00,,,no thread
+worxboard_right_bottom,C1,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-76.101,-65.837,0.000,-Z face,M2.5x10 countersunk screw into T1
+worxboard_right_bottom,C2,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-70.335,-21.666,0.000,-Z face,M2.5x12 countersunk screw into T2
+worxboard_right_bottom,C3,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-24.565,-57.759,0.000,-Z face,M2.5x12 countersunk screw into T3
+worxboard_right_bottom,C4,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,71.778,-40.056,0.000,-Z face,M2.5x12 countersunk screw into T4
+worxboard_right_bottom,C5,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,9.040,8.408,0.000,-Z face,M2.5x10 countersunk screw into T5
+worxboard_right_bottom,C6,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,71.143,62.865,0.000,-Z face,M2.5x12 countersunk screw into T6
+worxboard_right_bottom,C7,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-11.788,62.865,0.000,-Z face,M2.5x12 countersunk screw into T7
+worxboard_right_bottom,C8,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-42.000,62.865,0.000,-Z face,M2.5x12 countersunk screw into T8
+worxboard_right_bottom,F1,Ø10.5 x 0.6 deep recess,,,,,,,,-62.000,55.000,0.000,-Z face,rubber foot
+worxboard_right_bottom,F2,Ø10.5 x 0.6 deep recess,,,,,,,,68.000,55.000,0.000,-Z face,rubber foot
+worxboard_right_bottom,F3,Ø10.5 x 0.6 deep recess,,,,,,,,66.000,-48.000,0.000,-Z face,rubber foot
+worxboard_right_bottom,F4,Ø10.5 x 0.6 deep recess,,,,,,,,-85.000,-78.000,0.000,-Z face,rubber foot
+worxboard_right_bottom,M1,"engraved 'R', 10 high x 0.4 deep",,,,,,,,35.000,-0.000,0.000,-Z face,"side mark, reads from below"
+worxboard_left_top,T1,M2.5x0.45,RH,6H,2.05,3.6,2.3,M2.5x10 CSK,1.6,76.101,-65.837,8.600,+Z (from PCB face),"BLIND under key well, 0.78 skin: no break-through"
+worxboard_left_top,T2,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,70.335,-21.666,8.600,+Z (from PCB face),blind
+worxboard_left_top,T3,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,24.565,-57.759,8.600,+Z (from PCB face),blind
+worxboard_left_top,T4,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-71.778,-40.056,8.600,+Z (from PCB face),blind
+worxboard_left_top,T5,M2.5x0.45,RH,6H,2.05,3.6,2.3,M2.5x10 CSK,1.6,-9.040,8.408,8.600,+Z (from PCB face),"BLIND under key well, 0.78 skin: no break-through"
+worxboard_left_top,T6,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,-71.143,62.865,8.600,+Z (from PCB face),blind
+worxboard_left_top,T7,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,11.788,62.865,8.600,+Z (from PCB face),blind
+worxboard_left_top,T8,M2.5x0.45,RH,6H,2.05,6.0,4.5,M2.5x12 CSK,3.6,42.000,62.865,8.600,+Z (from PCB face),blind
+worxboard_left_top,L1,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,-82.118,36.000,12.000,"normal to wall, into part (+1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_left_top,L2,M3x0.5,RH,6H,2.5,7.5,6.0,M3 leg thumbscrew,5.7,77.100,36.000,12.000,"normal to wall, into part (-1.000, -0.000, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_left_top,L3,M3x0.5,RH,6H,2.5,5.5,4.0,M3 leg thumbscrew,3.7,105.207,-59.659,12.000,"normal to wall, into part (-0.906, +0.423, 0)","blind, in the flat leg boss, see sheet 2"
+worxboard_left_top,W1,"display window 12 x 26 R1.0 THRU the bezel skin, 0.5 x 45° chamfer on the top edge",,,,,,,,57.61,44.13,,,no thread
+worxboard_left_top,D1,"display pocket 15.0 x 37.0, Z 8.6-18.6 (bezel skin 1.0); front end open into the key well",,,,,,,,57.61,43.37,,,no thread
+worxboard_left_top,B1,"raised display bezel 18.43 x 37.90, top Z 19.6 (2.0 above the top face), top edges 0.5 x 45°, R2.0 free corners; flush with the key-well walls on its well sides",,,,,,,,57.90,44.93,,,no thread
+worxboard_left_top,J1,USB-C notch 9.4 x 3.6 R1.6 thru back wall at Z 10.2; outside recess 13 x 8 x 1.8 deep,,,,,,,,-56.00,72.90,,,no thread
+worxboard_left_top,J2,"TRRS hole Ø6.5 thru inner bump wall, axis Z 11.1",,,,,,,,84.50,-3.00,,,no thread
+worxboard_left_top,P1,Ø3.0 THRU top skin (SW_BOOT pin-hole),,,,,,,,-46.00,50.00,,,no thread
+worxboard_left_top,P2,Ø3.0 THRU top skin (SW_RST pin-hole),,,,,,,,-50.00,50.00,,,no thread
+worxboard_left_bottom,C1,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,76.101,-65.837,0.000,-Z face,M2.5x10 countersunk screw into T1
+worxboard_left_bottom,C2,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,70.335,-21.666,0.000,-Z face,M2.5x12 countersunk screw into T2
+worxboard_left_bottom,C3,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,24.565,-57.759,0.000,-Z face,M2.5x12 countersunk screw into T3
+worxboard_left_bottom,C4,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-71.778,-40.056,0.000,-Z face,M2.5x12 countersunk screw into T4
+worxboard_left_bottom,C5,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-9.040,8.408,0.000,-Z face,M2.5x10 countersunk screw into T5
+worxboard_left_bottom,C6,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,-71.143,62.865,0.000,-Z face,M2.5x12 countersunk screw into T6
+worxboard_left_bottom,C7,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,11.788,62.865,0.000,-Z face,M2.5x12 countersunk screw into T7
+worxboard_left_bottom,C8,"Ø2.9 THRU, 90° CSK Ø5.2",,,,,,,,42.000,62.865,0.000,-Z face,M2.5x12 countersunk screw into T8
+worxboard_left_bottom,F1,Ø10.5 x 0.6 deep recess,,,,,,,,62.000,55.000,0.000,-Z face,rubber foot
+worxboard_left_bottom,F2,Ø10.5 x 0.6 deep recess,,,,,,,,-68.000,55.000,0.000,-Z face,rubber foot
+worxboard_left_bottom,F3,Ø10.5 x 0.6 deep recess,,,,,,,,-66.000,-48.000,0.000,-Z face,rubber foot
+worxboard_left_bottom,F4,Ø10.5 x 0.6 deep recess,,,,,,,,85.000,-78.000,0.000,-Z face,rubber foot
+worxboard_left_bottom,M1,"engraved 'L', 10 high x 0.4 deep",,,,,,,,-35.000,-0.000,0.000,-Z face,"side mark, reads from below"
+worxboard_leg,H1,Ø3.4 thru (M3 clearance),,,,thru,,,,0.000,0.000,0.000,+Z,no thread
+worxboard_leg,CB1,counterbore Ø6.5 x 4.0,,,,4.0,,,,0.000,0.000,8.000,-Z,spring seat

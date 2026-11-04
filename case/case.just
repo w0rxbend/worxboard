@@ -40,3 +40,11 @@ order:
     cp case/production/jlccnc/ORDER_NOTES.md {{case_exports}}/order/jlccnc/ORDER_NOTES.md
     cp case/production/jlc3dp/ORDER_NOTES.md {{case_exports}}/order/jlc3dp/ORDER_NOTES.md
     mkdir -p {{case_exports}}/order/plates && cp plates/*.dxf {{case_exports}}/order/plates/
+
+# Copy the generated order files into the committed case/production (needs model + order)
+production:
+    {{case_tools}} case/production.py sync {{case_exports}}/order case/production
+
+# Fail if case/production differs from a fresh order package (needs model + order)
+production-check:
+    {{case_tools}} case/production.py check {{case_exports}}/order case/production

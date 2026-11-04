@@ -1279,3 +1279,110 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   top part, spacer and plate. DOCS: `verification.md` G2 (summary row, the Length and Height rows, open
   item 4) and `docs/case.md` (the relief and plate rows) still describe the old envelope and the failure.
   `case/renders/*.png` are regenerated.
+
+### BOARD-14. Every U1 cap's GND reaches the exposed pad within 13 mm; TESTEN ties the pad to the plane; no unlocked dangling copper (§6.4, §9 stages 8, 11, 12; supersedes the BOARD-9 left spoke and gate, corrects BOARD-11)
+
+- **Problem** (verifier on 68f812e, a 0.1 mm raster of all GND copper of both layers, 1.6 mm per via
+  hop):
+  - **Left:** the GND return of 11 of the 12 U1 caps to U1's exposed pad (EP, the RP2040's only GND
+    pin) was 125.7–179.9 mm of copper. The straight-line distances are 6–9 mm. Only C17 was short
+    (29.5 mm). C19, the internal regulator's output cap, was at 135.5 mm. The BOARD-9 gate passed only
+    because its left cap list was empty, and BOARD-9 deferred the caps to rev B.
+  - **Right:** 9–12 mm, C17 22.9 mm.
+  - **Right, dangling copper:** prune.py left 5 unlocked items. Three were vias that join F.Cu only
+    (3V3 (148.176, 46.358), DISP_DC (83.92, 42.848), ROW1 (160.108, 47.0)). One was a ROW2 B.Cu jog
+    (160.765, 58.0)–(160.665, 57.9). One was a TP5 B.Cu overhang (170.376, 52.064)–(170.376, 47.192).
+    **BOARD-11 said every remaining dangling warning came from locked copper. That was wrong for the
+    right half** (the left had 0 unlocked items).
+- **Cause, left:** the left U1 is turned 180°, so its cap rows face U2 and the matrix, where the
+  fan-out runs. Three walls box in the region west of U1 (TP4–TP11, SWD, RUN, the COL4–COL6 fan-out
+  vias):
+  - the USB pair from R3/R4 to J1, with its B.Cu keepout;
+  - the B.Cu spoke from the EP under XIN to the GND fill under Y1, which reaches the back edge
+    (BOARD-9), walling off every B.Cu route under U1's south side;
+  - any B.Cu link from the EP to the north caps' GND vias, which walls off the B.Cu passage under U1's
+    north side, between the EP and the pair's keepout.
+
+  With the spoke and the cap links both in place, that region's only B.Cu ways out are the gaps in the
+  pair's keepout at R3/R4 and at U4, and the completion router never closed its nets.
+- **Change** (`route_critical.py`):
+  - **`testen_via()`, both halves.** TESTEN (U1 pin 19) is GND, and `qfn_inner` already joins its pad
+    to the EP on F.Cu. A locked 0.2 mm F.Cu track now runs on out of that pad, between pin 18's
+    fan-out and XIN (0.225 mm clear of both on the 0.4 mm pitch), past pin 18's bend. It ends at a
+    locked 0.3/0.6 GND via just short of the Y1 keepout, at U1 frame (−1.195, 5.96). The keepout's
+    GND fill reaches the back edge.
+    - This ties the EP to the plane at the back edge without walling off a B.Cu route.
+    - On the left it replaces the B.Cu spoke under XIN; `EP_LINK` and `ep_south()` are gone.
+    - The right keeps its B.Cu spine from the EP to the back edge (`EDGE_SPOKE`).
+  - **`ep_caps()`, both halves (was `ep_north()`, right only).** Locked 0.5 mm B.Cu spurs run from
+    the EP's vias to every U1 cap's GND via. Each one ends at a cap or in a fill:
+    - the spine and the north row (C14/C15/C13/C10, with C16/C19);
+    - the east row (C18/C11/C12), stubbed into the USB pair's GND fill, which meets the spine. On the
+      left it is stubbed into the keepout piece under the pair's first run;
+    - a diagonal from the EP's north-west via to the C8/C9 via (new);
+    - C17's via, stubbed into the Y1 fill, which the TESTEN via joins (new).
+  - **Left base seed 0x4** (was 0x3), re-chosen per WS2c-4 because the locked copper changed. With
+    this copper, 0x4 closed every gap in 10 min of stage C. 0x2, 0x3, 0x5, 0x6 and 0x7 were still
+    negotiating (3–15 nets open) after 14–44 min and were stopped. The right keeps 0x1.
+- **Tried and dropped, left** (each one placed, Freerouted and finished from scratch):
+  - **No B.Cu edge link** (seeds 0x2 and 0x3, with and without the east row).
+  - **The spoke moved west of COL0's fan-out via** (seeds 0x2–0x4). It had to clear that via by
+    0.2 mm. On 68f812e the plain spoke trapped COL0, which then ringed the EP's B.Cu: that ring was
+    the left GND island.
+
+  Both were still negotiating after about 40 min, with 3–7 nets open. Before this round, the
+  duplicate BOARD agent ran 6 variants with the old spoke and the north and east links; they never
+  closed TP4–TP7, RUN, SWD, COL2–COL6 and QSPI_SD1. On the right, the TESTEN via and C17 stub without
+  the C8/C9 diagonal let the reroute cut C8/C9 off (39 mm). With the diagonal, every cap is ≤ 13 mm.
+- **Gate** (`checks.py`, replacing the BOARD-9 gate). The raster is 0.1 mm over the GND copper of both
+  layers (pour fill, tracks, vias, pads) within ±16 mm of U1, with 1.6 mm charged per layer change:
+  - each U1 cap's GND pad reaches the EP within 20 mm (`GND_RET_MAX_MM`);
+  - the EP reaches the main B.Cu GND plane within 8 mm (`EP_PLANE_MAX_MM`).
+
+  Which EP and cap GND vias sit in the main plane over B.Cu alone is now printed, not gated. On the
+  left, the EP's B.Cu (148 mm²: the EP vias, the spine and the cap rows) reaches the plane through the
+  TESTEN via over F.Cu, which is 5.7 mm. A path that would leave the window counts as failed, so
+  every figure is an upper bound on the whole-board value.
+- **Dangling copper** (`prune.py`): three more repairs, each kept only if its net keeps its island
+  count.
+  - A one-layer via is replaced by joins that may pass the copper they replace by 1e-3 mm. A join
+    that would poke out is narrowed, to 0.15 mm at the least.
+  - An overhang is trimmed as KiCad's own test judges it: the end is joined once other copper of
+    the net lies within the track's half width.
+  - A track whose end meets another unlocked track part-way along is split there (a T junction).
+
+  `MAX_ROUNDS` is 30; a chain of stubs goes a few items per round. prune.py now exits 1 if any
+  **unlocked** item still dangles, so stage C fails on it. What KiCad still flags is locked copper
+  only, as listed in BOARD-4.
+- **Commits:** 0d361b7 lands `prune.py` with the right board it gives. A from-scratch rebuild of the
+  left with it gives the committed left board unchanged. 3b9209c lands the U1 GND change, the seed
+  and the gate with both boards.
+- **CI:** on both commits every job of `layout`, `firmware`, `case` and `pcb` passes, including the
+  render compare, the fit check against both STEPs and both from-scratch `rebuild` jobs (`pcb` runs
+  41746645589 and 41746675999). On 3b9209c the rebuilds took 26 min (left) and 35 min (right).
+- **Result** (both boards rebuilt from scratch with the committed scripts, twice each: the
+  experiment and a fresh clone gave byte-identical sessions and boards):
+
+| Check | Left | Right |
+|---|---|---|
+| `just pcb-sch-all` | ERC 0, netcmp 10/10 | ERC 0, netcmp 10/10 |
+| Freerouting 2.5.0 (30 passes), open after | 30 connections, 6.8 min | 36 connections, 11.3 min |
+| `just pcb-finish` (completion, rip-up, pours, clean-up, gates) | 10.2 min | 15.3 min (host loaded) |
+| DRC `--schematic-parity --severity-error` | 0 violations, 0 unconnected, 0 parity | same |
+| `checks.py` | 10/10: USB D+ 24.73, D− 23.92, skew 0.81 mm; Y1 2.93 mm; worst supply pin 11.64 mm (IOVDD 22); U4 VSYS 4.07 mm | 10/10: USB 23.75 / 23.50, skew 0.25 mm; Y1 2.93 mm; IOVDD 22 11.64 mm; U4 VSYS 4.07 mm |
+| EP → main B.Cu GND plane | 5.7 mm (TESTEN via) | 1.6 mm (EP vias in the plane) |
+| U1 cap GND → EP, mm | C8 9.3, C9 9.5, C10 10.9, C11 11.0, C12 12.5, C13 10.4, C14 9.4, C15 9.9, C16 11.4, C17 13.0, C18 10.5, C19 10.3 | C8 9.3, C9 9.6, C10 11.0, C11 9.1, C12 10.6, C13 10.5, C14 9.5, C15 10.0, C16 11.0, C17 13.0, C18 8.6, C19 10.3 |
+| EP / cap GND vias in the main plane over B.Cu alone (printed) | 0/9, 1/12 (C17) | 9/9, 11/12 (all but C17) |
+| `netcmp.py --board` + kikit BOM/CPL (stage D) | 3/3, 119 fitted parts, J3 pin 1 gate | same |
+| Copper | 2620 tracks (498 locked), 331 vias (all 0.3 / 0.6), narrowest 0.135 (2 segments) | 3160 tracks (501 locked), 389 vias (0.3 / 0.6), narrowest 0.135 (3) |
+| Dangling copper (`prune.py`) | 92 deleted, 9 trimmed, 4 vias replaced; 0 unlocked left; locked: 29 via / 5 track warnings | 176, 20, 11; 0 unlocked; locked: 34 via / 3 track |
+
+- `pytest layout`: 32 passed. `pytest tests/integration` (no firmware build): 111 passed.
+- The placement, parts and outline are unchanged, so BOARD-7 still holds: the JLC rules, the edge
+  distances and the rails with a routed gap and mouse-bites. The TESTEN via is an ordinary 0.3/0.6
+  via outside any pad, and its track is 0.2 mm.
+- **Consumers:**
+  - **FAB:** BOM and CPL are unchanged: same parts, positions and rotations.
+  - **DOCS:** `verification.md` and `electrical.md` should describe U1's GND as above. The
+    `verification.md` note on dangling stubs (about 90 / 70 warnings) is out of date.
+  - **PACKAGE:** the outline is unchanged, and the renders are regenerated.

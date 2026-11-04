@@ -1386,3 +1386,156 @@ JLC figures as in `verification.md` G3 (JLCPCB PCB capabilities page).
   - **DOCS:** `verification.md` and `electrical.md` should describe U1's GND as above. The
     `verification.md` note on dangling stubs (about 90 / 70 warnings) is out of date.
   - **PACKAGE:** the outline is unchanged, and the renders are regenerated.
+
+## CASE: the orderable case (`case/`, `plates/`, `.github/workflows/case.yml`)
+
+The case was made orderable at JLCCNC (machined parts) and JLC3DP (printed parts) on 2026-11-04, case
+revision **A1**. The order package is committed in [`case/production/`](../case/production/README.md).
+
+### CASE-1. The display pocket rises over the stock nice!view stack under a raised bezel (§4 G1, §10.4; ELEC-3; supersedes the pocket height of WS3-5)
+
+- **Spec:** pocket over the module + 0.5 mm from Z 8.6 to Z 16.8, so socket + module + glass ≤ 8.2 mm
+  above the PCB top; a 0.8 mm skin and the window in the top face (Z 17.6).
+- **Problem:** ELEC-3 made J3 the 5.0 mm socket JLC fits (C27985230), with a stock nice!view on its
+  own male header. The glass top is then 8.9 mm above the PCB top nominally, 9.4 mm with a 2.5 mm
+  header carrier and **9.75 mm at full tolerance: Z 18.35, above the top face**.
+- **Change** (`case/worxboard_case.py`):
+  - `Z_DISPLAY_TOP` = PCB top + 9.75 + 0.25 = **Z 18.6** (`DISPLAY_STACK_MAX`, `DISPLAY_GLASS_CLEAR`).
+    It is now a case constant; the case no longer reads `layout.display.Z_POCKET_TOP` (16.8).
+  - **Raised bezel B1**: the pocket + 2.0 mm (`BEZEL_WALL`), Z 17.6–**19.6** (1.0 mm skin,
+    `BEZEL_SKIN`), R2 plan corners, 0.5 × 45° top edges. Where the key well is nearer, the bezel
+    edge is pulled back to it and meets it flush (`bezel_rect`): in front at the C6R1 well
+    (y 74.023; the pocket's front strip lies in that well, as in WS3-5) and at the C5 column
+    (x 81.315 right frame, 178.685 left), where the wall between pocket and well is 1.425 mm thick
+    and stands 6.0 mm above the key-well floor. Right frame x 62.89–81.315, y 36.125–74.023.
+  - The window W1 (12 × 26, unchanged in plan) goes through the bezel skin, chamfer at Z 19.6.
+  - The pocket is 11.6 mm deep from the parting face, so JLCCNC's cutter leaves R1.5 in its corners
+    (depth / 10, `corner_r`). With 0.5 mm between the module and each wall, that fillet would come
+    within 0.09 mm of the module's corners. `pocket_cut()` relieves each corner with an R1.5
+    dog-bone (a circle of the cutter through the corner; 0.44 mm into the walls). The old pocket
+    was modelled with sharp corners.
+  - The top part is 12.6 mm tall (was 10.6), 140.1 g (was 139.2).
+- **Checks:** `display_check` fails if the ceiling is below the stack + 0.25, the skin is under
+  1.0 mm, the pocket runs out from under the bezel (outside the well), the window comes within
+  1.0 mm of the bezel edge, or the bezel runs over the key well or the top-edge fillet; on the
+  built part it probes the pocket corners open up to the ceiling and the bezel skin and walls
+  solid. `check_fit.py`'s `J3 + display` envelope (`display_envelope`) is now the J3 body
+  (13.4 × 2.55) up to 5.8 mm above the PCB, then the module (14 × 36 + 0.2 V-cut at its far end)
+  from 5.8 to 9.75 mm. Against the new top it gives 0 mm³; against a top with the old 16.8 ceiling
+  138 mm³, and with the glass 0.3 mm higher 9.2 mm³, so the check has teeth. `section.png` adds a
+  cut across the bezel and outlines that envelope.
+- **What the build must do:** the nice!view header pins must be **trimmed flush on the display's
+  top side** (no higher than its glass, 0.9 mm above the module PCB). Untrimmed pins stand about
+  2 mm up and reach Z 18.6–19.1, the pocket ceiling (`case/production/README.md`).
+- **Open (G1):** the module's far end (y 74.625, 74.825 with the V-cut) lies in the C6R1 well strip
+  and now stands up to Z 18.35, beside the C6R1 keycap's back edge at y 75.075 (0.25 mm, 0.125 mm
+  with an 18.4 mm cap). A keycap skirt at bottom-out (about Z 16.6–17.6 for Cherry profile) passes
+  beside it. Check it on the test print with the chosen keycaps.
+- **Consumers:** LAYOUT: `layout/display.py` `Z_POCKET_TOP` (16.8) and `layout.json` `pocket_z` are
+  stale; set them to 18.6 or drop them. DOCS: `design.md` §4, `case.md` (Z stack, size 17.6 →
+  19.6 at the bezel, display row, the 8.2 mm envelope), `verification.md` G1 (stack row: the limit
+  is now 9.75 mm), `bom.md` line 86 and the build guide (trim the nice!view pins; no low-profile
+  socket or spacer needed).
+
+### CASE-2. TRRS relief: BOARD-13's cut kept and re-checked (§4 G2)
+
+- `jack_relief_poly()` (J2 body 14.1 × 6.1 + 0.5 mm, in the top, the spacer and the plate DXF) is
+  unchanged. `jack_check` passes with the J2 body under the relief and 1.0 mm of headroom, and the
+  fit check reports 0 mm³ against the layout J2 envelope on both halves. `plates/` is unchanged.
+
+### CASE-3. Tapped holes follow the JLCCNC threaded-hole guideline; shorter screws (§10 fasteners; supersedes the thread depths in `case.md` and `bom.md`)
+
+- **Guideline** (<https://jlccnc.com/help/article/threaded-hole-guideline>, read 2026-11-04): a
+  blind hole leaves at least half its diameter unthreaded at the bottom; the effective thread is at
+  most 3 D; holes are modelled at bottom-hole size and the threads given on the 2D drawing.
+- **Problem:** the drawings asked for full thread to 0.4 mm of the bottom (T holes 6.0 and 3.9 mm
+  deep, M3 holes to depth − 0.5). With D/2 unthreaded, the M2.5 × 14 and × 12 screws would bottom
+  0.65–0.75 mm before their heads seat. The STEP holes were flat-bottomed, so the "1.1 mm skin"
+  under the key well ignored the 0.62 mm point of the Ø2.05 drill: 0.48 mm in reality.
+- **Change** (`TAP_HOLE`, `tap_hole()`, `tap_cut()`; drill points modelled at 118°):
+
+  | Holes | Drill (full Ø) | Min full thread | Screw | Engagement | Tip reach (head 0.2 deep) | Skin at the drill point |
+  |---|---|---|---|---|---|---|
+  | T2–T4, T6–T8 (edge bosses) | 6.0 | 4.5 | M2.5 × 12 (was × 14) | 3.4 | 3.6, 0.9 short of the thread end | 2.38 to the top face |
+  | T1, T5 (under the key well) | 3.6 (was 3.9) | 2.3 | M2.5 × 10 (was × 12) | 1.4 | 1.6, 0.7 short | 0.78 to the key-well floor |
+  | L1, L3 / L2 (M3 leg bosses) | 5.5 / 7.5 (unchanged) | 4.0 / 6.0 | M3 thumbscrew | | ≤ 3.7 / 5.7 past the boss face | |
+
+- **Why T1/T5 are not deeper or through:** only 5.0 mm of metal lie between the boss face and the
+  key-well floor. An M2.5 × 12 needs ≥ 3.9 mm of thread there, so a drill ≥ 5.15 mm: a through
+  hole. Both holes sit in keycap gaps (0.42 and 0.44 mm outside the nearest keycap), so a through
+  hole would show on the key-well floor. 1.4 mm of engagement (3 threads) in 6061 holds about 1 kN,
+  above the preload of a snug M2.5; `hardware.csv` says "snug only".
+- **Check:** `tap_check` fails if a hole leaves < D/2 unthreaded, threads > 3 D, its screw reaches
+  past the thread − 0.3, engages < 1.4 mm, or the drill point leaves < 0.75 mm of skin; on the
+  built part it probes each hole open to its depth and solid from the drill point to the face.
+- **Leg thumbscrews:** the stock EZ screw's length is unknown. `hardware.csv` names an M3 × 12
+  knurled thumbscrew (DIN 464/653, head bearing on the leg's back face: 4.0 mm reach) with a
+  0.5–1.0 mm friction washer under the hub (3.0–3.5 mm reach), or the stock screw measured first.
+- **Consumers:** DOCS: `case.md` (Fasteners, threads row), `bom.md` lines 92–93 (now 12 × M2.5 × 12
+  and 4 × M2.5 × 10), `legs.md` (thread table: full thread and reach), build guide. PACKAGE / the
+  shopping list: `case/production/hardware.csv`.
+
+### CASE-4. The leg caps are ordered as one TPU tree from JLC3DP
+
+- **Problem:** the cap (Ø9 × 8.5 mm) must be flexible to grip the desk. JLC3DP's only flexible
+  material, TPU 95A, is FDM only, with a minimum part of 30 × 30 × 10 mm (design guideline
+  build-size table; its TPU page says 30 × 30 × 15). Its MJF, SLA and SLS materials accept
+  5 × 5 × 5 mm parts but are all rigid.
+- **Change:** `build_leg_cap_tree()`: 8 caps (6 + 2 spares) upright on their open ends on a 3 × 3
+  grid (12.5 mm pitch), joined at the base by 1.6 × 1.6 mm runners and spokes to a Ø8 × 16 mm tag
+  post: 34 × 34 × 16 mm, one part (`worxboard_leg_cap_tree.stl`). `cap_tree_check` fails unless it
+  is one solid, at least 30 × 30 × 15 mm, with every bore open and every dome in place. The single
+  cap (`worxboard_leg_cap.stl`) stays the fallback to print yourself.
+
+### CASE-5. The plate spacer loses its webs under 1.0 mm (JLC3DP MJF)
+
+- **Problem:** the spacer had 35 mm² of slivers under 0.8 mm wide in 13 places (46 mm² under 1.0).
+- **Change:** `spacer_face()` opens the outline by `SPACER_MIN_WEB` = 1.0 mm (offset −0.5 / +0.5;
+  it only removes material): 21.02 → 20.88 cm³, still one piece per half; `spacer_check` and the
+  mirror check pass. It is ordered in MJF PA12 (`jlc3dp/ORDER_NOTES.md`).
+
+### CASE-6. The order package is committed in `case/production` and checked in CI
+
+- **Layout:** `jlccnc/` (STEP + PDF per machined part, `hole_table.csv`, `ORDER_NOTES.md`),
+  `jlc3dp/` (the spacers and the cap tree as STL, `ORDER_NOTES.md`), `hardware.csv` and
+  `README.md`. Only the README and the two order notes are hand-written. `case/ORDER_NOTES.md` is
+  now a pointer to them. `just order` builds the same tree in `case/exports/order/` (it was flat)
+  plus `plates/`.
+- **Reproducible:** the STEP files carry the part name and `CASE_REVISION_DATE` instead of the
+  export time; the PDFs have no creation date; the title block shows `CASE_REVISION` (A1) and its
+  date instead of `git describe` and today. Two local rebuilds gave byte-identical packages.
+- **CI:** `case.yml` runs `just order` and `just production-check` (`case/production.py`): CSVs
+  must be identical; a STEP, STL or PDF that differs only in its bytes must hold the same volume,
+  area, faces and bounding box (STEP), triangles, volume and bounding box (STL), or pages and text
+  (PDF).
+- **Size:** 14 MB committed; the two top STEPs are 4.72 and 4.74 MB, under the 5 MB limit. The
+  assembly STEP (8 MB) and the printed parts' STEPs stay in the `worxboard-case` artifact.
+- **Consumers:** `tests/integration/release.py` reads `case/exports/*.step|stl` only, so the new
+  `worxboard_leg_cap_tree.{step,stl}` join the case zips; nothing reads `case/exports/order`.
+  DOCS: `docs/ordering-jlcpcb.md` and `case.md` should point to `case/production/README.md`.
+
+### CASE-7. Result
+
+- **Clean tree** (`git archive 8458d1b`, `just pcb-fab left` and `right` in kicad/kicad:10.0.7, then
+  `just model fitcheck order production-check`): every case check passes; the fit check reports
+  **0.0000 mm³** on both halves against the fresh PCB STEPs (90 bodies each, with J3's 5.0 mm
+  socket model) plus the layout envelopes of J1, J2, J3 + display and the bottom-side parts; the
+  15 generated files of `case/production` are byte-identical.
+- **Model** (both halves): outline, legs (full M3 thread 4.0 / 6.0 / 4.0, reach ≤ 3.7 / 5.7 / 3.7),
+  webs, feet, display (pocket Z 8.6–18.6, glass ≤ 18.35, bezel Z 17.6–19.6), jacks (J2 1.0 mm
+  headroom), taps (8 per half as in CASE-3, probed on the built part), spacer, mirror
+  (top dV 4.7e-6), cap tree 34 × 34 × 16 mm; every part valid and one solid.
+
+  | Part | Size (mm) | Mass (6061) |
+  |---|---|---|
+  | top, per half | 192.4 × 165.6 × 12.6 | 140.1 g |
+  | bottom, per half | 189.7 × 165.6 × 7.0 | 208.1 g |
+  | spacer, per half | 182.7 × 136.6 × 3.0 | 20.9 cm³ |
+  | leg (× 6) | 10.4 × 48.7 × 8.0 | 4.9 g |
+  | leg cap tree (TPU) | 34.0 × 34.0 × 16.0 | 3.9 cm³ |
+
+- **CI** (`case` workflow): runs 41758898662 (2d3d66b), 41758936908 (18cd3b9) and 41759846889
+  (8458d1b) pass: model, plates unchanged, fit check (layout envelopes), renders, order package
+  and `production-check`. On 18cd3b9 all 15 files were byte-identical to the committed ones; on
+  8458d1b the two top PDFs differed in bytes only (same pages and text), which the check allows.
+- `pytest layout` 32 passed, `pytest tests/integration` passed.

@@ -1,6 +1,7 @@
 // worxboard viewer. Builds the PCB, switches, keycaps and display of both halves from layout.json,
 // places the assembled parts of the committed boards (manifest.components) and adds the case STLs
-// when the build included them. Adapted from the w0rxbend/ergodox viewer.
+// when the build included them. Adapted from the w0rxbend/ergodox viewer. The page content around the
+// viewer (stats, gallery, docs) is filled in by page.js; both read their data from data.js.
 // Frames: layout.json is the KiCad frame (mm, +y towards the user); the scene is the CAD frame of the
 // reference case, (x - OX, -(y - OY)) with Z up. The left half's layout data is already mirrored.
 import * as THREE from "three";
@@ -8,6 +9,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
+import { manifest, lay } from "./data.js";
 
 const FINISHES = {
   black: { name: "Black", color: 0x1e1f23 },
@@ -30,13 +32,20 @@ const CASE_MARGIN = 6.2;      // case wall + clearance + leg boss beyond the PCB
 const PAIR_GAP = 30;
 const EXPLODE = { pcb: 12, spacer: 24, top: 36, switches: 48, caps: 66 };
 const EXPLODE_LEG = 26;
+// camera presets: direction from the target, CAD frame (+x right, +y away from the user, +z up)
+const VIEWS = {
+  iso: (scene) => [scene === "pair" ? 0 : -0.25, -0.8, 1.25],
+  top: () => [0, -0.02, 1],
+  front: () => [0, -1, 0.42],
+  side: (scene) => [scene === "left" ? -1 : 1, -0.35, 0.3],
+};
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("canvas");
 const stage = $("stage");
 
 const state = {
-  scene: "pair", finish: "black", explode: 0, section: 0, swing: 90,
+  scene: "pair", finish: "black", view: "iso", explode: 0, section: 0, swing: 90,
   caps: true, legends: true, switches: true, pcb: true, top: true, spacer: true, bottom: true,
   legs: true, edges: true, spin: false,
 };
@@ -44,6 +53,7 @@ for (const kv of location.hash.slice(1).split("&")) {
   const [k, v] = kv.split("=");
   if (k === "scene" && ["pair", "right", "left"].includes(v)) state.scene = v;
   if (k === "finish" && v in FINISHES) state.finish = v;
+  if (k === "view" && v in VIEWS) state.view = v;
 }
 
 // ---------- renderer, scene, camera ----------
@@ -106,8 +116,6 @@ const M = {
 const clipped = new Set(Object.values(M));
 
 // ---------- data ----------
-const [manifest, lay] = await Promise.all(["manifest.json", "layout.json"].map((f) => fetch(f).then((r) => r.json())));
-$("version").textContent = manifest.version;
 const [OX, OY] = manifest.cad_origin;
 const cad = ([x, y]) => [x - OX, -(y - OY)];
 const SIDES = ["left", "right"];
@@ -397,7 +405,7 @@ function apply() {
   $("swingVal").textContent = `${state.swing}°`;
   controls.autoRotate = state.spin;
   hud(box);
-  location.replace(`#scene=${state.scene}&finish=${state.finish}`);
+  location.replace(`#scene=${state.scene}&finish=${state.finish}${state.view === "iso" ? "" : `&view=${state.view}`}`);
 }
 
 function visibleBox() {
@@ -422,7 +430,7 @@ function frame() {
   const vfov = THREE.MathUtils.degToRad(camera.fov / 2);
   const hfov = Math.atan(Math.tan(vfov) * camera.aspect);
   const dist = sphere.radius / Math.sin(Math.min(vfov, hfov)) * (camera.aspect > 1 ? 0.8 : 0.95);
-  const dir = new THREE.Vector3(state.scene === "pair" ? 0 : -0.25, -0.8, 1.25).normalize();
+  const dir = new THREE.Vector3(...VIEWS[state.view](state.scene)).normalize();
   controls.target.copy(sphere.center);
   camera.position.copy(sphere.center).addScaledVector(dir, dist);
   camera.near = dist / 100; camera.far = dist * 20;
@@ -494,7 +502,20 @@ for (const [id, role] of Object.entries(caseCtl)) {
   $(id).parentElement.title = present ? "" : "not in this build: run `just model` before `just site`";
 }
 $("swingGroup").style.opacity = geoms.leg ? 1 : 0.4;
-$("resetView").addEventListener("click", frame);
+$("resetView").addEventListener("click", () => { syncUI(); frame(); });
+for (const b of $("views").querySelectorAll("button[data-view]")) {
+  b.addEventListener("click", () => { state.view = b.dataset.view; syncUI(); apply(); frame(); });
+}
+// a manual orbit leaves the preset: the buttons go dark until a preset or Reset view is chosen again
+controls.addEventListener("start", () => { for (const b of $("views").querySelectorAll("button[data-view]")) b.classList.remove("on"); });
+const fs = $("fullscreen");
+if (!stage.requestFullscreen) fs.hidden = true;
+fs.addEventListener("click", () => (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen()));
+document.addEventListener("fullscreenchange", () => {
+  const on = document.fullscreenElement === stage;
+  fs.title = on ? "Exit fullscreen" : "Fullscreen";
+  fs.setAttribute("aria-label", fs.title);
+});
 $("snap").addEventListener("click", () => {
   renderer.render(scene, camera);
   const a = document.createElement("a");
@@ -505,43 +526,10 @@ $("snap").addEventListener("click", () => {
 function syncUI() {
   for (const b of $("scenes").querySelectorAll("button")) b.classList.toggle("on", b.dataset.scene === state.scene);
   for (const b of $("finishes").querySelectorAll("button")) b.classList.toggle("on", b.dataset.finish === state.finish);
+  for (const b of $("views").querySelectorAll("button[data-view]")) b.classList.toggle("on", b.dataset.view === state.view);
+  $("finishName").textContent = FINISHES[state.finish].name;
   $("section").value = state.section;
 }
-
-// ---------- page content from the manifest ----------
-const blob = (p) => `${manifest.repo}/blob/main/${p}`;
-const downloads = partNames.map((n) => {
-  const p = manifest.parts[n];
-  return `<a class="part" href="${p.file}" download title="Download ${n}.stl"><b>${p.label}</b>` +
-    `<span>${p.size.join(" × ")} mm</span><span>${p.mass_g ? `${p.mass_g} g · 6061` : p.material === "tpu" ? "TPU, 3D-printed" : `${p.volume_cm3} cm³ · print`} · STL ↓</span></a>`;
-});
-downloads.push(`<a class="part" href="layout.json" download><b>layout.json</b><span>schema ${lay.schema} · every key, hole, zone</span><span>the single source of truth ↓</span></a>`);
-$("partlist").innerHTML = downloads.join("");
-
-const ob = lay.sides.right.outline.vertices;
-const ext = (i) => Math.max(...ob.map((v) => v[i])) - Math.min(...ob.map((v) => v[i]));
-$("sizeStat").textContent = `${ext(0).toFixed(1)} × ${ext(1).toFixed(1)}`;
-$("keyStat").textContent = SIDES.reduce((a, s) => a + lay.sides[s].keys.length, 0);
-
-$("shots").innerHTML = manifest.gallery.map((s) =>
-  `<figure${s.wide ? ' class="wide"' : ""}><img loading="lazy" src="${s.file}" alt="${s.caption}"><figcaption>${s.caption}</figcaption></figure>`).join("");
-
-const DOCS = [
-  ["docs/buildguide_en.md", "Build guide", "Check, flash, plug in the displays, assemble"],
-  ["docs/bom.md", "Bill of materials", "JLC parts, fees, gates (generated)"],
-  ["docs/shopping-list.md", "Shopping list", "The four orders and every off-board part"],
-  ["docs/electrical.md", "Electrical design", "Power path, TRRS, USB-C, MCU, display"],
-  ["docs/pinout.md", "Pinout", "GPIO map, TRRS, J3, part positions (generated)"],
-  ["docs/matrix.md", "Key matrix", "6×7 per half, sockets, ZMK 6×14 transform (generated)"],
-  ["docs/firmware.md", "Firmware", "ZMK builds, flashing, keymap, displays"],
-  ["docs/ordering-jlcpcb.md", "Ordering PCBs", "The JLCPCB turnkey order, step by step"],
-  ["docs/case.md", "Case and plates", "build123d case, Z stack, files"],
-  ["docs/legs.md", "Tent legs", "Mounts, positions, the custom leg"],
-  ["docs/design.md", "Design spec", "The frozen rev A specification"],
-  ["docs/deviations.md", "Deviations", "What changed from the spec, and why"],
-  ["docs/sources.md", "Sources", "Prior art and attribution"],
-];
-$("doclinks").innerHTML = DOCS.map(([p, t, d]) => `<a href="${blob(p)}">${t}<span>${d}</span></a>`).join("");
 
 // ---------- loop ----------
 function resize() {
@@ -558,8 +546,10 @@ new ResizeObserver(resize).observe(stage);
 syncUI();
 resize();
 build();
-renderer.setAnimationLoop(() => {
+const loop = () => {
   resize();
   controls.update();
   renderer.render(scene, camera);
-});
+};
+// render only while the viewer is on screen: the rest of the page scrolls without a busy GPU
+new IntersectionObserver(([e]) => renderer.setAnimationLoop(e.isIntersecting ? loop : null)).observe(stage);

@@ -94,6 +94,11 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
 - Docs: G1–G3 recorded as passed; the BOM regenerated from the turnkey parts (no `[G3]` flags, one
   loading fee for basic and extended parts); the build guide without any PCB soldering; case, legs,
   electrical and firmware pages updated to match.
+- README and microsite redesigned. The microsite adds specs, build, order, firmware, case Z-stack and
+  pipeline sections, a filterable gallery with a lightbox and captions for every render and
+  placement proof, Iso / Top / Front / Side camera presets and fullscreen; it renders only while the
+  viewer is on screen. The concept sketch `docs/images/concept-annotated.png` (notes over an
+  ErgoDox EZ image, not a worxboard image) is removed.
 
 ### Fixed
 

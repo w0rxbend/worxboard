@@ -53,19 +53,41 @@ CASE_PARTS = {  # stl stem (after "worxboard_") -> label, material, role
     "leg": ("Tent leg", "alu", "leg"),
     "leg_cap": ("Leg foot cap", "tpu", "leg_cap"),
 }
-CAPTIONS = {  # image stem -> caption, in gallery order; unknown images follow with their file name
-    "layout": "Layout of both halves, generated from layout/",
-    "pcb-left-top": "Left PCB, top (KiCad render)", "pcb-right-top": "Right PCB, top (KiCad render)",
-    "pcb-left-bottom": "Left PCB, bottom", "pcb-right-bottom": "Right PCB, bottom",
-    "pair_top_iso": "Both top shells", "right_top_underside": "Right top shell, underside",
-    "right_bottom_tray": "Right bottom tray", "right_back_usb": "Back wall with the USB-C notch",
-    "spacer": "Plate spacer", "right_with_legs": "Right half with the tent legs",
-    "leg": "Tent leg and foot cap", "leg_section": "Section through a leg mount",
-    "section": "Sections: key columns, display pocket, screws, USB-C, TRRS",
-    "overlay": "The case over the PCB layout",
-    "concept-annotated": "The original concept sketch",
+GALLERY = {  # image stem -> (caption, group), in gallery order; unknown images follow with their file name
+    "layout": ("Layout of both halves, generated from layout/: ErgoDox stagger, 25° thumbs, the display in the C6R0 slot", "layout"),
+    "pcb-left-top": ("Left PCB, top: RP2040, flash, USB-C J1, BOOT/RESET, JP1, display socket J3, TRRS jack J2 on the inner bump", "pcb"),
+    "pcb-right-top": ("Right PCB, top: mirrored, same netlist; both boards print DO NOT HOT-PLUG TRRS by J2", "pcb"),
+    "pcb-left-bottom": ("Left PCB, bottom: 37 hot-swap socket footprints and 37 diodes", "pcb"),
+    "pcb-right-bottom": ("Right PCB, bottom: 37 socket footprints and 37 diodes, all fitted by JLC", "pcb"),
+    "pair_top_iso": ("Both CNC top shells: the plate is milled into the key well, with 2u stabiliser cut-outs and a display window", "case"),
+    "right_with_legs": ("Closed right-half case with its three custom tent legs", "case"),
+    "right_top_underside": ("Right top shell, underside: plate webbing, screw bosses, display pocket", "case"),
+    "right_bottom_tray": ("Right bottom tray: the socket cavity and the eight M2.5 screw posts", "case"),
+    "right_back_usb": ("Back wall of the right half: USB-C notch, BOOT/RESET pin holes, display bezel", "case"),
+    "spacer": ("3D-printed plate spacer, right half (this render predates the stabiliser-wire channels)", "case"),
+    "leg": ("Custom 6061 tent leg with its TPU foot cap", "case"),
+    "leg_cap_tree": ("The TPU print: 8 foot caps on one tree (6 + 2 spares)", "case"),
+    "leg_section": ("Outer leg mount section: M3 tapped pad and Ø10 boss", "case"),
+    "section": ("Six sections through the right half: key column, display column, across the display, back-edge screws, USB-C, TRRS", "case"),
+    "overlay": ("The right-half case over the PCB layout: case outline, PCB, key well, display pocket, window, zones, bosses", "case"),
+    "cpl-sk-hotswap-socket": ("Placement proof, hot-swap sockets (bottom): 74 placed, 74 pass", "proof"),
+    "cpl-d101-diode-sod123f": ("Placement proof, matrix diodes (bottom): 74 placed, 74 pass", "proof"),
+    "cpl-u1-rp2040-qfn56": ("Placement proof, U1 RP2040 QFN-56: both halves pass", "proof"),
+    "cpl-u2-flash-soic8": ("Placement proof, U2 QSPI flash SOIC-8: both halves pass", "proof"),
+    "cpl-u3-ldo-sot23-5": ("Placement proof, U3 3.3 V LDO SOT-23-5: both halves pass", "proof"),
+    "cpl-u4-u5-esd-sot23-6": ("Placement proof, U4 and U5 ESD arrays: 4 placed, 4 pass", "proof"),
+    "cpl-y1-crystal-3225": ("Placement proof, Y1 12 MHz crystal: both halves pass", "proof"),
+    "cpl-d1-schottky-sod123": ("Placement proof, D1 Schottky on the USB power path: both halves pass", "proof"),
+    "cpl-c-0402": ("Placement proof, 0402 capacitors: 38 placed, 38 pass", "proof"),
+    "cpl-r-0402": ("Placement proof, 0402 resistors: 26 placed, 26 pass", "proof"),
+    "cpl-f1-ptc-1206": ("Placement proof, F1 polyfuse on the TRRS power line: both halves pass", "proof"),
+    "cpl-j1-usb-c": ("Placement proof, J1 USB-C, mouth over the back edge: both halves pass", "proof"),
+    "cpl-j2-trrs-pj320d": ("Placement proof, J2 TRRS jack on the inner bump: both halves pass", "proof"),
+    "cpl-j3-display-socket": ("Placement proof, J3 display socket: five contacts in five holes", "proof"),
+    "cpl-sw-tact-ts1088": ("Placement proof, SW1 and SW2 BOOT and RESET switches: 4 placed, 4 pass", "proof"),
 }
-GALLERY_SKIP = ("site-viewer",)   # screenshots of this page
+WIDE = ("pair_top_iso", "section")   # layout.svg is shown full width in its own section
+GALLERY_SKIP = ("site-viewer",)   # screenshots of this page: copied (for the link preview), not listed
 IMAGE_EXT = (".png", ".svg", ".jpg")
 
 
@@ -133,11 +155,14 @@ def gallery(out: Path) -> list[dict]:
         if not d.is_dir():
             continue
         for p in sorted(d.iterdir()):
-            if p.suffix in IMAGE_EXT and not p.stem.startswith(GALLERY_SKIP):
-                shutil.copyfile(p, out / "images" / p.name)
-                shots.append(dict(file=f"images/{p.name}", caption=CAPTIONS.get(p.stem, p.stem),
-                                  wide=p.stem in ("layout", "concept-annotated", "section", "pair_top_iso")))
-    order = list(CAPTIONS)
+            if p.suffix not in IMAGE_EXT:
+                continue
+            shutil.copyfile(p, out / "images" / p.name)
+            if p.stem.startswith(GALLERY_SKIP):
+                continue
+            caption, group = GALLERY.get(p.stem, (p.stem, "other"))
+            shots.append(dict(file=f"images/{p.name}", caption=caption, group=group, wide=p.stem in WIDE))
+    order = list(GALLERY)
     return sorted(shots, key=lambda s: order.index(Path(s["file"]).stem) if Path(s["file"]).stem in order else len(order))
 
 

@@ -11,7 +11,7 @@ On-board RP2040 · ZMK wired split · a memory LCD on each half · USB-C on both
 [![rev A not yet built](https://img.shields.io/badge/rev_A-not_yet_built-orange)](docs/verification.md#not-verified-until-a-board-is-built) [![layout](https://github.com/w0rxbend/worxboard/actions/workflows/layout.yml/badge.svg)](https://github.com/w0rxbend/worxboard/actions/workflows/layout.yml) [![firmware](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml/badge.svg)](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml) [![pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml/badge.svg)](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) [![case](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml/badge.svg)](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml)<br>
 [![ZMK](https://img.shields.io/badge/firmware-ZMK-5f3dc4)](https://zmk.dev) [![KiCad 10](https://img.shields.io/badge/PCB-KiCad_10-314cb0?logo=kicad&logoColor=white)](https://www.kicad.org/) [![build123d](https://img.shields.io/badge/CAD-build123d-3776ab?logo=python&logoColor=white)](https://github.com/gumyr/build123d) [![License: GPL v3](https://img.shields.io/badge/code-GPLv3-blue.svg)](LICENSE) [![License: CERN-OHL-S-2.0](https://img.shields.io/badge/hardware-CERN--OHL--S--2.0-blue.svg)](LICENSE-HARDWARE)
 
-**[🛒 Order it](#-order-it) · [🚀 Zero to typing](#-from-zero-to-typing) · [🔧 Build guide](docs/buildguide_en.md) · [📋 BOM](docs/bom.md) · [🧾 Shopping list](docs/shopping-list.md)**<br>**[💾 Firmware](docs/firmware.md) · [🧱 Case](docs/case.md) · [📐 Design spec](docs/design.md) · [🧪 Verification](docs/verification.md)**
+**[🌐 Live 3D viewer](https://w0rxbend.github.io/worxboard/) · [🛒 Order it](#-order-it) · [🚀 Zero to typing](#-from-zero-to-typing) · [🔧 Build guide](docs/buildguide_en.md) · [📋 BOM](docs/bom.md) · [🧾 Shopping list](docs/shopping-list.md)**<br>**[💾 Firmware](docs/firmware.md) · [🧱 Case](docs/case.md) · [📐 Design spec](docs/design.md) · [🧪 Verification](docs/verification.md)**
 
 <a href="docs/images/site-viewer.png"><img src="docs/images/site-viewer.png" alt="Both worxboard halves in the browser 3D viewer, with legends on the keycaps and the black case finish" width="880"></a>
 
@@ -58,14 +58,13 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 ## 📸 Gallery
 
 > [!NOTE]
-> Every image in this README is a render, a CAD drawing or a screenshot (the concept sketch at the end is linked, not shown). No photos exist yet, because rev A has not been built. The two viewer screenshots were committed on 2026-11-02, before case revision A3, so the case they show is older (for example, it has no raised display bezel). They also predate the re-placed turnkey boards (BOARD-1), so the parts drawn on the PCBs are from the older layout. KiCad has no 3D model for the USB-C, the TRRS jack or the hot-swap sockets, so the PCB renders show only their footprints.
+> Every image in this README is a render, a CAD drawing or a screenshot. No photos exist yet, because rev A has not been built. The two viewer screenshots were committed on 2026-11-02, before case revision A3, so the case they show is older (for example, it has no raised display bezel). They also predate the re-placed turnkey boards (BOARD-1), so the parts drawn on the PCBs are from the older layout. KiCad has no 3D model for the USB-C, the TRRS jack or the hot-swap sockets, so the PCB renders show only their footprints.
 
 <table>
 <tr><td align="center" width="50%"><a href="docs/images/site-viewer-exploded.png"><img src="docs/images/site-viewer-exploded.png" alt="Right half exploded in the 3D viewer, silver finish" width="100%"></a><br><sub>💥 Right half exploded in the viewer: tray, PCB, printed spacer, top shell, switches, keycaps</sub></td><td align="center" width="50%"><a href="case/renders/right_with_legs.png"><img src="case/renders/right_with_legs.png" alt="CAD render of the closed right-half case with its three tent legs" width="100%"></a><br><sub>🦵 Closed right-half case with its three custom tent legs (CAD render)</sub></td></tr>
 <tr><td align="center"><a href="docs/images/pcb-left-top.png"><img src="docs/images/pcb-left-top.png" alt="KiCad render of the left PCB, top side" width="100%"></a><br><sub>🟩 Left PCB, top: RP2040, flash, USB-C J1, BOOT/RESET, JP1 (“cut = split power”), display socket J3, TRRS jack J2 on the inner bump</sub></td><td align="center"><a href="docs/images/pcb-right-top.png"><img src="docs/images/pcb-right-top.png" alt="KiCad render of the right PCB, top side" width="100%"></a><br><sub>🟩 Right PCB, top: mirrored, same netlist; both boards print DO NOT HOT-PLUG TRRS and HOST → LEFT by J2</sub></td></tr>
 <tr><td align="center"><a href="docs/images/pcb-left-bottom.png"><img src="docs/images/pcb-left-bottom.png" alt="KiCad render of the left PCB, bottom side" width="100%"></a><br><sub>🟩 Left PCB, bottom: 37 hot-swap socket footprints and 37 diodes</sub></td><td align="center"><a href="docs/images/pcb-right-bottom.png"><img src="docs/images/pcb-right-bottom.png" alt="KiCad render of the right PCB, bottom side" width="100%"></a><br><sub>🟩 Right PCB, bottom: 37 socket footprints and 37 diodes, all fitted by JLC</sub></td></tr>
 <tr><td align="center" colspan="2"><a href="case/renders/pair_top_iso.png"><img src="case/renders/pair_top_iso.png" alt="CAD render of both CNC top shells side by side" width="100%"></a><br><sub>🧱 Both CNC top shells: the plate is milled into the key well, with 2u stabiliser cut-outs and a display window on each half</sub></td></tr>
-<tr><td align="center" colspan="2"><sub>🎨 Where it started: the <a href="docs/images/concept-annotated.png">concept sketch</a> from the first commit (a1e3471), hand-drawn notes over an image of an ErgoDox-style keyboard. The notes mark USB-C on the back edge, an LCD in place of the inner top key, the TRRS mini-jack on the inner edge and the outline around the thumb cluster (<a href="docs/design.md#1-requirements-traceability">requirements R2–R7</a>). It is not a worxboard image.</sub></td></tr>
 </table>
 
 ## ✨ Features
@@ -240,18 +239,19 @@ Each layer has 74 bindings, in the order 12 / 14 / 12 / 14 / 10 and then the 12 
 ## 🌐 Spin it in your browser
 
 > [!NOTE]
-> The viewer is not hosted yet. Run it locally with `just site` and then `just site-serve` (port 8000). To spin a part on GitHub now, open a committed STL such as [`worxboard_left_spacer.stl`](case/production/jlc3dp/worxboard_left_spacer.stl); GitHub shows STLs in its 3D viewer.
+> **Live at [w0rxbend.github.io/worxboard](https://w0rxbend.github.io/worxboard/).** The manual [`pages`](.github/workflows/pages.yml) workflow deploys it from `main`, so the site shows `main` as of its last run. Run it locally with `just site-serve` (port 8000). GitHub also opens the committed STLs, such as [`worxboard_left_spacer.stl`](case/production/jlc3dp/worxboard_left_spacer.stl), in its own 3D viewer.
 
 The microsite in [`site/`](site/) has a three.js viewer, adapted from the [ErgoDox CNC case](https://github.com/w0rxbend/ergodox) viewer (the hero shot and the exploded view above are screenshots of it). It builds both halves straight from `layout/build/layout.json`: the PCB, switches, keycaps with legends and the displays. It places every assembled part of the committed KiCad boards at its real position, and it adds the case STLs if `just model` ran before `just site`.
 
 | Feature | What it does |
 |---|---|
 | 🎬 **Scenes** | Pair / Left / Right, plus six case finishes: Black, Silver, Space grey, Blue, Red, Orange |
+| 🎥 **Camera** | Iso, Top, Front and Side presets, fullscreen, auto-rotate |
 | 💥 **Explode, cut, swing** | Pull the stack apart (tray, PCB, spacer, top shell, switches, keycaps), sweep a section plane along Y, swing the three tent legs per half from 0° to 180° |
 | 🖱️ **Hover** | Shows a key's legend and ZMK matrix position, or a part's reference, value and footprint |
-| 📥 **Downloads** | The case STLs and `layout.json`; a Screenshot button; deep links such as `#scene=left&finish=silver` |
+| 📥 **Downloads** | The case STLs and `layout.json`; a Screenshot button; deep links such as `#scene=left&finish=silver&view=top` |
 
-The [`pages`](.github/workflows/pages.yml) workflow (manual) will deploy it to GitHub Pages.
+Around the viewer, the page carries the specs, the build journey, the order packages, the case Z stack, the open issues and a filterable gallery of every render and placement proof, with a lightbox.
 
 ## 🚀 From zero to typing
 
@@ -453,7 +453,7 @@ flowchart TB
     Z -->|just fw| U["UF2 firmware<br/>left central · right peripheral"]
     J -->|just docs-gen| D["pinout.md · matrix.md · bom.md"]
     P --> D
-    J -->|just site| W["3D viewer<br/>GitHub Pages, not deployed yet"]
+    J -->|just site| W["3D viewer<br/>GitHub Pages"]
     P --> W
     C --> W
 ```
@@ -599,7 +599,7 @@ The layout, firmware, pcb and case workflows run on every push to `main`, on pul
 | [firmware](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml) | same | ZMK SHA pin, dtsi regen, keymap, rotation host test → one build per `build.yaml` row (`fw_check.py` on the core rows) → merge | `worxboard-firmware` |
 | [pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) | same | schematics · board × 2 (DRC, fab, render compare) · order package × 2 · CPL overlays · case fit · rebuild × 2 | `worxboard-pcb-*` |
 | [case](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml) | same | model, plates no-diff, fitcheck, corners, renders, order, production-check | `worxboard-case` |
-| [pages](.github/workflows/pages.yml) | manual only | generated-docs check, offline link check, optional case model, `just site`, deploy | not run yet |
+| [pages](.github/workflows/pages.yml) | manual only | generated-docs check, offline link check, optional case model, `just site`, deploy | the [GitHub Pages site](https://w0rxbend.github.io/worxboard/) |
 | [release](.github/workflows/release.yml) | `v*` tag only | firmware, pcb × 2, case, integration tests, GitHub pre-release | no tag exists yet |
 
 </details>

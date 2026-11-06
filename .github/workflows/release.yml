@@ -54,8 +54,10 @@ jobs:
         run: just pcb-drc ${{ matrix.side }}
       - name: just pcb-fab (kikit --missingError, renders, Edge DXF, STEP)
         run: just pcb-fab ${{ matrix.side }}
-      - name: The tagged schematics and renders are current
-        run: git diff --exit-code --stat -- pcb/lib pcb/${{ matrix.side }}/*.kicad_sch docs/images/pcb-${{ matrix.side }}-*.png
+      - name: The tagged schematics are current
+        run: git diff --exit-code --stat -- pcb/lib pcb/${{ matrix.side }}/*.kicad_sch
+      - name: The tagged renders are current (allow raytracer noise)
+        run: just pcb-render-check ${{ matrix.side }}
       - uses: actions/upload-artifact@v4
         with:
           name: release-pcb-${{ matrix.side }}

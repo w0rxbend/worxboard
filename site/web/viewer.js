@@ -352,22 +352,22 @@ function half(side) {
 const innerX = Math.min(...lay.sides.right.outline.vertices.map((v) => cad(v)[0])) - CASE_MARGIN;
 const PAIR_DX = PAIR_GAP / 2 - innerX;
 
-let root = new THREE.Group();
+// Keep both halves for the page's lifetime. Switching views only changes visibility and placement;
+// rebuilding would allocate new geometries, textures and entries in `clipped` on every click.
+const models = new Map(SIDES.map((side) => [side, half(side)]));
+const root = new THREE.Group();
+root.add(...models.values());
+scene.add(root);
 let halves = [];
 
 function build() {
-  scene.remove(root);
-  root = new THREE.Group();
-  pickable.length = 0;
+  setPicked(null);
   halves = [];
-  const sides = state.scene === "pair" ? SIDES : [state.scene];
-  for (const side of sides) {
-    const h = half(side);
-    if (state.scene === "pair") h.position.x = side === "right" ? PAIR_DX : -PAIR_DX;
-    halves.push(h);
-    root.add(h);
+  for (const [side, h] of models) {
+    h.visible = state.scene === "pair" || state.scene === side;
+    h.position.x = state.scene === "pair" ? (side === "right" ? PAIR_DX : -PAIR_DX) : 0;
+    if (h.visible) halves.push(h);
   }
-  scene.add(root);
   apply();
   frame();
 }

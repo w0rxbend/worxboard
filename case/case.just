@@ -5,6 +5,10 @@ case_tools   := "uv run --group case --with trimesh==5.2.0 --with networkx==3.5 
 case_exports := "case/exports"
 case_renders := "case/renders"
 
+# Regression tests for manufacturing-file comparisons
+case-tests:
+    {{case_py}} -m pytest case/tests
+
 # STEP / STL of both halves, legs, fit-check DXFs and plates/*.dxf; fails on any case check
 model:
     {{case_py}} case/worxboard_case.py {{case_exports}} plates

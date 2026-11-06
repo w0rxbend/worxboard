@@ -42,12 +42,15 @@ listed under [future work](#future-work). No row has been removed: all six build
   - `just fw-layouts-check`: the generated dtsi is up to date.
   - `just fw-rotate-check`: a host test of the display's portrait-to-panel pixel map
     (`firmware/zmk/tests/rotate_test.c`).
-  - `just fw-check`, on both core rows: the display rotation is configured and linked. On the
-    right peripheral it also checks that the custom screen and its 8 KB LVGL heap are in, that
+  - `just fw-check-tests`: regression tests of the post-build gate, including both supported display
+    orientations (90° and 270°) and rejection of missing rotation code.
+  - `just fw-check`, on both core rows: exactly one supported display rotation is configured and
+    the rotating flush is linked. On the right peripheral it also checks that the custom screen
+    and its 8 KB LVGL heap are in, that
     there are no `zmk_ble_` or battery symbols, and that flash use is at most 40 KB above the seed
     build.
 
-  `just fw` runs all four; CI runs `fw-check` in both core jobs. `just fw-clean` removes `build/fw/`
+  `just fw` runs all five; CI runs `fw-check` in both core jobs. `just fw-clean` removes `build/fw/`
   and keeps the west workspace.
 
 ## Flash

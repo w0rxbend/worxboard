@@ -102,6 +102,16 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
 
 ### Fixed
 
+- Project review: case order checks compare STEP solids in both directions, STL triangle coordinates
+  and winding, and PDF drawings rendered at 600 dpi; equal bulk properties or text no longer hide
+  moved holes or changed drawings. Regression tests run in case CI.
+- Viewer: switching between the pair and either half reuses the same scene objects, keeping GPU
+  allocations and the clipping-material list bounded.
+- Firmware: the post-build gate accepts either supported portrait orientation (90° or 270°), while
+  still requiring the rotating flush to be linked. Regression tests run locally and in firmware CI.
+- Release: the tag workflow uses the existing pixel-tolerant PCB render check so harmless raytracer
+  noise does not block publishing.
+
 Post-integration review (deviations REVIEW-FIX-1 to -8):
 
 - Firmware: the display's PIO SPI no longer takes GP0 (UART0 TX, the wired-split link) on its first

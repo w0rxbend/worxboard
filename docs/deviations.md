@@ -1561,10 +1561,12 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
 - **Reproducible:** the STEP files carry the part name and `CASE_REVISION_DATE` instead of the
   export time; the PDFs have no creation date; the title block shows `CASE_REVISION` (A1) and its
   date instead of `git describe` and today. Two local rebuilds gave byte-identical packages.
-- **CI:** `case.yml` runs `just order` and `just production-check` (`case/production.py`): CSVs
-  must be identical; a STEP, STL or PDF that differs only in its bytes must hold the same volume,
-  area, faces and bounding box (STEP), triangles, volume and bounding box (STL), or pages and text
-  (PDF).
+- **CI:** `case.yml` runs `just case-tests`, `just order` and `just production-check`
+  (`case/production.py`). CSVs must be identical. For files whose bytes differ, STEP solids are
+  subtracted in both directions (at most 0.0001 mm³ total difference), STL oriented triangles are
+  compared within 0.0001 mm per coordinate, and PDF page sizes and drawings rendered at 600 dpi must
+  match. File metadata and STL facet order may differ. This replaces the original checks of bulk
+  properties and PDF text, which could miss moved holes or changed drawings.
 - **Size:** 14 MB committed; the two top STEPs are 4.72 and 4.74 MB (4.88 and 4.90 at A2, CASE-8), under the 5 MB limit. The
   assembly STEP (8 MB) and the printed parts' STEPs stay in the `worxboard-case` artifact.
 - **Consumers:** `tests/integration/release.py` reads `case/exports/*.step|stl` only, so the new
@@ -1594,7 +1596,7 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
 - **CI** (`case` workflow): runs 41758898662 (2d3d66b), 41758936908 (18cd3b9) and 41759846889
   (8458d1b) pass: model, plates unchanged, fit check (layout envelopes), renders, order package
   and `production-check`. On 18cd3b9 all 15 files were byte-identical to the committed ones; on
-  8458d1b the two top PDFs differed in bytes only (same pages and text), which the check allows.
+  8458d1b the two top PDFs differed in bytes only (same pages and text), which the original check allowed.
 - `pytest layout` 32 passed, `pytest tests/integration` passed.
 
 ### CASE-8. Every internal corner meets JLCCNC's radius-for-depth rule; case revision A2 (§10; corrects CASE-1, supersedes the J2 relief radius of BOARD-13)

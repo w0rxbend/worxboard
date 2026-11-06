@@ -96,7 +96,8 @@ as the `worxboard-case` artifact, together with the renders:
 ## Build it
 
 ```sh
-just setup      # .venv with build123d 0.13.0, shapely, ezdxf
+just setup      # .venv with build123d 0.13.0, shapely, ezdxf and PDFium for drawing comparisons
+just case-tests # manufacturing-file comparison regressions
 just model      # STEP/STL/DXF into case/exports/, plates/*.dxf; prints the build report
 just fitcheck   # interference against build/<side>/worxboard-<side>.step
 just corners    # every internal corner of the machined STEPs vs JLCCNC's radius-for-depth rule
@@ -105,6 +106,10 @@ just order      # PDF drawings + the order package in case/exports/order
 just production         # copy the generated package into case/production
 just production-check   # case/production equals the model
 ```
+
+`production-check` compares actual STEP solids, STL triangle coordinates and winding, and PDF
+drawings rendered at 600 dpi when the files differ in bytes. Metadata and STL facet order may
+differ; moved holes and changed drawings fail the check. The regression tests also run in case CI.
 
 `just model` prints the screw-to-switch clearances, every case check (outline, legs, webs, display,
 jacks, taps, spacer, mirror, cap tree) and each part's volume, mass and validity, and exits non-zero

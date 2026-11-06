@@ -5,8 +5,8 @@
 
 Checks every core artifact present under the output directory (CI builds one row per job and
 runs this in the two core jobs); at least one must be there:
-- both core rows: the display is turned to portrait for the J3 mounting (header at the back):
-  CONFIG_WORXBOARD_DISPLAY_ROTATION_90 and the rotating flush (src/worx_display_rotation.c) linked
+- both core rows: one portrait orientation (90 or 270 degrees) is selected and the rotating
+  flush (src/worx_display_rotation.c) is linked
 - right peripheral: its link map has no zmk_ble_ (or battery) symbols, the custom screen is in,
   its LVGL heap is at least CUSTOM_HEAP, and its FLASH use grew less than FLASH_BUDGET over the
   seed build (zmk @ 4dd95d78)
@@ -33,8 +33,10 @@ def kconfig(bdir: Path) -> dict[str, str]:
 
 def check_display(name: str, bdir: Path) -> list[str]:
     errors = []
-    if kconfig(bdir).get("CONFIG_WORXBOARD_DISPLAY_ROTATION_90") != "y":
-        errors.append(f"{name}: CONFIG_WORXBOARD_DISPLAY_ROTATION_90 is not set")
+    cfg = kconfig(bdir)
+    rotations = [angle for angle in (90, 270) if cfg.get(f"CONFIG_WORXBOARD_DISPLAY_ROTATION_{angle}") == "y"]
+    if len(rotations) != 1:
+        errors.append(f"{name}: select exactly one display rotation (90 or 270 degrees)")
     link_map = (bdir / "zmk.map").read_text()
     missing = [s for s in ROTATION_SYMBOLS if not re.search(rf"\b{s}\b", link_map)]
     if missing:

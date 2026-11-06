@@ -9,7 +9,12 @@ dependencies = []
 
 [dependency-groups]
 layout = ["shapely==2.2.0"]
-case = ["build123d==0.13.0", "shapely==2.2.0", "ezdxf==1.4.5"]
+case = [
+    "build123d==0.13.0",
+    "shapely==2.2.0",
+    "ezdxf==1.4.5",
+    "pypdfium2==5.14.0",
+]
 dev = ["pytest>=8"]
 
 [tool.uv]

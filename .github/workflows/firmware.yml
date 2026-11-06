@@ -33,6 +33,8 @@ jobs:
           git diff --exit-code -- firmware/zmk/boards
       - name: keymap has 3 layers x 74 bindings and base = layout.json legends
         run: python3 firmware/zmk/scripts/check_keymap.py
+      - name: Post-build check regressions (both portrait orientations)
+        run: python3 -m unittest discover -s firmware/zmk/tests -p 'test_*.py'
       - name: display portrait-to-panel pixel map (host test of src/worx_rotate.h)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I firmware/zmk/src -o /tmp/fw-rotate-test firmware/zmk/tests/rotate_test.c

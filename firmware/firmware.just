@@ -9,7 +9,7 @@ fw_scripts := "firmware/zmk/scripts"
 _fw_docker := "docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -e CCACHE_DIR=/work/build/fw-ccache -v $PWD:/work -w /work/" + fw_ws + " " + fw_image
 
 # Build ZMK firmware for every build.yaml row (or the named artifacts)
-fw *artifacts: fw-layouts-check fw-keymap-check fw-rotate-check fw-west
+fw *artifacts: fw-layouts-check fw-keymap-check fw-rotate-check fw-check-tests fw-west
     {{_fw_docker}} sh -c 'west zephyr-export >/dev/null && python3 /work/{{fw_scripts}}/fw_build.py {{artifacts}}'
     @[ -n "{{artifacts}}" ] || just fw-check
 
@@ -42,6 +42,10 @@ fw-rotate-check:
 # Post-build checks: both core rows rotate the display; right peripheral: no BLE/battery symbols, flash budget
 fw-check:
     python3 {{fw_scripts}}/fw_check.py build/fw
+
+# Regression tests for post-build checks (no firmware build needed)
+fw-check-tests:
+    python3 -m unittest discover -s firmware/zmk/tests -p 'test_*.py'
 
 # Remove firmware build outputs (keeps the west workspace)
 fw-clean:

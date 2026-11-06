@@ -7,24 +7,26 @@
 Generated files (GENERATED): jlccnc/*.{step,pdf} and hole_table.csv, jlc3dp/*.stl, hardware.csv.
 The hand-written README.md and */ORDER_NOTES.md live only in case/production (`just order` copies
 them into the package). The package is byte-reproducible on one machine (fixed STEP time stamp, PDFs
-without a creation date). If a STEP, STL or PDF differs in bytes only, `check` compares what it holds:
-STEP volume, area, faces and bounding box; STL triangles, volume and bounding box; PDF pages and text.
-CSV files must be identical.
+without a creation date). When bytes differ, `check` compares STEP solids by subtracting each from
+the other, STL triangle coordinates and winding, and PDF page sizes and rendered drawings at 600 dpi.
+File metadata and triangle ordering may differ. CSV files must be identical.
 """
 from __future__ import annotations
 
 import fnmatch
+import hashlib
+import math
 import os
-import re
 import shutil
 import struct
 import sys
-import zlib
+from contextlib import closing
 
 GENERATED = ("jlccnc/*.step", "jlccnc/*.pdf", "jlccnc/hole_table.csv", "jlc3dp/*.stl", "jlc3dp/*.step",
              "hardware.csv")   # jlc3dp/*.step: none today, kept so a stale copy is reported
-REL_TOL = 1e-6
-ABS_TOL = 1e-4      # mm
+STL_COORD_TOL = 1e-4       # mm, absolute: do not scale tolerance with distance from the origin
+STEP_VOLUME_TOL = 1e-4    # mm3, allowance for boolean noise, not a fraction of the part volume
+PDF_DPI = 600
 
 
 def generated(root: str) -> list[str]:
@@ -37,48 +39,65 @@ def generated(root: str) -> list[str]:
     return sorted(out)
 
 
-def _close(a: float, b: float) -> bool:
-    return abs(a - b) <= max(ABS_TOL, REL_TOL * max(abs(a), abs(b)))
-
-
-def step_facts(path: str) -> list[float]:
+def same_step(a: str, b: str) -> tuple[bool, str]:
+    """Equal bulk properties do not locate holes: compare the material in both directions."""
     from build123d import import_step
-    s = import_step(path)
-    bb = s.bounding_box()
-    return [s.volume, s.area, float(len(s.faces())), float(len(s.solids())),
-            bb.min.X, bb.min.Y, bb.min.Z, bb.max.X, bb.max.Y, bb.max.Z]
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+
+    sa, sb = import_step(a), import_step(b)
+    if not sa.solids() or not sb.solids() or not sa.is_valid or not sb.is_valid:
+        return False, "STEP must contain valid solids"
+    if len(sa.solids()) != len(sb.solids()):
+        return False, "STEP solid counts differ"
+    difference = 0.0
+    for first, second in ((sa, sb), (sb, sa)):
+        cut = BRepAlgoAPI_Cut(first.wrapped, second.wrapped)
+        if not cut.IsDone() or cut.Shape().IsNull():
+            return False, "STEP geometry comparison failed"
+        props = GProp_GProps()
+        BRepGProp.VolumeProperties_s(cut.Shape(), props)
+        volume = abs(props.Mass())
+        if not math.isfinite(volume):
+            return False, "STEP geometry comparison returned an invalid volume"
+        difference += volume
+    ok = difference <= STEP_VOLUME_TOL
+    return ok, f"STEP symmetric difference {difference:.6g} mm3 (allowed {STEP_VOLUME_TOL:g})"
 
 
-def stl_facts(path: str) -> list[float]:
-    data = open(path, "rb").read()
+def stl_triangles(path: str) -> list[tuple[float, ...]]:
+    """Canonical oriented triangles of a binary STL; ignore headers and stored normals."""
+    with open(path, "rb") as fh:
+        data = fh.read()
+    if len(data) < 84:
+        raise ValueError(f"{path}: truncated binary STL")
     n = struct.unpack("<I", data[80:84])[0]
-    vol, lo, hi = 0.0, [1e9] * 3, [-1e9] * 3
+    if not n or len(data) != 84 + 50 * n:
+        raise ValueError(f"{path}: invalid binary STL triangle count")
+    triangles = []
     for i in range(n):
         v = struct.unpack("<9f", data[84 + 50 * i + 12:84 + 50 * i + 48])
-        a, b, c = v[0:3], v[3:6], v[6:9]
-        vol += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
-                + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6
-        for p in (a, b, c):
-            for k in range(3):
-                lo[k], hi[k] = min(lo[k], p[k]), max(hi[k], p[k])
-    return [float(n), abs(vol), *lo, *hi]
+        if not all(math.isfinite(x) for x in v):
+            raise ValueError(f"{path}: non-finite STL coordinate")
+        # Only cyclic permutations preserve the face's winding.
+        triangles.append(min(v, v[3:] + v[:3], v[6:] + v[:6]))
+    return sorted(triangles)
 
 
-def pdf_facts(path: str) -> list[str]:
-    """Page count and every text string, in order, from the (deflated) content streams."""
-    data = open(path, "rb").read()
-    pages = len(re.findall(rb"/Type\s*/Page[^s]", data))
-    texts = []
-    for m in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", data, re.S):
-        raw = m.group(1)
-        try:
-            raw = zlib.decompress(raw)
-        except zlib.error:
-            pass
-        for arr in re.findall(rb"\[(.*?)\]\s*TJ|\(((?:[^()\\]|\\.)*)\)\s*Tj", raw, re.S):
-            seg = arr[0] or b"(" + arr[1] + b")"
-            texts.append("".join(t.decode("latin-1") for t in re.findall(rb"\(((?:[^()\\]|\\.)*)\)", seg)))
-    return [str(pages), *texts]
+def pdf_pages(path: str) -> list[tuple[tuple[float, float], bytes]]:
+    """Compare drawings, fonts and text together, independent of PDF object IDs or compression."""
+    import pypdfium2 as pdfium
+
+    pages = []
+    with pdfium.PdfDocument(path) as doc:
+        for i in range(len(doc)):
+            with closing(doc[i]) as page, closing(page.render(scale=PDF_DPI / 72)) as bitmap:
+                digest = hashlib.sha256(bitmap.to_numpy().tobytes()).digest()
+                pages.append((page.get_size(), digest))
+    if not pages:
+        raise ValueError(f"{path}: PDF has no pages")
+    return pages
 
 
 def same(a: str, b: str) -> tuple[bool, str]:
@@ -86,17 +105,17 @@ def same(a: str, b: str) -> tuple[bool, str]:
         return True, "identical"
     ext = os.path.splitext(a)[1].lower()
     if ext == ".step":
-        fa, fb = step_facts(a), step_facts(b)
-        ok = all(_close(x, y) for x, y in zip(fa, fb))
+        return same_step(a, b)
     elif ext == ".stl":
-        fa, fb = stl_facts(a), stl_facts(b)
-        ok = fa[0] == fb[0] and all(_close(x, y) for x, y in zip(fa[1:], fb[1:]))
+        fa, fb = stl_triangles(a), stl_triangles(b)
+        ok = len(fa) == len(fb) and all(abs(x - y) <= STL_COORD_TOL
+                                      for ta, tb in zip(fa, fb) for x, y in zip(ta, tb))
+        return ok, "same STL triangles" if ok else "STL triangle coordinates or winding differ"
     elif ext == ".pdf":
-        fa, fb = pdf_facts(a), pdf_facts(b)
-        ok = fa == fb
+        ok = pdf_pages(a) == pdf_pages(b)
+        return ok, "same PDF drawings" if ok else "PDF page sizes or rendered drawings differ"
     else:
         return False, "differs"
-    return ok, ("bytes differ, same content" if ok else f"differs: {fa[:6]} vs {fb[:6]}")
 
 
 def sync(order: str, prod: str):

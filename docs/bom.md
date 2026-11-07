@@ -46,11 +46,12 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 | U3 | 1 | AP2112K-3.3TRG1, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) | `SOT-23-5` | top | [J] | yes |
 | F1 | 1 | nSMD025-24V PTC, 250 mA hold, 24 V | [C70069](https://jlcpcb.com/partdetail/C70069) | `Fuse_1206_3216Metric` | top | [J] | yes |
 | J2 | 1 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | `Jack_3.5mm_PJ320D_Horizontal` | top | [J], G2 | yes |
-| J3 | 1 | 1×5 2.54 mm female socket, 5.0 mm, **THT** (display, G1) | [C27985230](https://jlcpcb.com/partdetail/C27985230) | `PinSocket_1x05_P2.54mm_Vertical_H5.0mm` | top | [J], G1 | yes |
+| J3 | 1 | 1×4 2.54 mm female socket, 5.0 mm, **THT** (OLED, G1) | [C42163122](https://jlcpcb.com/partdetail/C42163122) | `PinSocket_1x04_P2.54mm_Vertical_H5.0mm` | top | [J], G1 | yes |
+| R14, R15 | 2 | 4.7 kΩ 0402 (OLED I2C pull-ups) | [C25900](https://jlcpcb.com/partdetail/C25900) | `R_0402_1005Metric` | top | [C] |  |
 | SK101–SK137 | 37 | MX hot-swap socket CPG151101S11-16 (HanElectricity) | [C41430893](https://jlcpcb.com/partdetail/C41430893) | `SW_MX_Hotswap_Kailh` | **bottom** | [J] | yes |
 | D101–D137 | 37 | 1N4148W switching diode | [C81598](https://jlcpcb.com/partdetail/C81598) | `D_SOD-123` | **bottom** | [J] |  |
 
-22 BOM lines, 119 parts per half, 74 of them on the bottom side.
+23 BOM lines, 121 parts per half, 74 of them on the bottom side.
 <!-- END GENERATED: bom_assembled -->
 
 - **Stock.** Check it on the day you order: `just pcb-stock left 5` (both halves draw on the same
@@ -81,6 +82,8 @@ deviation ELEC-6).
 | Designators | Qty | What | Why |
 |---|---|---|---|
 | JP1 | 1 | solder jumper VSYS → F1 → VLINK, bridged | copper only; cut it for split-powered mode |
+| JP2 | 1 | 3-pad solder jumper: J3 pin 1 = GND (pads 1-2, bridged) or 3V3 (2-3) | copper only; swap with JP3 for a VCC-GND OLED (DISP-1) |
+| JP3 | 1 | 3-pad solder jumper: J3 pin 2 = 3V3 (pads 1-2, bridged) or GND (2-3) | copper only; swap with JP2 for a VCC-GND OLED (DISP-1) |
 | TP1–TP11 | 11 | Ø1.0 mm test pads: TP1 `DISP_DC`, TP2 `DISP_RST`, TP3 `DISP_BL`, TP4 GP22, TP5 GP23, TP6 GP24, TP7 GP25, TP8 `SWCLK`, TP9 `SWDIO`, TP10 `GND`, TP11 `TRRS_DET` | copper only |
 | H1–H8 | 8 | M2.5 mounting holes, NPTH Ø2.7 | drilled |
 | STAB_T4, STAB_T5 | 2 | 2u stabiliser holes (board-only footprint, no symbol) | drilled |

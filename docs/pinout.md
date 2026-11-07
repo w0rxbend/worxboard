@@ -10,12 +10,12 @@ The RP2040 GPIO map is identical on both PCBs (spec §3, `layout/pins.py`). Symb
 |---|---|---|---|
 | `GPIO0` | 2 | `UART_TX` | UART0 TX -> 1k -> jack |
 | `GPIO1` | 3 | `UART_RX` | UART0 RX <- 1k <- jack; 10k pull-up to 3V3 |
-| `GPIO2` | 4 | `DISP_SCK` | PIO1 SPI clock |
-| `GPIO3` | 5 | `DISP_MOSI` | PIO1 SPI data |
-| `GPIO4` | 6 | `DISP_DC` | TP1 (future TFT) |
-| `GPIO5` | 7 | `DISP_CS` | display CS, active high |
-| `GPIO6` | 8 | `DISP_RST` | TP2 (future TFT) |
-| `GPIO7` | 9 | `DISP_BL` | TP3 (future TFT backlight) |
+| `GPIO2` | 4 | `DISP_SDA` | I2C1 SDA to the OLED; 4.7k pull-up to 3V3 |
+| `GPIO3` | 5 | `DISP_SCL` | I2C1 SCL to the OLED; 4.7k pull-up to 3V3 |
+| `GPIO4` | 6 | `DISP_DC` | TP1, spare |
+| `GPIO5` | 7 | n/c | spare (was the nice!view CS) |
+| `GPIO6` | 8 | `DISP_RST` | TP2, spare |
+| `GPIO7` | 9 | `DISP_BL` | TP3, spare |
 | `GPIO8` | 11 | `ROW0` | matrix row, pull-down |
 | `GPIO9` | 12 | `ROW1` | matrix row, pull-down |
 | `GPIO10` | 13 | `ROW2` | matrix row, pull-down |
@@ -84,15 +84,14 @@ UART0, GP0 TX and GP1 RX at 115200 baud, ZMK `zmk,wired-split`. Use a **straight
 
 ## Display header J3
 
-1×5 2.54 mm female socket, 5.0 mm tall (C27985230), fitted by JLC as a through-hole part. Pin *n* is nice!view pin *n*. Pin 1 (MOSI) is at **high x** in each half's own frame: the **outer** end of the socket on the right half and the **inner** end on the left, because the module is one part mounted LCD up the same way on both halves, header at the back (deviation BOARD-1). `netcmp.py --board` stops stages C and D if J3 is turned the wrong way (deviation ELEC-8; [verification.md](verification.md#g1-niceview-display)).
+1×4 2.54 mm female socket, 5.0 mm tall (C42163122), fitted by JLC as a through-hole part, for a 0.91" 128 × 32 SSD1306 I2C OLED module. Pin *n* is module pin *n*. Pin 1 is at **high x** in each half's own frame: the **outer** end of the socket on the right half and the **inner** end on the left, because the module is one part mounted glass up the same way on both halves, header at the back (deviation BOARD-1). Pins 1 and 2 are GND and VCC as shipped; JP2 and JP3 swap them for a module that reads VCC, GND, SCL, SDA (deviation DISP-1). SCL and SDA have 4.7 kΩ pull-ups (R15, R14). `netcmp.py --board` stops stages C and D if J3 is turned the wrong way (deviation ELEC-8; [verification.md](verification.md#g1-oled-display)).
 
 | Pin | Function | Net | GPIO | Right frame (mm) | Left frame (mm) |
 |---|---|---|---|---|---|
-| 1 | MOSI | `DISP_MOSI` | GP3 | (77.47, 39.925) | (192.69, 39.925) |
-| 2 | SCK | `DISP_SCK` | GP2 | (74.93, 39.925) | (190.15, 39.925) |
-| 3 | VCC | `3V3` | — | (72.39, 39.925) | (187.61, 39.925) |
-| 4 | GND | `GND` | — | (69.85, 39.925) | (185.07, 39.925) |
-| 5 | CS | `DISP_CS` | GP5 | (67.31, 39.925) | (182.53, 39.925) |
+| 1 | GND | `DISP_P1`, GND via JP2 1-2 (3V3 via 2-3) | — | (76.2, 37.925) | (191.42, 37.925) |
+| 2 | VCC | `DISP_P2`, 3V3 via JP3 1-2 (GND via 2-3) | — | (73.66, 37.925) | (188.88, 37.925) |
+| 3 | SCL | `DISP_SCL` | GP3 | (71.12, 37.925) | (186.34, 37.925) |
+| 4 | SDA | `DISP_SDA` | GP2 | (68.58, 37.925) | (183.8, 37.925) |
 
 ## Part positions
 
@@ -123,8 +122,10 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `F1` | 250mA | `VLINK`, `VLINK_JP` | (67.2, 52.8) 180° | (192.8, 52.8) 0° |
 | `J1` | TYPE-C-31-M-12 | `CC1`, `CC2`, `GND`, `USB_C_DM`, `USB_C_DP`, `VBUS` | (74, 34.25) 180° | (186, 34.25) 180° |
 | `J2` | PJ-320D-4A | `GND`, `TRRS_A`, `TRRS_B`, `VLINK` | (202.62, 103) 180° | (57.38, 103) 0° |
-| `J3` | HC-PM254-5.0H-1x5PZ | `3V3`, `DISP_CS`, `DISP_MOSI`, `DISP_SCK`, `GND` | (192.69, 39.92) -90° | (77.47, 39.92) -90° |
+| `J3` | HC-PM254-5.0H-1x4PZ-02A | `DISP_P1`, `DISP_P2`, `DISP_SCL`, `DISP_SDA` | (191.42, 37.92) -90° | (76.2, 37.92) -90° |
 | `JP1` | VLINK | `VLINK_JP`, `VSYS` | (73.4, 51.6) 180° | (186.6, 51.6) 0° |
+| `JP2` | GND-3V3 | `3V3`, `DISP_P1`, `GND` | (191.42, 42.23) 90° | (76.2, 42.23) 90° |
+| `JP3` | 3V3-GND | `3V3`, `DISP_P2`, `GND` | (188.88, 42.23) 90° | (73.66, 42.23) 90° |
 | `R1` | 5.1k | `CC1`, `GND` | (80.5, 39.6) 0° | (189.4, 42.4) 90° |
 | `R2` | 5.1k | `CC2`, `GND` | (70.2, 43.4) 0° | (183.4, 43.2) 0° |
 | `R3` | 27 | `USB_C_DP`, `USB_DP` | (86.9, 47.12) 0° | (172.5, 38.88) 180° |
@@ -138,6 +139,8 @@ Footprint origins as placed in the committed boards (`pcb/<side>/worxboard-<side
 | `R11` | 1k | left `TRRS_A`, `UART_TX`; right `TRRS_A`, `UART_RX` | (198.6, 94.8) 90° | (61.4, 94.8) 90° |
 | `R12` | 1k | left `TRRS_B`, `UART_RX`; right `TRRS_B`, `UART_TX` | (200.2, 94.8) 90° | (59.8, 94.8) 90° |
 | `R13` | 10k | `3V3`, `UART_RX` | (115, 46) 180° | (145, 46) 0° |
+| `R14` | 4.7k | `3V3`, `DISP_SDA` | (183.8, 40.92) 90° | (68.58, 40.92) 90° |
+| `R15` | 4.7k | `3V3`, `DISP_SCL` | (186.34, 40.92) 90° | (71.12, 40.92) 90° |
 | `SW1` | BOOT | `BOOT`, `GND` | (84, 50) 90° | (176, 50) 90° |
 | `SW2` | RESET | `GND`, `RUN` | (80, 50) 90° | (180, 50) 90° |
 | `TP1` | DISP_DC | `DISP_DC` | (178.4, 44.4) 180° | (81.6, 44.4) 0° |

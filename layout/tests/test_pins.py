@@ -3,8 +3,8 @@
 from layout import pins as P
 
 SPEC_NETS = {  # GPIO -> (net, QFN pin)
-    0: ("UART_TX", 2), 1: ("UART_RX", 3), 2: ("DISP_SCK", 4), 3: ("DISP_MOSI", 5),
-    4: ("DISP_DC", 6), 5: ("DISP_CS", 7), 6: ("DISP_RST", 8), 7: ("DISP_BL", 9),
+    0: ("UART_TX", 2), 1: ("UART_RX", 3), 2: ("DISP_SDA", 4), 3: ("DISP_SCL", 5),
+    4: ("DISP_DC", 6), 6: ("DISP_RST", 8), 7: ("DISP_BL", 9),
     **{8 + i: (f"ROW{i}", 11 + i) for i in range(6)},
     **{14 + i: (f"COL{i}", q) for i, q in enumerate((17, 18, 27, 28, 29, 30, 31))},
     21: ("TRRS_DET", 32), 26: ("VBUS_SENSE", 38),
@@ -22,7 +22,12 @@ def test_matrix_and_uart_gpios():
     assert P.COL_GPIOS == (14, 15, 16, 17, 18, 19, 20)
     assert P.RIGHT_COL_GPIOS == (20, 19, 18, 17, 16, 15, 14)
     assert (P.UART_TX, P.UART_RX, P.UART_BAUD) == (0, 1, 115200)
-    assert (P.DISP_SCK, P.DISP_MOSI, P.DISP_CS) == (2, 3, 5)
+    assert (P.DISP_SDA, P.DISP_SCL, P.DISP_I2C_ADDR) == (2, 3, 0x3C)
+
+
+def test_gp5_is_spare():
+    """The nice!view's CS pin is free: the OLED is on I2C."""
+    assert next(p for p in P.PINS if p.name == "GPIO5").net is None
 
 
 def test_pins_unique():

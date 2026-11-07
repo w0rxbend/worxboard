@@ -33,7 +33,7 @@ MX_FP = "worxboard:SW_MX_Hotswap_Kailh"
 STAB_FP = "worxboard:Stab_MX_2u"
 
 # Value -> LCSC (spec §7; [G3] parts are re-checked before ordering)
-LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744"}
+LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744", "4.7k": "C25900"}
 LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C15525", "27p": "C1557"}
 LCSC_F1 = "C70069"        # nSMD025-24V: 1206 PTC, 250 mA hold, 24 V (WS2 choice, spec §7 F1)
 # Replacements for discontinued / low-stock parts (docs/deviations.md ELEC-1), JLC stock 2026-11-02
@@ -42,16 +42,21 @@ LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket 
 LCSC_FLASH = "C97521"       # W25Q128JVSIQ SOIC-8 208 mil, JLC basic (C113767 no longer manufactured)
 LCSC_XTAL = "C49304726"     # YXC XL2EL89CRI-111YLC-12M: 12 MHz 3225, CL 18 pF (27 pF caps), ESR 80 ohm
                             # (C91749 down to 19 at JLC); basic fallback C9002, CL 20 pF
-# J3: JLC-assembled THT 1x5 2.54 mm female socket, 5.0 mm tall: with the nice!view's own 5-pin male
-# header the module sits 7.0 mm above the PCB, as on its stock 5 mm socket (docs/deviations.md ELEC-3)
-LCSC_J3 = "C27985230"       # Hong Cheng HC-PM254-5.0H-1x5PZ; 5.7 mm fallback C46061764 (stack 7.7 mm)
-J3_FP = "worxboard:PinSocket_1x05_P2.54mm_Vertical_H5.0mm"   # stock pads, 5.0 mm 3D model
+# J3: JLC-assembled THT 1x4 2.54 mm female socket, 5.0 mm tall (the lowest 1x4 THT socket JLC stocks):
+# with the OLED module's own 2.5 mm male header the module sits 7.5 mm above the PCB (docs/deviations.md
+# ELEC-3, DISP-1). Same Hong Cheng series as rev A's 1x5 C27985230
+LCSC_J3 = "C42163122"       # Hong Cheng HC-PM254-5.0H-1x4PZ-02A; 5.7 mm fallback C55218874 (stack +0.7 mm)
+J3_FP = "worxboard:PinSocket_1x04_P2.54mm_Vertical_H5.0mm"   # stock pads, 5.0 mm 3D model
+# JP2 / JP3 pick which of J3 pins 1 and 2 is GND and which 3V3: 0.91" OLED modules ship as
+# GND-VCC-SCL-SDA or VCC-GND-SCL-SDA (docs/deviations.md DISP-1). Pad 2 is the common pad
+JP3_FP = "Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm_NumberLabels"
 # LCSC numbers this design dropped: netcmp.py fails on one in a netlist, a board or the JLC BOM, and
 # tests/integration/stock.py in the stock check (docs/deviations.md ELEC-1, ELEC-6)
 RETIRED = {
     "C2803348": "Kailh CPG151101S11 hot-swap socket: discontinued (JLC and LCSC 0, 2026-11-02)",
     "C113767": "W25Q128JVSIQ: no longer manufactured per JLC; same part is the basic C97521",
     "C91749": "Epson 12 MHz crystal: 19 left at JLC on 2026-11-02",
+    "C27985230": "1x5 5.0 mm socket for the nice!view: the OLED module has a 4-pin header (DISP-1)",
 }
 
 # Matrix references: SK<n> socket + D<n> diode, n = KEY_REF0 + index in layout.keys()
@@ -174,10 +179,19 @@ def _trrs(side: str) -> list[Part]:
 
 
 def _display() -> list[Part]:
+    """J3 for a 0.91" SSD1306 I2C OLED: pin 1 / 2 power via JP2 / JP3 (default GND / 3V3), 3 SCL, 4 SDA."""
     g = "DISPLAY"
-    pins = dict(zip(map(str, range(1, 6)), ("DISP_MOSI", "DISP_SCK", "3V3", "GND", "DISP_CS")))
+    pins = dict(zip(map(str, range(1, 5)), ("DISP_P1", "DISP_P2", "DISP_SCL", "DISP_SDA")))
     return [
-        Part("J3", "Connector_Generic:Conn_01x05", "HC-PM254-5.0H-1x5PZ", J3_FP, LCSC_J3, pins, g),
+        Part("J3", "Connector_Generic:Conn_01x04", "HC-PM254-5.0H-1x4PZ-02A", J3_FP, LCSC_J3, pins, g),
+        # pad 1-2 bridged in copper as shipped: J3 pin 1 = GND, pin 2 = 3V3. For a VCC-GND module cut
+        # both 1-2 bridges and solder both 2-3 (never both sides of one jumper: that shorts 3V3 to GND)
+        Part("JP2", "Jumper:SolderJumper_3_Bridged12", "GND-3V3", JP3_FP, "",
+             {"1": "GND", "2": "DISP_P1", "3": "3V3"}, g, in_bom=False),
+        Part("JP3", "Jumper:SolderJumper_3_Bridged12", "3V3-GND", JP3_FP, "",
+             {"1": "3V3", "2": "DISP_P2", "3": "GND"}, g, in_bom=False),
+        R("R14", "4.7k", "DISP_SDA", "3V3", g),          # I2C pull-ups (most modules carry their own)
+        R("R15", "4.7k", "DISP_SCL", "3V3", g),
         TP("TP1", "DISP_DC", g), TP("TP2", "DISP_RST", g), TP("TP3", "DISP_BL", g),
     ]
 

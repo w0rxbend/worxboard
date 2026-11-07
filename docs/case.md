@@ -7,7 +7,7 @@ the case always matches the PCB.
 
 > [!NOTE]
 > **Modelled, checked and orderable, not yet made.** The order package is committed in
-> [`case/production/`](../case/production/README.md), case revision **A3**: JLCCNC for the machined
+> [`case/production/`](../case/production/README.md), case revision **A4** (2026-11-07, the OLED pocket and bezel; DISP-1): JLCCNC for the machined
 > parts, JLC3DP for the printed ones, and `hardware.csv`. `just model` builds both halves and passes
 > every case check. `just corners` checks every internal corner against JLCCNC's radius-for-depth
 > rule. `just fitcheck` reports **0 mm³** of interference against both PCB STEPs. Those STEPs carry
@@ -27,7 +27,7 @@ the tray.
 
 | | Per half |
 |---|---|
-| Size | 192.4 × 165.6 × 17.6 mm, 19.6 mm at the display bezel (top 12.6 + tray 7.0; including the leg bosses) |
+| Size | 192.4 × 165.6 × 17.6 mm, 20.85 mm at the display bezel (top 13.85 + tray 7.0; including the leg bosses) |
 | Mass (6061-T6) | about 349 g: top 140.6 g, tray 208.1 g |
 | Plate spacer | 182.7 × 136.6 × 3.0 mm, 20.2 cm³, MJF PA12 at JLC3DP (CASE-5), with a channel for each stabiliser wire (ORDER-6) |
 | Fasteners | 6 × M2.5 × 12 and 2 × M2.5 × 10 countersunk, 90° head ≤ Ø5.2 (CASE-3) |
@@ -46,8 +46,8 @@ the tray.
 | 12.1–13.6 | plate |
 | 13.6–17.6 | key well |
 | 14.6 | pocket ceiling over the back strip and the TRRS bump |
-| 17.6–19.6 | display bezel B1, raised 2.0 mm above the top face |
-| 18.6 | display pocket ceiling, under a 1.0 mm skin with the window (the glass is at most Z 18.35) |
+| 17.6–20.85 | display bezel B1, raised 3.25 mm above the top face |
+| 19.85 | display pocket ceiling, under a 1.0 mm skin with the window (the glass is at most Z 19.6) |
 
 Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm around each key cell.
 
@@ -58,12 +58,12 @@ Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm aroun
 | Outline | The PCB polygon from `layout.outline(side)` offset by 3.5 mm (0.5 clearance + 3.0 wall). Short PCB corner chamfers collapse into one filleted corner. Radii by vertex class: back corners r8 (r10 left too little cavity clearance), front-outer r12, thumb r8, concave r6 / r14, TRRS bump r5 (deviations WS3-1, WS3-2). The cavity keeps ≥ 0.3 mm to the PCB everywhere. |
 | Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get Cherry-spec plate stabiliser cut-outs (6.65 × 12.3 mm with the side and end notches; the 0.875 mm side notch is 1.0 mm for a 1 mm end mill). Each cut-out's long half points the same way as the PCB's Ø4.0 stabiliser holes: both read `layout.stab_dir`, and the left half is the mirror image (deviation REVIEW-FIX-7). The stabiliser wire runs under the plate, so the spacer has a 3.5 mm channel on both sides of each 2u switch, 6.5–10 mm from the key centre, from one stabiliser to the other (`STAB_WIRE_U`, checked by `spacer_check()`; ORDER-6). Clip the stabilisers into the top shell before the case is closed ([build guide](buildguide_en.md#6-assemble-the-case)). The key well is clipped to keep 2.0 mm of wall at the T0/T3 cap corners (WS3-4). |
 | Screws | 8 × M2.5 on the ErgoDox pattern, with hole 7 moved to (88.0, 37.135) for the display. |
-| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to **Z 18.6**, through the spacer and plate, under a **raised bezel** B1 (the pocket + 2.0 mm, Z 17.6–19.6, 1.0 mm skin, R2 plan corners; CASE-1). It holds a stock nice!view on the 5.0 mm J3 socket: the glass is 8.9 mm above the PCB nominally and 9.75 mm at full tolerance, 0.25 mm under the ceiling. The 26 × 12 mm viewing window (r1, 0.5 mm chamfer) is centred on the LCD viewing area and follows the J3 header (y 55.865). The pocket's two back corners have R2 dog-bones for JLCCNC's Ø3 tool (CASE-8). `display_check()` checks the ceiling, the skin, the window, the corners and the walls on the built part. |
+| Display | A pocket over the module + 0.5 mm (x 65.89–78.89, y 36.125–75.125), from the PCB top (Z 8.6) to **Z 19.85**, through the spacer and plate, under a **raised bezel** B1 (the pocket + 2.0 mm, x 63.89–80.89, y 34.125–74.023, Z 17.6–20.85, 1.0 mm skin, R2 plan corners; CASE-1, DISP-1). It holds a 0.91" OLED module on its own 2.5 mm header in the 5.0 mm J3 socket: the glass is 10.2 mm above the PCB nominally and 11.0 mm at full tolerance, so it sits 0.25–1.05 mm under the skin. The 8 × 28 mm viewing window (r1, 0.5 mm chamfer) is centred at (72.39, 56.625) and shows the active area anywhere within the sellers' ±1.2 / ±2.8 mm; the skin bar between it and the C6R1 well is 3.40 mm. The pocket's two back corners have R2 dog-bones for JLCCNC's Ø3 tool (CASE-8), which thin the 2.0 mm bezel walls to 1.41 mm. `display_check()` checks the ceiling, the skin, the window, the corners and the walls on the built part. |
 | USB-C | On **both** halves: a 9.4 × 3.6 mm notch (r1.6) in the back wall at x 186.0 (right frame), Z centre 10.2, with a 13 × 8 mm outside recess 1.8 mm deep for the plug's overmould. The recess continues 0.8 mm into the tray. J1's mouth is flush with the PCB edge, 0.5 mm inside the wall, so the recess floor is **1.7 mm in front of the mouth**: only the plug's bare metal shell passes the notch, and it must stick out of the overmould by **at least 8 mm** for the plug to mate fully (a common plug's 6.5–6.6 mm shell stops about 1.2 mm short; ORDER-7). See [USB-C cable](shopping-list.md#cables). |
 | TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis (Z 11.1); `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The J2 body (14.1 × 6.1 × 5.0, the HRO drawing) is relieved by **0.75 mm** all round, with R1.5 corners and at least 0.38 mm at the body's corners, in the top, the spacer and the plate DXF, with 1.0 mm headroom. `jack_check()` fails if any jack body comes closer than `JACK_MIN_CLEAR` = 0.3 mm (G2; BOARD-13, CASE-9). The plug has to pass 3.65 mm of Ø6.5 hole before it seats (see [TRRS cable](#trrs-cable)). |
 | Back strip | A relief pocket over Z_BACK and Z_TRRS (ceiling 14.6), with a 1 mm wall kept to the key well (WS3-6), and Ø3 pin holes through the top over BOOT (176, 50) and RESET (180, 50). |
 | Legs | The three stock positions on the derived walls; M3 drill 5.5 mm at the outer and thumb legs, 7.5 mm at the inner leg (WS3-3), with 4.0 / 6.0 mm of full thread (CASE-3). |
-| Internal corners | Every internal corner has at least JLCCNC's radius for its depth, R = H/10 + 0.5 (CASE-8): key well R1.0 (4.0 deep), relief pockets and wall fillets R1.5, bottom web fillets R1.0, display pocket R2 (11.6 deep). The switch and stabiliser cut-outs are R0.5 for a 1 mm end mill through the 1.5 mm plate. `just corners` (`case/corner_check.py`) checks every corner of the machined STEPs. |
+| Internal corners | Every internal corner has at least JLCCNC's radius for its depth, R = H/10 + 0.5 (CASE-8): key well R1.0 (4.0 deep), relief pockets and wall fillets R1.5, bottom web fillets R1.0, display pocket R2 (12.85 deep). The switch and stabiliser cut-outs are R0.5 for a 1 mm end mill through the 1.5 mm plate. `just corners` (`case/corner_check.py`) checks every corner of the machined STEPs. |
 | Removed | The EZ's capacitor pocket, LED windows and reset hole, and the back-wall jack notches. |
 | Halves | `build_top(side)` / `build_bottom(side)` build each half from the mirrored layout, with an engraved `L` / `R` under the tray. The model asserts left = mirror(right). |
 
@@ -117,7 +117,7 @@ if a check fails. `case/check_fit.py` places the KiCad STEP by matching the boar
 requires 0 mm³ of interference with the top, bottom and spacer. The STEP carries J3's own 5.0 mm
 socket model (ELEC-3) but no body for J1, J2 or the hot-swap sockets (KiCad ships no model), so the
 `layout` envelopes of those parts are checked with it (deviation REVIEW-FIX-4): the USB-C and TRRS
-bodies, the J3 body up to 5.8 mm and the display module above it up to 9.75 mm (CASE-1), and a
+bodies, the J3 body (10.86 × 2.55 × 5.15 mm) up to 6.2 mm and the display module above it up to 11.0 mm (CASE-1, DISP-1), and a
 1.8 mm slab under the board. Without a STEP it checks only the `layout` envelopes and prints a
 warning: run `just pcb-fab left` and `just pcb-fab right` first. `fitcheck` also prints the boss
 webs that top-side PCB parts must stay off.
@@ -172,7 +172,7 @@ The outline comes from the PCB, not from photos, but print a test fit anyway:
 
 1. 3D-print the top, bottom and spacer of one half from the STLs in `case/exports` (or the CI
    artifact).
-2. Fit an assembled PCB, its display and a few switches.
+2. Fit an assembled PCB, its OLED module (jumpers set for its pin order) and a few switches.
 3. Check that:
    - the USB-C plug seats fully and latches (a plug with at least 8 mm of bare metal shell, ORDER-7);
    - the TRRS plug goes all the way in;

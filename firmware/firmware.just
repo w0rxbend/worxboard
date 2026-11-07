@@ -39,7 +39,7 @@ fw-rotate-check:
     cc -std=c11 -Wall -Wextra -Werror -I firmware/zmk/src -o build/fw-rotate-test firmware/zmk/tests/rotate_test.c
     build/fw-rotate-test
 
-# Post-build checks: both core rows rotate the display; right peripheral: no BLE/battery symbols, flash budget
+# Post-build checks: both core rows rotate the SSD1306 display, custom screen, no BLE/battery symbols; right: flash budget
 fw-check:
     python3 {{fw_scripts}}/fw_check.py build/fw
 

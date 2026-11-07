@@ -27,7 +27,7 @@ NAMES = [
     (r"^CRYSTAL", "y1-crystal-3225", "Y1 12 MHz crystal, 3225"),
     (r"^USB-C", "j1-usb-c", "J1 USB-C, HRO TYPE-C-31-M-12 (C165948)"),
     (r"PJ-320D", "j2-trrs-pj320d", "J2 TRRS jack, PJ-320D (C95562)"),
-    (r"^HDR-TH_5P", "j3-display-socket", "J3 display socket, 1x5 2.54 mm THT"),
+    (r"^HDR-TH_4P", "j3-display-socket", "J3 display socket, 1x4 2.54 mm THT"),
     (r"KEYBOARD-SW|CPG151101S11", "sk-hotswap-socket", "SK101-SK137 MX hot-swap socket (B.Cu)"),
     (r"^SOD-123F", "d101-diode-sod123f", "D101-D137 1N4148W, SOD-123F (B.Cu)"),
     (r"^SOD-123", "d1-schottky-sod123", "D1 B5819W, SOD-123"),

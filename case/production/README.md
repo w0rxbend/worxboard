@@ -1,4 +1,4 @@
-# Case order package (case revision A3)
+# Case order package (case revision A4)
 
 Everything needed to order the worxboard case for one keyboard (both halves). The files are
 generated from the model; only this page and the two `ORDER_NOTES.md` are written by hand.
@@ -9,14 +9,14 @@ generated from the model; only this page and the two `ORDER_NOTES.md` are writte
 | 2 plate spacers (MJF PA12), 1 tree of 8 leg foot caps (FDM TPU 95A) | [JLC3DP](https://jlc3dp.com) | [`jlc3dp/`](jlc3dp/ORDER_NOTES.md): STL |
 | 12 × M2.5×12 and 4 × M2.5×10 countersunk screws, 8 rubber feet, 6 M3 leg thumbscrews, 6 friction washers | any hardware shop | [`hardware.csv`](hardware.csv) |
 
-The PCBs, the switches, keycaps, the two nice!view displays and the TRRS and USB-C cables are not
+The PCBs, the switches, keycaps, the two 0.91" OLED displays and the TRRS and USB-C cables are not
 part of this package.
 
 ## Before ordering
 
 1. The PCB order must be final: `just fitcheck` reports 0 mm³ against both PCB STEPs (the `fit` job
    of the `pcb` workflow runs it on every push, with the J3 socket and the layout envelopes of the
-   USB-C, TRRS, nice!view and hot-swap socket bodies).
+   USB-C, TRRS, OLED module and hot-swap socket bodies).
 2. `just model corners order production-check` passes: every internal corner meets JLCCNC's
    radius-for-depth rule and this folder matches the model (the `case` workflow runs both on every
    push).
@@ -24,11 +24,12 @@ part of this package.
 
 ## What the case expects from the parts it holds
 
-- **Display.** J3 is the 5.0 mm socket JLCPCB fits (C27985230). Plug a stock nice!view into it on the
-  male header it ships with; the bezel's pocket clears the glass up to 9.75 mm above the PCB (full
-  tolerance; 8.9 nominal). **Trim the header pins flush on the display's top side** (no higher than
-  its glass, 0.9 mm above the module PCB): untrimmed pins stand about 2 mm up and would hit the
-  pocket ceiling.
+- **Display.** J3 is the 1×4 5.0 mm socket JLCPCB fits (C42163122). Plug a 0.91" 128 × 32 I2C OLED
+  module (38 × 12 mm) into it, glass up, on the straight male header it ships with; the bezel's pocket
+  clears the glass up to 11.0 mm above the PCB (full tolerance; 10.2 nominal). **Trim the header pins
+  flush on the module's top side** (no higher than its glass): untrimmed pins stand about 2 mm up and
+  would hit the pocket ceiling. Set JP2/JP3 on the PCB for your module's pin order first
+  ([build guide](../../docs/buildguide_en.md)).
 - **Screws.** M2.5 × 12 in the six edge bosses (T2–T4, T6–T8), M2.5 × 10 in the two bosses under
   the key well (T1, T5; tighten those only snug). A longer screw would reach past the end of the
   blind thread and stop before its head seats.

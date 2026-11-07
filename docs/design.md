@@ -41,8 +41,8 @@ Each criterion is scored 1–5.
 | # | User requirement (sketch / request) | Where it is met |
 |---|---|---|
 | R1 | Layout identical to the ErgoDox EZ: same stagger, 6-key thumb cluster at 25° | §5 key table (exact original-PCB centres) and `layout/keys.py` (WS0) |
-| R2 | The top key of the inner column is replaced by a vertical display, on both halves, mirrored | §4 display: C6R0 deleted, module at x 65.39–79.39, y 38.625–74.625 (right frame) |
-| R3 | "LCD" | Sharp LS011B7DH03 memory LCD (nice!view-compatible), §4 |
+| R2 | The top key of the inner column is replaced by a vertical display, on both halves, mirrored | §4 display: C6R0 deleted, module at x 66.39–78.39, y 36.625–74.625 (right frame) |
+| R3 | "LCD"; later "a cheap LCD from AliExpress instead of the nice!view" | 0.91" 128 × 32 SSD1306 I2C OLED module, §4 (deviation DISP-1) |
 | R4 | USB-C on both halves at the top edge near the outer corner, each half powered and connectable | §6 USB-C at right-frame x 186.0 (left-frame x 74.0); every half has full D+/D− |
 | R5 | TRRS mini-jack on the inner edge between the inner column and the thumb cluster, wired split | §6 PJ-320D at y 103.0 in a local inner-edge bump; ZMK `zmk,wired-split` |
 | R6 | Thumb cluster kept; the case outline follows it | §8 outline keeps the original thumb vertices |
@@ -67,7 +67,7 @@ Each criterion is scored 1–5.
                                          Tip  (TX)  ════  Tip  (RX)
                                          Ring1(RX)  ════  Ring1(TX)
                                          Sleeve GND ════  Sleeve GND
-   37-key 6×7 diode matrix (col2row) · nice!view LCD on PIO1-SPI · BOOT + RESET · SWD pads   (same on both halves)
+   37-key 6×7 diode matrix (col2row) · 0.91" OLED on I2C1 · BOOT + RESET · SWD pads   (same on both halves)
 ```
 
 - **MCU:** RP2040 QFN-56 on the PCB, one per half, assembled by JLC PCBA.
@@ -84,12 +84,12 @@ Each criterion is scored 1–5.
 |---|---|---|---|
 | GP0 | 2 | `UART_TX` | UART0 TX → 1 kΩ → `TRRS_A`/`TRRS_B` (see §6) |
 | GP1 | 3 | `UART_RX` | UART0 RX ← 1 kΩ ← jack; 10 kΩ pull-up to 3V3 on the MCU side |
-| GP2 | 4 | `DISP_SCK` | PIO1 SPI clock |
-| GP3 | 5 | `DISP_MOSI` | PIO1 SPI data |
-| GP4 | 6 | `DISP_DC` | Test pad TP1 (future TFT) |
-| GP5 | 7 | `DISP_CS` | Display CS, **active high** |
-| GP6 | 8 | `DISP_RST` | Test pad TP2 (future TFT) |
-| GP7 | 9 | `DISP_BL` | Test pad TP3 (future TFT backlight) |
+| GP2 | 4 | `DISP_SDA` | I2C1 SDA to the OLED, 4.7 kΩ pull-up (DISP-1) |
+| GP3 | 5 | `DISP_SCL` | I2C1 SCL to the OLED, 4.7 kΩ pull-up (DISP-1) |
+| GP4 | 6 | `DISP_DC` | Test pad TP1, spare |
+| GP5 | 7 | — | Spare, not connected (was the nice!view CS; DISP-1) |
+| GP6 | 8 | `DISP_RST` | Test pad TP2, spare |
+| GP7 | 9 | `DISP_BL` | Test pad TP3, spare |
 | GP8–GP13 | 11–16 | `ROW0`–`ROW5` | Matrix rows: inputs, internal pull-down |
 | GP14–GP20 | 17, 18, 27–31 | `COL0`–`COL6` | Matrix columns: outputs. **COLn = physical column Cn (C0 outer, C6 inner) on both PCBs** |
 | GP21 | 32 | `TRRS_DET` | Test pad (future `detect-gpios`) |
@@ -109,23 +109,34 @@ The QFN pin numbers are informational. The symbol pin **names** are the authorit
 
 ## 4. Display
 
-- **Part:** a nice!view module or an equivalent LS011B7DH03 breakout: 160×68, 3-wire SPI, 3.3 V, under 10 µA. It is assumed to measure 36 × 14 × 2.9 mm, which is gate **G1**.
+Rev A as ordered (deviation DISP-1 replaced the nice!view of the frozen spec; ELEC-3 and BOARD-1 set
+the socket and header position).
+
+- **Part:** a 0.91" 128 × 32 SSD1306 OLED module, the common 4-pin I2C board (address 0x3C, 3.3 V).
+  Sellers' listings give 38 × 12 mm, a 1×4 2.54 mm header at one short end (row 1.3 mm from that
+  edge) and a 22.38 × 5.58 mm active area centred about 20 mm from the header-end edge. No datasheet
+  fixes these: they are gate **G1**.
 - **Connector:**
-  - J3 is `Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical`, hand-soldered and marked DNP for JLC.
-  - Pin order is 1 MOSI, 2 SCK, 3 VCC (3V3), 4 GND, 5 CS (G1).
-  - TP1–TP3 carry DC, RST and BL for a future TFT.
+  - J3 is a 1×4 2.54 mm female socket, 5.0 mm tall (C42163122), fitted by JLC
+    (`worxboard:PinSocket_1x04_P2.54mm_Vertical_H5.0mm`).
+  - Pin order is 1 GND, 2 VCC (3V3), 3 SCL, 4 SDA, pin 1 at high x on both halves (G1).
+  - JP2 and JP3, 3-pad solder jumpers bridged 1-2, feed pins 1 and 2. Cutting both 1-2 bridges and
+    soldering both 2-3 swaps GND and VCC, for modules sold as VCC-GND-SCL-SDA.
+  - R14 / R15: 4.7 kΩ pull-ups on SDA / SCL.
+  - TP1–TP3 carry GP4, GP6 and GP7 as spare pads.
 - **Placement (right frame; mirror it for the left):**
-  - The module sits vertically over **x 65.39–79.39, y 38.625–74.625**.
-  - Its bottom edge lies on the old C6R0 cell boundary, so **no key moves**.
-  - The header is at the top end, centred at (72.39, 40.6), with pins running along x.
-  - Clearances: 4.25 mm to the C5R0 and C6R1 housings, 6.8 mm to the inner wall.
+  - The module sits vertically over **x 66.39–78.39, y 36.625–74.625**, glass up, header at the back.
+  - Its front edge lies on the old C6R0 cell boundary, so **no key moves**.
+  - The header row is at y 37.925, centred on x 72.39, with pins running along x.
 - **Mounting hole #7 moves** from (67.41, 37.13) to **(88.0, 37.135)**, the old TRRS spot.
-- **Viewing window:** 26 × 12 mm centred at (72.39, 62.5), with 1 mm corner radius and a 0.5 mm chamfer.
-- **Height:** the case pocket runs from Z 8.6 (PCB top) to Z 16.8. Socket plus module plus glass must therefore stay **≤ 8.2 mm** above the PCB top (G1).
-- **Firmware:** PIO1 SPI (`raspberrypi,pico-spi-pio`), because the PL022 hardware SPI rejects LSB-first transfers. Driver `sharp,ls0xx` at 1 MHz with `serial-vcom-inversion`.
-  - Left: ZMK built-in status screen (the layer widget works).
-  - Right: custom LVGL screen (§11.6).
-  - The stock `nice_view` shield is **not used**: it does not build on RP2040.
+- **Viewing window:** 8 × 28 mm centred at (72.39, 56.625), with 1 mm corner radius and a 0.5 mm
+  chamfer. It shows the active area anywhere within ±1.2 mm across and ±2.8 mm along of its nominal
+  centre.
+- **Height:** 5.0 mm socket + the module's 2.5 mm header + 2.7 mm module put the glass 10.2 mm above
+  the PCB top, 11.0 mm at full tolerance. The case pocket rises to Z 19.85 under a raised bezel
+  (CASE-1, DISP-1).
+- **Firmware:** Zephyr's `solomon,ssd1306fb` driver on hardware I2C1 (GP2 SDA, GP3 SCL, 400 kHz).
+  Both halves run a custom portrait LVGL screen (§11.6), chosen by split role.
 
 ---
 
@@ -267,7 +278,8 @@ Status key: **[C]** verified from the Corne v4.1 JLC BOM, **[J]** verified on th
 | F1 | 1 | PTC 1206, 250 mA hold, ≥ 6 V | chosen by WS2 from JLC parts, recorded in the BOM | Device:Polyfuse | Fuse:Fuse_1206_3216Metric | [G3] | F / JLC |
 | J1 | 1 | TYPE-C-31-M-12 | C165948 | Connector:USB_C_Receptacle_USB2.0_16P | Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12 | [G3] | F / JLC |
 | J2 | 1 | PJ-320D-4A | C95562 | Connector_Audio:AudioJack4 | Connector_Audio:Jack_3.5mm_PJ320D_Horizontal | [J] | F / JLC |
-| J3 | 1 | 1×5 2.54 female socket, low profile | — (builder) | Connector_Generic:Conn_01x05 | Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical | G1 | F / hand, DNP |
+| J3 | 1 | 1×4 2.54 female socket, 5.0 mm (HC-PM254-5.0H-1x4PZ-02A) | C42163122 | Connector_Generic:Conn_01x04 | worxboard:PinSocket_1x04_P2.54mm_Vertical_H5.0mm | G1 | F / JLC, THT (DISP-1) |
+| R (OLED I2C pull-ups) | 2 | 4.7 kΩ 0402 | C25900 | Device:R | R_0402 | [C] | F / JLC (DISP-1) |
 | SW_BOOT, SW_RST | 2 | TS-1088R-02026 | C455280 | Switch:SW_Push | Button_Switch_SMD:SW_SPST_TS-1088-xR020 | [C] | F / JLC |
 | R (CC) | 2 | 5.1 kΩ 0402 | C25905 | Device:R | Resistor_SMD:R_0402_1005Metric | [C] | F / JLC |
 | R (USB) | 2 | 27 Ω 0402 | C2909343 | Device:R | R_0402 | [C] | F / JLC |
@@ -280,9 +292,10 @@ Status key: **[C]** verified from the Corne v4.1 JLC BOM, **[J]** verified on th
 | D_xx | 37 | 1N4148W | C81598 | Diode:1N4148W | Diode_SMD:D_SOD-123 | [G3] | **B / JLC** |
 | SK_xx | 37 | Kailh MX hot-swap CPG151101S11 | C2803348 | worxboard:SW_Push_MX | worxboard:SW_MX_Hotswap_Kailh | [G3] | **B / JLC** |
 | JP1 | 1 | solder jumper, bridged | — | Jumper:SolderJumper_2_Bridged | Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm | — | excluded from BOM/POS |
+| JP2, JP3 | 2 | 3-pad solder jumper, bridged 1-2 (OLED GND / VCC order) | — | Jumper:SolderJumper_3_Bridged12 | Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm_NumberLabels | — | excluded from BOM/POS (DISP-1) |
 | TP1–TP7, SWD×3 | 10 | test pads | — | Connector:TestPoint | TestPoint:TestPoint_Pad_D1.0mm | — | excluded from BOM/POS |
 | H1–H8 | 8 | M2.5 NPTH Ø2.7 | — | Mechanical:MountingHole | MountingHole:MountingHole_2.7mm_M2.5 | — | excluded from BOM/POS |
-| Display | 1 | nice!view (LS011B7DH03 module) | — | — | — | G1 | builder |
+| Display | 1 | 0.91" 128 × 32 SSD1306 I2C OLED module | — | — | — | G1 | builder (DISP-1) |
 
 **Builder parts** (in `docs/bom.md`):
 - 37 MX switches per half (74 total)
@@ -295,7 +308,7 @@ Status key: **[C]** verified from the Corne v4.1 JLC BOM, **[J]** verified on th
 **Fees.** Extended-part fees apply to C2040, C113767, C91749, C7519, C95562, C165948, C2803348, C455280 and the PTC. `docs/ordering-jlcpcb.md` lists them.
 
 **Gates (WS5 records the results in `docs/verification.md`):**
-- **G1:** nice!view dimensions, pin order and header stack ≤ 8.2 mm.
+- **G1:** OLED module dimensions, pin order, header position and stack (DISP-1).
 - **G2:** PJ-320D height and the footprint pad map.
 - **G3:** every [G3] LCSC number and its stock, and the JLC 2-layer minimum track (0.127 mm).
 
@@ -478,8 +491,8 @@ Pins: build123d 0.13.0, shapely 2.2.0, ezdxf 1.4.5, Python 3.12. All geometry is
 2. **KEYS** has 37 entries (`assert len(KEYS) == 37`). **SCREWS** come from `layout` with #7 moved.
 3. **Removed:** `CAPS`, `cap_pocket`, `cap_check`, `LEDS`, the EZ `RESET`, and the back-wall `TRRS`/`USB` tuples.
 4. **Display:**
-   - pocket at the module rectangle + 0.5 mm (x 64.89–79.89, y 38.125–75.125), from Z 8.6 to Z 16.8, cutting the spacer and plate
-   - 26 × 12 window through the top, centred at (72.39, 62.5), r1, 0.5 mm chamfer
+   - pocket at the module rectangle + 0.5 mm (x 65.89–78.89, y 36.125–75.125), from Z 8.6 to Z 19.85, cutting the spacer and plate, under a raised bezel (CASE-1, DISP-1)
+   - 8 × 28 window through the bezel skin, centred at (72.39, 56.625), r1, 0.5 mm chamfer
    - the display rectangle is a keepout in `_in_housing`, `spacer_face`, `boss_webs` and `leg_pad_depth`
    - the inner leg pad is clamped to **5.0 mm** depth (x ≤ 63.6), giving ≥ 1.2 mm clearance to the pocket
    - new `display_check()` asserts the window is inside the pocket
@@ -545,7 +558,7 @@ manifest:
 - `kscan0`: `zmk,kscan-gpio-matrix`, `col2row`, rows GP8–13 `(GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)`, cols GP14–20
 - the 6×14 transform from §5
 - `&uart0` on `UART0_TX_P0` / `UART0_RX_P1` at 115200, plus `wired_split { compatible = "zmk,wired-split"; device = <&uart0>; };`
-- `&pio1` `nice_view_spi` (`raspberrypi,pico-spi-pio`, clk GP2, mosi GP3, cs GP5 active-high), with `ls0xx@0` (`sharp,ls0xx`, 160×68, `serial-vcom-inversion`, `serial-vcom-interval = <33>`)
+- `&i2c1` on `I2C1_SDA_P2` / `I2C1_SCL_P3` at 400 kHz, with `oled: ssd1306@3c` (`solomon,ssd1306fb`, 128×32; DISP-1)
 - `zephyr_udc0: &usbd`, `&timer`, `&rtc`, `&vreg`
 - boot-mode retention
 - flash: code `0x100..0x380000`, `storage_partition` 512 KB at `0x380000`
@@ -572,7 +585,7 @@ config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
     default y
 endif
 ```
-The seed already has the rest: `ZMK_SPLIT` default y, `ZMK_SPLIT_ROLE_CENTRAL` default y on the left only, `RP2_FLASH_W25Q080` default y, and the LVGL/ls0xx defaults under `if ZMK_DISPLAY` (`LV_Z_BITS_PER_PIXEL 1`, `LV_COLOR_DEPTH_1`, `LV_DPI_DEF 161`, `LV_Z_VDB_SIZE 100`, `LS0XX_VCOM_THREAD_PRIO 11`, `ZMK_DISPLAY_WORK_QUEUE_DEDICATED`, `ZMK_DISPLAY_BLANK_ON_IDLE n`).
+The seed already has the rest: `ZMK_SPLIT` default y, `ZMK_SPLIT_ROLE_CENTRAL` default y on the left only, `RP2_FLASH_W25Q080` default y, and the LVGL/ls0xx defaults under `if ZMK_DISPLAY` (`LV_Z_BITS_PER_PIXEL 1`, `LV_COLOR_DEPTH_1`, `LV_DPI_DEF 161`, `LV_Z_VDB_SIZE 100`, `LS0XX_VCOM_THREAD_PRIO 11`, `ZMK_DISPLAY_WORK_QUEUE_DEDICATED`, `ZMK_DISPLAY_BLANK_ON_IDLE n`). DISP-1 replaces the ls0xx defaults with I2C and SSD1306 ones, puts the custom screen on both halves and lets the OLED blank on idle ([firmware.md](firmware.md#board-definition)).
 
 Other board settings:
 - `CONFIG_ZMK_USB` is removed from `worxboard_right_rp2040_zmk_defconfig`.
@@ -630,12 +643,13 @@ CI regenerates the file and fails on `git diff --exit-code`.
 - The right USB-C gives power and UF2 flashing: double-tap RESET, or hold BOOT and tap RESET, to get the `RPI-RP2` drive.
 - `*_EXPERIMENTAL` role-swap artifacts let either half be the host. They are untested on hardware.
 
-### 11.6 Custom right screen
+### 11.6 Custom screen (both halves since DISP-1)
 
-`worx_status_screen.c` implements `zmk_display_status_screen()` and shows:
-- a `worxboard` logo label
-- a Caps / Num / Scroll lock row, from `zmk_hid_indicators_changed` events
-- a static `wired` label
+`worx_status_screen.c` implements `zmk_display_status_screen()` for a 32 × 128 portrait screen. ZMK's
+built-in screen does not fit 32 px wide, so both halves use it, and what it shows follows the split role:
+- both: a `worx` logo and a Caps / Num / Scroll lock column, from `zmk_hid_indicators_changed` events
+- central: the USB state and the active layer name
+- peripheral: a static `wired` label
 
 It must not reference any `zmk_ble_*` or battery symbols. It is compiled only when `CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM` is set.
 
@@ -684,7 +698,6 @@ worxboard/
 ## 13. Future (not rev A)
 
 - RP2350A hardware (rev B, needs the A4 stepping).
-- A TFT display using TP1–TP3.
 - RGB on GP22.
 - Encoders.
 - TRRS detect on GP21.

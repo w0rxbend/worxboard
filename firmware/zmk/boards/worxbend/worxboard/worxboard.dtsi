@@ -3,7 +3,7 @@
 
 #include <raspberrypi/rpi_pico/rp2040.dtsi>
 #include <arm/raspberrypi/rp2040-boot-mode-retention.dtsi>
-#include <freq.h>
+#include <zephyr/dt-bindings/i2c/i2c.h>
 
 #include "worxboard-pinctrl.dtsi"
 #include "worxboard-layouts.dtsi"
@@ -16,7 +16,7 @@
         zephyr,code-partition = &code_partition;
         zmk,kscan = &kscan0;
         zmk,physical-layout = &worxboard_layout;
-        zephyr,display = &nice_view;
+        zephyr,display = &oled;
     };
 
     /* Matrix 6 x 7 col2row (design.md §3/§5). COLn = physical column Cn, C0 outer, on both
@@ -81,34 +81,29 @@
     pinctrl-names = "default";
 };
 
-&pio1 {
+&i2c1 {
     status = "okay";
+    clock-frequency = <I2C_BITRATE_FAST>;
+    pinctrl-0 = <&i2c1_default>;
+    pinctrl-names = "default";
 
-    nice_view_spi: nice_view_spi {
-        compatible = "raspberrypi,pico-spi-pio";
-        status = "okay";
-        #address-cells = <1>;
-        #size-cells = <0>;
-        clocks = <&clocks RPI_PICO_CLKID_CLK_SYS>;
-        clock-frequency = <DT_FREQ_M(1)>;
-        pinctrl-0 = <&pio1_spi_default>;
-        pinctrl-names = "default";
-        clk-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
-        mosi-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
-        /* The driver claims miso-gpios for PIO1 in 4-wire mode even when unset (pin 0 =
-         * UART0 TX). Reusing MOSI keeps it off the split link (deviations REVIEW-FIX-1). */
-        miso-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
-        cs-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-
-        nice_view: ls0xx@0 {
-            compatible = "sharp,ls0xx";
-            reg = <0>;
-            spi-max-frequency = <DT_FREQ_M(1)>;
-            width = <160>;
-            height = <68>;
-            serial-vcom-inversion;
-            serial-vcom-interval = <33>;
-        };
+    /* 0.91" 128 x 32 SSD1306 OLED module in J3 (pins GND/VCC per JP2/JP3, SCL, SDA). The usual
+     * ZMK 128 x 32 settings (corne.dtsi): with them, panel pixel (0, 0) is the top-left corner of
+     * the module seen glass up with its header on the left. inversion-on: lit text on black. */
+    oled: ssd1306@3c {
+        compatible = "solomon,ssd1306fb";
+        reg = <0x3c>;
+        width = <128>;
+        height = <32>;
+        segment-offset = <0>;
+        page-offset = <0>;
+        display-offset = <0>;
+        multiplex-ratio = <31>;
+        segment-remap;
+        com-invdir;
+        com-sequential;
+        inversion-on;
+        prechargep = <0x22>;
     };
 };
 

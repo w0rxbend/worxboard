@@ -144,10 +144,16 @@ U4_VIA_OUT = 1.15                # pin-5 / pin-2 via this far out past the pad c
 U4_CAP_Y = -3.4                  # C2 centre: across the D+ row (pins 1 / 6 at y -0.95)
 U4_CAP_VIA_Y = -2.0              # VSYS via between the D+ row and C2 pad 1
 
+# Display parts under the OLED, from the J3 pins: (ref, J3 pin index, dy from the pin row, rot). The
+# jumpers stand pad 3 toward J3 (rot 90): pad 1 is GND on JP2 and 3V3 on JP3, the shipped bridges
+DISPLAY_PARTS = (("JP2", 0, 4.3, 90.0), ("JP3", 1, 4.3, 90.0),
+                 ("R15", 2, 3.0, 90.0), ("R14", 3, 3.0, 90.0))
+
 # Silkscreen, right frame (text, x, y, rot)
 SILK = [("worxboard {S} rev A", 130.0, 45.0, 0),
         ("DO NOT HOT-PLUG TRRS", 51.6, 116.0, 90), ("HOST → LEFT", 53.4, 116.0, 90),
-        ("JP1: cut = split power", 186.6, 54.2, 0)]
+        ("JP1: cut = split power", 186.6, 54.2, 0),
+        ("OLED VCC-GND: JP2+JP3", 72.39, 47.6, 0), ("cut 1-2, solder 2-3", 72.39, 49.0, 0)]
 
 # Courtyards allowed past the zones (mm): J2's sleeve pad and snout, J1's snout
 ZONE_ALLOW = {"J2": 1.4, "J1": 0.0}
@@ -212,8 +218,14 @@ def top_positions(side: str) -> dict[str, tuple[float, float, float]]:
     dx, dy = rotate(U4_PIN5[0] + U4_VIA_OUT, U4_CAP_Y, r4)
     out["C2"] = (x4 + dx, y4 + dy, (r4 + 90.0) % 360.0)   # footprint +x (pad 1 -> 2) along U4 -y
     lay = layout_side(side)
-    p1 = lay["display"]["header_pins"][0]             # J3 pin 1 (MOSI) at high x, pins along -x
-    out["J3"] = (p1[0], p1[1], 270.0)                 # under nice!view pin n (gate G1, BOARD-1)
+    pins = lay["display"]["header_pins"]
+    p1 = pins[0]                                      # J3 pin 1 at high x, pins along -x
+    out["J3"] = (p1[0], p1[1], 270.0)                 # under OLED pin n (gate G1, BOARD-1)
+    # Under the module, each in the column of the J3 pin it serves, on both halves (pin 1 is at high x
+    # on both, so these follow the header, not the mirror): JP2 / JP3 power pins 1 / 2, R15 / R14 pull
+    # up SCL / SDA on pins 3 / 4 (docs/deviations.md DISP-1)
+    for ref, pin, dy, rot in DISPLAY_PARTS:
+        out[ref] = (pins[pin][0], round(pins[pin][1] + dy, 3), rot)
     return out
 
 

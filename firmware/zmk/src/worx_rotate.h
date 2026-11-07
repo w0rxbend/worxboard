@@ -1,15 +1,16 @@
 /*
  * SPDX-License-Identifier: MIT
  *
- * Portrait <-> panel pixel mapping for the 160 x 68 LS011B7DH03 (nice!view), shared by
- * worx_display_rotation.c and the host test firmware/zmk/tests/rotate_test.c. Plain C, no Zephyr.
+ * Portrait <-> panel pixel mapping for the worxboard display, a 0.91" 128 x 32 SSD1306 OLED,
+ * shared by worx_display_rotation.c and the host test firmware/zmk/tests/rotate_test.c. Plain C,
+ * no Zephyr. Written for any W x H panel; the comments use the SSD1306's 128 x 32.
  *
- * Panel frame (what the ls0xx driver writes): x = 0..159 along a line, y = 0..67 = line - 1.
- * Portrait frame (what LVGL lays out after rotation): u = 0..67 to the right, v = 0..159 down.
+ * Panel frame (what the ssd1306 driver writes): x = 0..127 along a row (SSD1306 column),
+ * y = 0..31 (row; 8 rows form one SSD1306 page).
+ * Portrait frame (what LVGL lays out after rotation): u = 0..31 to the right, v = 0..127 down.
  *
- *   WORX_ROT_90:  x = v,       y = 67 - u   (LVGL LV_DISPLAY_ROTATION_90)
- *   WORX_ROT_270: x = 159 - v, y = u        (LVGL LV_DISPLAY_ROTATION_270, the stock nice!view
- *                                            orientation ZMK's nice_view widgets draw for)
+ *   WORX_ROT_90:  x = v,       y = 31 - u   (LVGL LV_DISPLAY_ROTATION_90)
+ *   WORX_ROT_270: x = 127 - v, y = u        (LVGL LV_DISPLAY_ROTATION_270, a half turn from 90)
  *
  * Both agree with LVGL 9.3 lv_display_rotate_area() for a one-pixel area.
  */
@@ -23,7 +24,8 @@
 #define WORX_ROT_270 3
 
 /* Panel position of portrait pixel (u, v). False if (u, v) is off the panel: LVGL rounds I1
- * areas to whole bytes, so a 68-wide portrait screen gets areas up to u = 71. */
+ * areas to whole bytes, so a portrait screen whose width is not a multiple of 8 gets areas past
+ * its last column (none on the 32-wide SSD1306 screen; the check stays for other panels). */
 static inline bool worx_rot_px(int rot, int32_t panel_w, int32_t panel_h, int32_t u, int32_t v,
                                int32_t *x, int32_t *y) {
     if (u < 0 || v < 0 || u >= panel_h || v >= panel_w) {
@@ -74,6 +76,23 @@ static inline void worx_rot_blit_i1(int rot, int32_t panel_w, int32_t panel_h, i
                 *y_last = y;
             }
         }
+    }
+}
+
+/*
+ * Widen the panel rows *y_first..*y_last to whole pages of `page` rows (8 on the SSD1306, whose
+ * writes start and end on page boundaries; 1 for a line-addressed panel), clipped to the panel.
+ * Leaves an empty range (*y_last < *y_first) as it is.
+ */
+static inline void worx_rot_band(int32_t panel_h, int32_t page, int32_t *y_first,
+                                 int32_t *y_last) {
+    if (*y_last < *y_first || page <= 1) {
+        return;
+    }
+    *y_first -= *y_first % page;
+    *y_last += page - 1 - *y_last % page;
+    if (*y_last > panel_h - 1) {
+        *y_last = panel_h - 1;
     }
 }
 

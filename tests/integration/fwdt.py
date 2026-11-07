@@ -18,12 +18,8 @@ ACTIVE_LOW = GPIO_FLAGS["GPIO_ACTIVE_LOW"]
 
 # Zephyr RP2XXX_PINMUX(pin, func) = pin << 5 | func (dt-bindings/pinctrl/rpi-pico-pinctrl-common.h)
 PINMUX_PIN_POS, PINMUX_FUNC_MASK = 5, 0x1F
-PINMUX_FUNCS = {2: "UART", 6: "PIO0", 7: "PIO1"}
-PINMUX_MACRO = re.compile(r"^(UART|PIO)(\d)_(?:\w+_)?P(\d+)$")      # UART0_TX_P0, PIO1_P2
-
-# raspberrypi,pico-spi-pio without miso-gpios: the driver's spec is {NULL, 0}, yet its 4-wire mode
-# still muxes that pin 0 to the PIO (zephyr drivers/spi/spi_rpi_pico_pio.c spi_pico_pio_configure)
-PIO_SPI_UNSET_PIN = "<&gpio0 0 0>"
+PINMUX_FUNCS = {2: "UART", 3: "I2C", 6: "PIO0", 7: "PIO1"}
+PINMUX_MACRO = re.compile(r"^(UART|I2C|PIO)(\d)_(?:\w+_)?P(\d+)$")   # UART0_TX_P0, I2C1_SDA_P2, PIO1_P2
 
 # RC(row, col) = row << 8 | col (zmk dt-bindings/zmk/matrix_transform.h)
 RC_ROW_SHIFT, RC_COL_MASK = 8, 0xFF
@@ -37,6 +33,12 @@ def rp2040_uart(gpio: int) -> tuple[int, str]:
     """(instance, role) of the UART function on a GPIO: RP2040 datasheet §1.4.3 function table.
     UART0 TX/RX sit on GP0/1, 12/13, 16/17, 28/29 and UART1 on GP4/5, 8/9, 20/21, 24/25."""
     return ((gpio + 4) // 8) % 2, ("TX", "RX", "CTS", "RTS")[gpio % 4]
+
+
+def rp2040_i2c(gpio: int) -> tuple[int, str]:
+    """(instance, role) of the I2C function on a GPIO: RP2040 datasheet §1.4.3 function table.
+    Even GPIOs are SDA, odd ones SCL; I2C0 on GP0/1, 4/5, 8/9, ... and I2C1 on GP2/3, 6/7, 10/11, ..."""
+    return (gpio // 2) % 2, ("SDA", "SCL")[gpio % 2]
 
 
 @dataclass(frozen=True)
@@ -53,8 +55,9 @@ class FwPins:
     transform: tuple[tuple[int, int], ...]   # global (row, col) per keymap position
     uart: dict[str, int]                     # role -> GPIO of the wired-split UART0 pinctrl
     uart_input: frozenset[int]               # UART pins with input-enable
-    spi: dict[str, Gpio]                     # clk / mosi / miso / cs of the PIO1 display SPI
-    pio1: frozenset[int]                     # GPIOs muxed to PIO1
+    i2c: dict[str, int]                      # SDA / SCL -> GPIO of the display's I2C1 pinctrl
+    i2c_input: frozenset[int]                # I2C pins with input-enable
+    oled: dict[str, str | int]               # the display node: compatible, reg, width, height
 
 
 def _flatten(path: Path) -> str:
@@ -105,7 +108,7 @@ def _pinmux(token: str) -> tuple[int, str]:
     """(gpio, function) of one pinmux cell: a Zephyr macro (source) or its number (compiled)."""
     m = PINMUX_MACRO.match(token)
     if m:
-        return int(m.group(3)), m.group(1) if m.group(1) == "UART" else f"PIO{m.group(2)}"
+        return int(m.group(3)), f"PIO{m.group(2)}" if m.group(1) == "PIO" else m.group(1)
     v = _int(token)
     return v >> PINMUX_PIN_POS, PINMUX_FUNCS.get(v & PINMUX_FUNC_MASK, f"func{v & PINMUX_FUNC_MASK}")
 
@@ -122,7 +125,7 @@ def _groups(block: str) -> list[tuple[list[tuple[int, str]], bool]]:
 def parse(text: str) -> FwPins:
     text = COMMENT.sub("", text)
     kscan, transform = _blocks(text, "kscan0"), _blocks(text, "default_transform")
-    spi = _blocks(text, "nice_view_spi")
+    oled = _blocks(text, "oled")
     cells = _prop(transform, "map")
     rc = [(int(r), int(c)) for r, c in re.findall(r"RC\(\s*(\d+)\s*,\s*(\d+)\s*\)", cells)] or \
         [(v >> RC_ROW_SHIFT, v & RC_COL_MASK) for v in map(_int, cells.strip(" <>").split())]
@@ -135,8 +138,15 @@ def parse(text: str) -> FwPins:
             uart[role] = gpio
             if inp:
                 uart_input.add(gpio)
-    pio1 = {g for b in _blocks(text, "pio1_spi_default") for mux, _ in _groups(b)
-            for g, f in mux if f == "PIO1"}
+    i2c, i2c_input = {}, set()
+    for mux, inp in (g for b in _blocks(text, "i2c1_default") for g in _groups(b)):
+        for gpio, func in mux:
+            inst, role = rp2040_i2c(gpio)
+            if func != "I2C" or inst != 1:
+                raise ValueError(f"i2c1_default GP{gpio} is {func}, not I2C1")
+            i2c[role] = gpio
+            if inp:
+                i2c_input.add(gpio)
     return FwPins(
         rows=_gpios(_prop(kscan, "row-gpios")),
         cols=_gpios(_prop(kscan, "col-gpios")),
@@ -144,9 +154,10 @@ def parse(text: str) -> FwPins:
         transform=tuple(rc),
         uart=uart,
         uart_input=frozenset(uart_input),
-        spi={k: _gpios(_prop(spi, f"{k}-gpios"))[0] for k in ("clk", "mosi", "cs")}
-        | {"miso": _gpios(_prop(spi, "miso-gpios", PIO_SPI_UNSET_PIN))[0]},
-        pio1=frozenset(pio1),
+        i2c=i2c,
+        i2c_input=frozenset(i2c_input),
+        oled={"compatible": _prop(oled, "compatible").strip('" '), "reg": _int(_prop(oled, "reg")),
+              "width": _int(_prop(oled, "width")), "height": _int(_prop(oled, "height"))},
     )
 
 

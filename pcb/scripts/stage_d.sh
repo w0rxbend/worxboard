@@ -16,8 +16,8 @@ IMAGES="docs/images"
 # KiCad 10 (deviations WS2c-1). Everything else, J3 included, is fitted by JLC (deviations ELEC-3);
 # netcmp.py --board checks both against design.py (deviations ELEC-6)
 # J3's STEP body: the 5.0 mm socket model of pcb/lib, never KiCad's 8.5 mm one (deviations ELEC-3)
-J3_MODEL="PinSocket_1x05_P2.54mm_Vertical_H5.0mm"
-STOCK_SOCKET_MODEL="PinSocket_1x05_P2.54mm_Vertical"
+J3_MODEL="PinSocket_1x04_P2.54mm_Vertical_H5.0mm"
+STOCK_SOCKET_MODEL="PinSocket_1x04_P2.54mm_Vertical"
 # KiCad -> JLC CPL corrections (kikit pattern file: footprint regex -> X, Y, rotation), one row per
 # footprint whose JLC footprint differs in origin or zero angle; cpl_check.py below proves every
 # placement against JLC's own footprint. The order package is stage P (stage_p.sh, pcb/production/)
@@ -38,7 +38,7 @@ done
 # kikit takes bom.csv from the schematic but pos.csv, its corrections and the gerbers from the board,
 # and KiCad's parity ignores the LCSC field: the board, bom.csv and pos.csv must carry exactly
 # design.py's fitted parts and LCSC numbers, and no retired part (deviations ELEC-6); J3 must put pad n
-# under pin n of the nice!view plugged into it (gate G1, deviations ELEC-8)
+# under pin n of the OLED plugged into it (gate G1, deviations ELEC-8)
 python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE" "$OUT/jlc"
 # The CPL places JLC's own footprint of every part (pcb/scripts/jlc_footprints.json) on its KiCad pads:
 # within 0.1 mm, pin 1 on pin 1, terminals on their pads, socket bodies clear of the switch holes

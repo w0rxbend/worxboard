@@ -33,8 +33,8 @@ Everything is committed under [`pcb/production/`](../pcb/production/): one folde
 | JLC upload field | Left | Right | Contents |
 |---|---|---|---|
 | Gerber file | [`left/gerbers.zip`](../pcb/production/left/gerbers.zip) | [`right/gerbers.zip`](../pcb/production/right/gerbers.zip) | the **panel**, 198.84 × 174.75 mm: the board in a frame with rails, mouse-bite tabs, 3 fiducials per side and 4 tooling holes |
-| BOM file | [`left/bom.csv`](../pcb/production/left/bom.csv) | [`right/bom.csv`](../pcb/production/right/bom.csv) | 22 lines, 21 LCSC part numbers (SW1 and SW2 share one) |
-| CPL file | [`left/cpl.csv`](../pcb/production/left/cpl.csv) | [`right/cpl.csv`](../pcb/production/right/cpl.csv) | 119 placements, 74 on the bottom, with JLC's rotation and centre corrections applied |
+| BOM file | [`left/bom.csv`](../pcb/production/left/bom.csv) | [`right/bom.csv`](../pcb/production/right/bom.csv) | 23 lines, 22 LCSC part numbers (SW1 and SW2 share one) |
+| CPL file | [`left/cpl.csv`](../pcb/production/left/cpl.csv) | [`right/cpl.csv`](../pcb/production/right/cpl.csv) | 121 placements, 74 on the bottom, with JLC's rotation and centre corrections applied |
 
 - `worxboard-<side>-jlc-order.zip` in each folder holds the same three files plus the side's
   [README](../pcb/production/left/README.md). The README repeats the order form in short.
@@ -55,7 +55,9 @@ Everything is committed under [`pcb/production/`](../pcb/production/): one folde
 2. **Stock, on the day.** Run `just pcb-stock left 5`. It checks the live JLC stock of every BOM line
    for 5 assembled boards per half, both halves together, and it needs the network. On
    2026-11-04 at 05:17 UTC every line passed. The thinnest were C95562 (TRRS jack, 5 513),
-   C27985230 (J3, 6 294), C51118 (LDO, 12 075) and C49304726 (crystal, 13 833). If a line fails,
+   C27985230 (the old J3, 6 294), C51118 (LDO, 12 075) and C49304726 (crystal, 13 833). J3 is now
+   C42163122 (18 495 at JLC on 2026-11-07) and R14/R15 are C25900 (basic); re-run the check for
+   them. If a line fails,
    see [If a part is out of stock](#if-a-part-is-out-of-stock).
 3. **The files.** Download each side's `worxboard-<side>-jlc-order.zip` from GitHub (open the file
    in [`pcb/production/`](../pcb/production/), then *Download raw file*) or take them from a clone,
@@ -149,13 +151,13 @@ map them one to one.
 
 ### 6. Check the parts list
 
-JLC lists 22 lines (SW1 and SW2 are two lines of the same part). For each line:
+JLC lists 23 lines (SW1 and SW2 are two lines of the same part). For each line:
 
 - the line is **selected** (ticked) and shows the LCSC number from [bom.md](bom.md#per-half-assembled-by-jlcpcb);
 - the quantity matches: 37 for the sockets and for the diodes, 11 for C1525;
 - there is no *shortage* and no *No Part Selected*.
 
-J3 (C27985230) is the only through-hole part. JLC hand-solders it, and the quote carries a
+J3 (C42163122) is the only through-hole part. JLC hand-solders it, and the quote carries a
 hand-soldering fee for it. Every other part is SMT. J1's four shell legs go through slots in the
 board, but the paste layer opens those slots, so they reflow with J1's SMT pins (pin-in-paste) and
 need no hand-soldering; the remark asks for them in any case. The library type (basic or extended)
@@ -187,7 +189,7 @@ front. Then pay.
 ## Placement preview checklist
 
 Every placement in `cpl.csv` was checked against JLC's own footprint of that part: KiKit places it
-where the CPL says, and `pcb/scripts/cpl_check.py` compares it with the KiCad pads. All 119 of 119
+where the CPL says, and `pcb/scripts/cpl_check.py` compares it with the KiCad pads. All 121 of 121
 pass on each half. Each drawing below shows JLC's footprint, placed from the CPL, over the KiCad pads. Bottom-side
 parts are drawn as seen through the board from the top. What the preview still has to confirm is
 how JLC's own viewer applies the CPL, the bottom side above all. JLC does not document its
@@ -204,7 +206,7 @@ bottom-side convention, and the CPL follows the one that KiKit, kicad-jlcpcb-too
 | Y1, crystal (3225) | the pin-1 corner mark at pad 1 | [cpl-y1-crystal-3225.svg](images/cpl-y1-crystal-3225.svg) |
 | J1, USB-C | the **mouth faces out over the back edge**, the two plastic pegs sit in the two small holes, and the four shell legs sit in their slots | [cpl-j1-usb-c.svg](images/cpl-j1-usb-c.svg) |
 | J2, TRRS jack | the **barrel mouth is at the bump edge**, pointing out of the board, with the two pegs in their holes | [cpl-j2-trrs-pj320d.svg](images/cpl-j2-trrs-pj320d.svg) |
-| J3, display socket (THT) | the body lies along the row of five holes, one contact per hole | [cpl-j3-display-socket.svg](images/cpl-j3-display-socket.svg) |
+| J3, display socket (THT) | the body lies along the row of four holes, one contact per hole | [cpl-j3-display-socket.svg](images/cpl-j3-display-socket.svg) |
 | D1, Schottky (SOD-123) | the cathode band at pad 1 (the VSYS side) | [cpl-d1-schottky-sod123.svg](images/cpl-d1-schottky-sod123.svg) |
 | SW1, SW2, F1, 0402 R and C | on their pads | [tact](images/cpl-sw-tact-ts1088.svg), [PTC](images/cpl-f1-ptc-1206.svg), [R](images/cpl-r-0402.svg), [C](images/cpl-c-0402.svg) |
 
@@ -251,7 +253,7 @@ Run `just pcb-stock left 5` again on the day: it names the line that fails. Then
 |---|---|---|---|---|---|
 | SK101–SK137 | C41430893 | **C49352235** (HanElectricity CPG151101S11-2) | 26 943 | yes, same row | its body clears the switch post by 0.50 mm at 180° |
 | Y1 | C49304726 | **C9002** (YXC X322512MSB4SI, basic) | 286 104 | yes, no row | CL 20 pF against the 18 pF the 27 pF caps give: a few tens of ppm, far inside USB's ±2500 ppm (ELEC-1) |
-| J3 | C27985230 | **none that fits the case** | | | the 5.7 mm sockets (C46061764, C55218875) take the same row but lift the glass 0.7 mm, to 10.45 mm above the PCB at full tolerance, over the pocket ceiling at 10.0 mm (CASE-1). If J3 is out, wait for stock, or untick J3 and solder the 5 mm socket that ships with the nice!view yourself |
+| J3 | C42163122 | **none that fits the case** | | | the 5.7 mm socket C55218874 takes the same row but lifts the glass 0.7 mm, to 11.7 mm above the PCB at full tolerance, over the pocket ceiling at 11.25 mm (CASE-1, DISP-1). If J3 is out, wait for stock, or untick J3 and hand-solder any 1×4 2.54 mm female socket of 5.0 mm or less yourself |
 | U3 | C51118 | C82942 (ME6211C33M5G-N) | 370 432 | no | same SOT-23-5 pinout (1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; both datasheets), 500 mA |
 | U4, U5 | C7519 | C2687116 (UMW USBLC6-2SC6) | 109 130 | no | a second-source copy of the same part |
 | F1 | C70069 | C70070 (nSMD025-30V) | 46 671 | no | the same 1206 PTC, 250 mA hold, rated 30 V |
@@ -316,7 +318,7 @@ Likely questions and the answers:
 | J1's four shell legs are through-hole slots: solder them? | Yes. The paste layer opens them for pin-in-paste, so they reflow with the SMT parts. If the stencil cannot carry them, solder them by hand: they hold the receptacle and tie its shield to GND. |
 | Bottom-side rotation of the sockets or diodes | As the CPL gives it: each socket's notch wraps the round switch-centre hole, and each diode's cathode band is at pad 1. |
 | Silkscreen over pads or past the edge | Clip it. |
-| J3 is through-hole | Yes: C27985230, hand-soldered from the top, 5 joints. |
+| J3 is through-hole | Yes: C42163122, hand-soldered from the top, 4 joints. |
 | Hole-to-hole spacing under 0.45 mm (STAB_T4 / STAB_T5) | Intended: non-plated stabiliser clearance holes, no copper near. They may break into each other. |
 
 ## When the boards arrive
@@ -335,7 +337,7 @@ Likely questions and the answers:
 |---|---|
 | `just pcb-production <side>` | builds `pcb/production/<side>/` from the committed board: KiKit panel (`pcb/scripts/panel.json`, `panel_tabs.py`), Gerbers, BOM and CPL in JLC's formats, README, order zip, bare-board files |
 | `just pcb-production-check <side>` | rebuilds and requires the committed package to match byte for byte. CI's "Order package" jobs run this |
-| `just pcb-stock <side> [boards]` | `jlc_check.py`: formats, BOM = CPL = the 119 parts `design.py` fits, panel size, rails, fiducials, tooling holes, plus live JLC stock |
+| `just pcb-stock <side> [boards]` | `jlc_check.py`: formats, BOM = CPL = the 121 parts `design.py` fits, panel size, rails, fiducials, tooling holes, plus live JLC stock |
 | `just pcb-cpl-images` | redraws `docs/images/cpl-*.svg` with `cpl_check.py` (CI's "CPL overlay drawings" job) |
 | `just pcb-fab <side>` | stage D: the board's own fab outputs, with `netcmp.py --board` (the parts, LCSC numbers and J3's pin-1 end) and `cpl_check.py` |
 

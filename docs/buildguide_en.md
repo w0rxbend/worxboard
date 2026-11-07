@@ -4,7 +4,8 @@ This guide follows the [Corne (crkbd) build guides](https://github.com/foostan/c
 check the parts, test the bare boards, then build up from the PCB. JLCPCB assembles **every** part
 on the PCB: the RP2040 and its support parts, the USB-C and TRRS connectors, the 37 hot-swap sockets
 and 37 diodes per half, and the display socket J3. **Nothing on the PCB needs soldering.** You
-solder only the displays' own header pins, then plug in the displays, the switches and the keycaps.
+solder only the OLED modules' own header pins (if they ship loose), set two solder jumpers per half
+for your module's pin order, then plug in the displays, the switches and the keycaps.
 
 > [!IMPORTANT]
 > Rev A has **not been built yet**. Gates G1–G3 pass ([verification.md](verification.md#summary)),
@@ -42,7 +43,7 @@ For one keyboard (both halves). The full list with specs, quantities and shops i
 |---|---|---|
 | worxboard-left PCB, JLC-assembled | 1 | RP2040, USB-C, TRRS jack, display socket J3, 37 hot-swap sockets and 37 diodes fitted |
 | worxboard-right PCB, JLC-assembled | 1 | the same circuit with the TRRS data lines crossed |
-| nice!view display (or an LS011B7DH03 breakout with the same pinout) | 2 | one per half, with the male header it ships with |
+| 0.91" 128 × 32 SSD1306 I2C OLED module, 4-pin | 2 | one per half, with the straight male header it ships with ([shopping list](shopping-list.md#displays)) |
 | MX-compatible switches, 3- or 5-pin | 74 | 37 per half |
 | 2u plate-mount stabilisers | 4 | thumb keys T4 and T5 on each half |
 | Keycaps | 74 | 58 × 1u, 8 × 1.5u (outer column), 4 × 1.5u mounted vertically (inner column), 4 × 2u (thumbs) |
@@ -56,8 +57,9 @@ For one keyboard (both halves). The full list with specs, quantities and shops i
 
 ## Tools
 
-- Soldering iron and solder: only for the five header pins on each display module (and to
-  re-bridge JP1 if you ever cut it). Nothing on the PCB.
+- Soldering iron and solder: only for the four header pins on each OLED module, and for JP2/JP3 if
+  your module reads VCC-GND (and to re-bridge JP1 if you ever cut it). Nothing else on the PCB.
+- A craft knife, to cut the JP2/JP3 bridges if your module needs it.
 - Flush cutters, tweezers, a small file or fine sandpaper (for the panel tab nubs).
 - A multimeter, for the power-mode and continuity checks.
 - A Ø2.5 mm or smaller pin (paper clip) to reach the BOOT and RESET buttons through the case.
@@ -81,19 +83,19 @@ Lay out both boards and compare them with the KiCad renders of the committed boa
 - The **top side** carries, all in the strip along the back edge: the USB-C receptacle (J1), the
   RP2040 (U1), flash (U2), crystal (Y1), regulator (U3), USB ESD (U4), the Schottky diode (D1),
   the polyfuse (F1) and solder jumper (JP1), the BOOT (SW1) and RESET (SW2) buttons, the test pads
-  and the 1×5 display socket J3. The TRRS jack (J2), its ESD part (U5) and resistors sit in the bump
+  and the 1×4 display socket J3. Under the display area sit JP2/JP3 and the I2C pull-ups R14/R15. The TRRS jack (J2), its ESD part (U5) and resistors sit in the bump
   on the inner edge.
 - The **bottom side** carries the 37 MX hot-swap sockets (SK101–SK137) and their 37 diodes
   (D101–D137). Each socket's curved notch wraps the round switch-centre hole.
 - The silkscreen next to the jack reads `DO NOT HOT-PLUG TRRS` and `HOST → LEFT`; next to JP1 it
-  reads `JP1: cut = split power`. The board label reads `worxboard L rev A` or `worxboard R rev A`.
+  reads `JP1: cut = split power`; under the display it reads `OLED VCC-GND: JP2+JP3` / `cut 1-2, solder 2-3`. The board label reads `worxboard L rev A` or `worxboard R rev A`.
 - Every part's position is in [pinout.md](pinout.md#part-positions). The left RP2040 is turned
   180° compared with the right one; that is intended (deviation WS2b-1).
 
 Look for solder bridges on the QFN and the USB-C pins with a loupe. Check that J1's four shell
 legs are soldered: each of the four slots beside the receptacle shows solder round its leg. The
 receptacle's signal pads alone do not hold it against plugging, so solder a bare leg before you go
-on. Check that every socket sits flat and that J3's five pins are soldered on the bottom side.
+on. Check that every socket sits flat and that J3's four pins are soldered on the bottom side.
 
 ## 2. Flash and test the bare boards
 
@@ -140,31 +142,47 @@ Do not run one half bridged and the other cut.
 
 ## 4. Plug in the displays
 
-J3, a 1×5 female socket 5.0 mm tall, is already fitted at the back end of the display area. The
-display module (nice!view or compatible) plugs into it on its own male header and can be pulled out
-again.
+J3, a 1×4 female socket 5.0 mm tall, is already fitted at the back end of the display area. The
+0.91" OLED module plugs into it on its own male header and can be pulled out again. Do steps 1–2
+**before the module is ever powered on the board**: a module with GND and VCC the other way round
+gets reverse power.
 
-1. **Solder the male header to the module**, if it is not on yet: the short pins go up through the
-   module from below, the long pins point down. Do not use the socket that ships with the nice!view
-   (J3 is the same height), and do not add an extra spacer.
-2. **Trim the pins flush on the glass side.** They must not stand above the module's glass
-   (0.9 mm above its PCB): untrimmed pins reach the ceiling of the display pocket in the case
-   (CASE-1).
-3. **Plug the module into J3 LCD up**, so that it lies flat over the inner column, where the top
-   key would be, and reaches toward you. Do this the same way on both halves. J3 pin 1 is MOSI, and
-   pin *n* is the module's pin *n* ([pinout.md](pinout.md#display-header-j3)). Pointing the module
-   the other way would put it off the board.
-4. Plug the board in again. The left display shows ZMK's status screen, upright: USB at the top,
-   the layer at the bottom. The right display shows `worx/board`, the Caps / Num / Scroll
-   indicators and `wired`. A lit indicator shows in upper case in a frame.
+1. **Read your module's pin order** on its silkscreen, by the header: `GND VCC SCL SDA` (the
+   default) or `VCC GND SCL SDA`. Both modules of a pair can differ, so check each one.
+2. **Set JP2 and JP3** under the display area to match. Each has three pads, numbered on the
+   silkscreen; pads 1-2 come bridged by a copper trace.
 
-If both screens read upside down, the panel's pixel origin is at the other end from the one the
+   | Module reads | JP2 (J3 pin 1) | JP3 (J3 pin 2) |
+   |---|---|---|
+   | `GND VCC SCL SDA` | leave as shipped (1-2) | leave as shipped (1-2) |
+   | `VCC GND SCL SDA` | cut 1-2, solder 2-3 | cut 1-2, solder 2-3 |
+
+   Change **both** jumpers or neither. Never leave 1-2 and 2-3 bridged on the same jumper: that
+   shorts 3V3 to GND. After cutting, check with a multimeter that pads 1 and 2 no longer connect,
+   and measure J3 pin 1 and pin 2 to GND before you plug anything in. A module that reads
+   `SDA SCL` before `VCC` or `GND` does not fit this board.
+3. **Solder the male header to the module**, if it is not on yet: the short pins go up through the
+   module from below, the long pins point down. Keep the header square to the board: plug it into
+   J3 first, lay the module on it, and solder one pin, check, then the other three. Do not add a
+   spacer or a second socket.
+4. **Trim the pins flush on the top side.** They must not stand above the module's glass: untrimmed
+   pins reach the ceiling of the display pocket in the case (CASE-1, DISP-1).
+5. **Plug the module into J3 glass up**, so that it lies flat over the inner column, where the top
+   key would be, header at the back and the glass reaching toward you. Do this the same way on both
+   halves. Pin *n* is the module's pin *n* ([pinout.md](pinout.md#display-header-j3)). Pointing the
+   module the other way would put it off the board.
+6. Plug the board in again. Both displays show `worx` at the top. The left one shows the USB state,
+   the layer and the Caps / Num / Scroll locks; the right one shows the locks and `wired`. A lit
+   lock shows in upper case in a frame. The screens go dark when the keyboard is idle, to limit
+   OLED burn-in; any key wakes them.
+
+If both screens read upside down, the panel's pixel origin is in the other corner from the one the
 firmware assumes. Set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in
 `firmware/zmk/config/worxboard.conf` and flash again ([firmware.md](firmware.md#known-issues)).
 
 ## 5. Prepare the case
 
-The case order package is [`case/production/`](../case/production/README.md), case revision A3. It
+The case order package is [`case/production/`](../case/production/README.md), case revision A4. It
 is checked against the PCB STEPs by `just fitcheck`, with 0 mm³ of interference on both halves.
 Before you machine aluminium, 3D-print a test top and check it against your assembled PCB:
 
@@ -238,6 +256,6 @@ on layer 2.
 | Right half dark with one cable | Check JP1 is bridged on **both** halves and F1 has not tripped (unplug for a minute). |
 | One key dead | Re-seat the switch; check the socket's two pads and the diode next to it ([matrix.md](matrix.md#sockets-and-diodes) gives the SK/D references). |
 | A whole row or column dead | See [matrix.md](matrix.md) for the GPIO of that row or column and check that pin on the RP2040. |
-| Display blank | Re-seat the module in J3, LCD up, reaching toward you. Check the header's five joints on the module, and the pin order against [pinout.md](pinout.md#display-header-j3). |
+| Display blank | Unplug at once and check the module's pin order against JP2/JP3 (step 4). Re-seat the module in J3, glass up, reaching toward you. Check the header's four joints on the module. |
 | Display upside down | Set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y`, see [firmware.md](firmware.md#known-issues). |
 | Wrong characters on the right half | The left half needs the **central** firmware, the right half the **peripheral** firmware. |

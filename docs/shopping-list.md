@@ -5,8 +5,8 @@ again on the day you order.
 
 > [!NOTE]
 > The PCBs arrive with every part fitted, the display socket J3 included. The only soldering
-> left is the display's own five header pins, on the display module, not on the PCB. Everything else
-> plugs in or screws on.
+> left is the OLED module's own four header pins (if they ship loose), on the module, not on the PCB,
+> and two solder jumpers per half if your module reads VCC-GND. Everything else plugs in or screws on.
 
 ## The four orders
 
@@ -15,7 +15,7 @@ again on the day you order.
 | PCBs, assembled | [JLCPCB](https://jlcpcb.com) | 2 designs (left, right): 5 PCBs and 2 assembled each, Standard PCBA, both sides | [`pcb/production/`](../pcb/production/), steps in [ordering-jlcpcb.md](ordering-jlcpcb.md) |
 | Machined case | [JLCCNC](https://jlccnc.com) | 2 top shells, 2 bottom trays, 6 tent legs; aluminium 6061-T6, bead blast + anodize | [`case/production/jlccnc/`](../case/production/jlccnc/ORDER_NOTES.md) |
 | Printed case parts | [JLC3DP](https://jlc3dp.com) | 2 plate spacers (MJF PA12), 1 tree of 8 leg foot caps (FDM TPU 95A) | [`case/production/jlc3dp/`](../case/production/jlc3dp/ORDER_NOTES.md) |
-| Everything below | keyboard and hardware shops | switches, keycaps, stabilisers, displays, cables, screws, feet, thumbscrews | this page |
+| Everything below | keyboard and hardware shops, AliExpress | switches, keycaps, stabilisers, displays, cables, screws, feet, thumbscrews | this page |
 
 The case package is case revision **A3**. Its [README](../case/production/README.md) says what it
 expects from the parts it holds. Order the aluminium case only after one assembled PCB has been
@@ -50,16 +50,19 @@ hardware shops.
 
 | Item | Qty | Spec | Where |
 |---|---|---|---|
-| nice!view | **2** | Sharp LS011B7DH03 memory LCD module, 36 × 14 × 2.9 mm, 5 pins in the order MOSI, SCK, VCC, GND, CS. An LS011B7DH03 breakout with the same pin order and size works too | [nicekeyboards.com](https://nicekeyboards.com/nice-view), [Typeractive](https://typeractive.xyz/products/nice-view) and other keyboard shops |
+| 0.91" OLED module, 128 × 32 | **2** | SSD1306, **I2C, 4 pins** (`GND VCC SCL SDA` or `VCC GND SCL SDA`), 38 × 12 mm, white or blue, with a **straight** male header (usually in the bag, loose). Not the SPI version (6–7 pins) and not a 0.96" 128 × 64 | AliExpress and similar shops, about US$1–2 each; search "0.91 inch OLED 128x32 I2C SSD1306" |
 
-- **Header:** the nice!view ships with a 5-pin socket and a male header. J3 on the PCB is the
-  socket, fitted by JLC (C27985230, 5.0 mm, the same height as the nice!view's own). You only need
-  the **male header**. Solder it to the module, long pins down, and trim the pins **flush on the
-  glass side**. Untrimmed, they stand about 2 mm up and hit the display pocket's ceiling. Keep the
-  supplied socket as a spare (see [J3 out of stock](ordering-jlcpcb.md#if-a-part-is-out-of-stock)).
-- **Stack:** the case allows the glass up to 9.75 mm above the PCB, the full tolerance of a 5.0 mm
-  socket with the stock header (8.9 mm nominal; CASE-1). Do not raise the module on an extra spacer.
-- A spare header: the "5-pin sockets" that nice!view shops sell are the same parts.
+- **Pin order:** sellers ship both `GND VCC SCL SDA` and `VCC GND SCL SDA`, sometimes in the same
+  listing. Either works: JP2/JP3 on the PCB pick the order ([build guide](buildguide_en.md#4-plug-in-the-displays)).
+  Read each module's silkscreen before you power it on the board.
+- **Size:** the case is drawn for 38 × 12 mm and a glass top at most 2.7 mm (+0.5) above the module's
+  underside. Listings that give 36 × 12.5 mm (a JST connector instead of pins) or 41 mm (a bare
+  chip-pad version) are other boards and do not fit (gate G1).
+- **Header:** J3 on the PCB is the socket, fitted by JLC (C42163122, 5.0 mm). You only need the
+  module's **male header**: solder it long pins down and trim the short ends **flush on top**.
+  Do not add a socket or a spacer: the case allows the glass up to 11.0 mm above the PCB
+  (10.2 mm nominal; CASE-1, DISP-1).
+- Buy one or two spares: they are cheap, and clones vary.
 
 ### Cables
 
@@ -91,8 +94,8 @@ milled into it.
 
 ### Tools
 
-- A soldering iron, only for the nice!view headers (and to re-bridge JP1 if you ever cut it).
-- Flush cutters, a file or sandpaper for the panel tab nubs, a craft knife if you cut JP1.
+- A soldering iron, only for the OLED headers and JP2/JP3 (and to re-bridge JP1 if you ever cut it).
+- Flush cutters, a file or sandpaper for the panel tab nubs, a craft knife if you cut JP1, JP2 or JP3.
 - A 1.5 mm hex key or a Phillips driver for the M2.5 screws, depending on the screws you buy.
 - A Ø2.5 mm pin (a paper clip) for the BOOT and RESET buttons through the case.
 - A multimeter, calipers. Optionally a key tester, a switch puller and a keycap puller.
@@ -109,7 +112,7 @@ milled into it.
 | MX switches, 3- or 5-pin | 74 |
 | Keycaps: 1u / 1.5u / 2u | 58 / 12 / 4 |
 | 2u plate-mount stabilisers | 4 |
-| nice!view with its header | 2 |
+| 0.91" 128 × 32 I2C OLED with its header | 2 |
 | TRRS cable, 4-pole, straight, slim plug | 1 |
 | USB-C data cable, plug shell ≥ 8 mm (extended tip) | 1–2 |
 | M2.5 × 12 / M2.5 × 10 countersunk screws | 12 / 4 |

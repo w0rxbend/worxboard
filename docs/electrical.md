@@ -15,7 +15,7 @@ tables are generated: [pinout.md](pinout.md) (GPIOs, TRRS, J3, part positions) a
                                          Tip  (TX)  ════  Tip  (RX)
                                          Ring1(RX)  ════  Ring1(TX)
                                          Sleeve GND ════  Sleeve GND
-   37-key 6×7 diode matrix (col2row) · nice!view LCD on PIO1-SPI · BOOT + RESET · SWD pads   (same on both halves)
+   37-key 6×7 diode matrix (col2row) · 0.91" OLED on I2C1 · BOOT + RESET · SWD pads   (same on both halves)
 ```
 
 - **One RP2040 per half**, on the PCB (QFN-56), with the Corne v4.1 support circuit: W25Q128 QSPI
@@ -43,8 +43,8 @@ The same on both halves (deviations WS2a-1, WS2a-2):
 | Decoupling | C5 (flash), C8–C15 (3V3 pins), C16/C17 (DVDD), C18/C19 (VREG_VIN/VOUT) |
 | BOOT and RESET | SW1 (BOOT) with R9 1 kΩ and R8 10k QSPI_SS pull-up; SW2 (RESET) with R10 10k RUN pull-up |
 | TRRS jack, ESD, series resistors, RX pull-up | J2, U5, R11/R12 (1 kΩ), R13 (10k) |
-| Display socket | J3 (1×5 2.54 mm, 5.0 mm THT socket C27985230, fitted by JLC) |
-| Test pads | TP1–TP3 display DC/RST/BL, TP4–TP7 GP22–GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET |
+| Display socket, power jumpers, I2C pull-ups | J3 (1×4 2.54 mm, 5.0 mm THT socket C42163122, fitted by JLC), JP2/JP3 (3-pad solder jumpers), R14/R15 (4.7 kΩ) |
+| Test pads | TP1–TP3 GP4/GP6/GP7 (spare; nets still named DISP_DC/RST/BL), TP4–TP7 GP22–GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET |
 | Key matrix | SK101–SK137 sockets, D101–D137 diodes ([matrix.md](matrix.md#sockets-and-diodes)) |
 | Mounting holes, stabiliser holes | H1–H8, STAB_T4/STAB_T5 |
 
@@ -119,6 +119,7 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
   R4) on D+ and D−. SBU is not connected; the shield goes to GND.
 - U4 (USBLC6-2SC6) is within 5 mm of the receptacle.
 - Full-speed USB (12 Mbps) does not need controlled impedance. The pair runs on the top side with
+  <!-- AS-BUILT: re-measure after routing -->
   0.25 mm tracks, over a B.Cu track keepout so the ground pour under it stays solid. As built
   (`checks.py`, U1 pin to J1 pin): left D+ 24.73 mm / D− 23.92 mm (skew 0.81 mm), right
   23.75 / 23.50 mm (skew 0.25 mm), inside the 25 mm and 1 mm limits. On the left half the keepout
@@ -133,6 +134,7 @@ Cloned from the Corne v4.1 production BOM, with these values:
 - **Crystal** Y1 12 MHz 3225, YXC XL2EL89CRI-111YLC-12M (C49304726): CL 18 pF, ±10 ppm, ESR 80 Ω
   maximum (ELEC-1). It has 2 × 27 pF load capacitors (C6, C7) and R7, 1 kΩ in series on XOUT. The
   firmware waits 64× longer than the Pico SDK default for it to start (WS1-9). Its
+  <!-- AS-BUILT: re-measure after routing -->
   courtyard is within 3 mm of the XIN/XOUT pads (measured by `checks.py`, 2.93 mm on both halves).
   R7 sits beside the crystal, so XOUT runs about 5 mm without a via, and a B.Cu keepout over Y1
   keeps tracks and vias out from under it: both GND pours are solid there (deviation REVIEW-FIX-8).
@@ -159,6 +161,7 @@ Cloned from the Corne v4.1 production BOM, with these values:
   via, `gnd_ties.py` adds four locked 0.5 mm GND ties: two near U4 (the USB ESD clamp), one near
   U2, and one from U2's GND pin 4 to its cap C5. `checks.py` measures the shortest GND copper path
   on both layers, 1.6 mm per via hop, and gates:
+  <!-- AS-BUILT: re-measure after routing -->
   - each cap's GND pad to the EP, at most 20 mm: as built 9.3–13.0 mm on the left and 8.6–13.0 mm
     on the right;
   - the EP to the main B.Cu GND plane, at most 8 mm: 1.6 mm on both halves (all 9 EP vias sit in
@@ -175,18 +178,31 @@ Cloned from the Corne v4.1 production BOM, with these values:
 
 ## Display
 
-- Sharp LS011B7DH03 memory LCD, 160 × 68, on a nice!view-compatible module: 3-wire SPI, 3.3 V,
-  under 10 µA. It replaces the top key of the inner column on both halves.
-- Plugged into J3, a 1×5 female socket 5.0 mm tall (C27985230), fitted by JLC as its only
-  through-hole part. The pin order is MOSI, SCK, VCC, GND, CS: pin *n* is the module's pin *n*.
-  Pin 1 is at high x in each half's frame, so the module lies LCD up with its header at the back
-  on both halves (gate G1, BOARD-1). `netcmp.py --board` fails stages C and D if J3 is turned
-  (ELEC-8). A stock nice!view plugs in on its own header, and its glass ends at most 9.75 mm above
-  the PCB (CASE-1). The firmware lays both screens out portrait (WS1-7).
-- Driven by **PIO1** as an SPI master (`raspberrypi,pico-spi-pio`): clock GP2, data GP3, chip
-  select GP5, **active high**. The RP2040's PL022 hardware SPI cannot send LSB-first, which the
-  memory LCD needs. The ZMK driver is `sharp,ls0xx` at 1 MHz with serial VCOM inversion.
-- GP4, GP6 and GP7 go to test pads TP1–TP3 (DC, RST, BL) for a future TFT.
+- A 0.91" **SSD1306 OLED, 128 × 32**, the common 4-pin I2C module (address 0x3C, 3.3 V, a few mA).
+  It replaces the top key of the inner column on both halves (deviation DISP-1).
+- Plugged into J3, a 1×4 female socket 5.0 mm tall (C42163122), fitted by JLC as its only
+  through-hole part. Pin *n* is the module's pin *n*: 1 GND, 2 VCC, 3 SCL, 4 SDA as shipped. Pin 1
+  is at high x in each half's frame, so the module lies glass up with its header at the back on
+  both halves (gate G1, BOARD-1). `netcmp.py --board` fails stages C and D if J3 is turned (ELEC-8).
+  The module sits on its own 2.5 mm male header, and its glass ends at most 11.0 mm above the PCB
+  (CASE-1, DISP-1). The firmware lays both screens out portrait (WS1-7).
+- **Pin order jumpers.** Sellers ship the module as GND-VCC-SCL-SDA or VCC-GND-SCL-SDA, so J3 pins 1
+  and 2 come from two 3-pad solder jumpers. Pad 2 is the J3 pin; pads 1-2 are bridged in copper:
+
+  | Jumper | J3 pin | Pads 1-2 (shipped) | Pads 2-3 |
+  |---|---|---|---|
+  | JP2 | 1 | GND | 3V3 |
+  | JP3 | 2 | 3V3 | GND |
+
+  For a VCC-GND module, cut **both** 1-2 bridges and solder **both** 2-3 before first power-up.
+  Never bridge both sides of one jumper: that shorts 3V3 to GND. Both sit under the module, in the
+  columns of J3 pins 1 and 2, with `OLED VCC-GND: JP2+JP3 / cut 1-2, solder 2-3` on the silkscreen.
+  `netcmp.py` checks the jumper nets.
+- **I2C1** in hardware: SDA GP2 (`DISP_SDA`), SCL GP3 (`DISP_SCL`), 400 kHz, with R14 / R15
+  (4.7 kΩ, C25900) to 3V3 next to J3. Most modules carry their own pull-ups too; in parallel they
+  stay well inside the I2C limits. The ZMK driver is Zephyr's `solomon,ssd1306fb`.
+- GP5 (the nice!view's old chip select) is now unconnected. GP4, GP6 and GP7 go to test pads
+  TP1–TP3, spare.
 
 ## Key matrix
 

@@ -40,15 +40,15 @@ listed under [future work](#future-work). No row has been removed: all six build
   - `just fw-keymap-check`: 3 layers × 74 bindings, and the base layer equals the `layout.json`
     legends.
   - `just fw-layouts-check`: the generated dtsi is up to date.
-  - `just fw-rotate-check`: a host test of the display's portrait-to-panel pixel map
-    (`firmware/zmk/tests/rotate_test.c`).
+  - `just fw-rotate-check`: a host test of the display's portrait-to-panel pixel map and of the
+    widening of flushed rows to whole SSD1306 pages (`firmware/zmk/tests/rotate_test.c`).
   - `just fw-check-tests`: regression tests of the post-build gate, including both supported display
-    orientations (90° and 270°) and rejection of missing rotation code.
-  - `just fw-check`, on both core rows: exactly one supported display rotation is configured and
-    the rotating flush is linked. On the right peripheral it also checks that the custom screen
-    and its 8 KB LVGL heap are in, that
-    there are no `zmk_ble_` or battery symbols, and that flash use is at most 40 KB above the seed
-    build.
+    orientations (90° and 270°), rejection of missing rotation code or a missing SSD1306 driver,
+    and the custom-screen checks.
+  - `just fw-check`, on both core rows: exactly one supported display rotation is configured, the
+    rotating flush and the SSD1306 driver are linked and the old Sharp `ls0xx` driver is not, the
+    custom screen and its 8 KB LVGL heap are in, and there are no `zmk_ble_` or battery symbols.
+    On the right peripheral it also checks that flash use is at most 40 KB above the seed build.
 
   `just fw` runs all five; CI runs `fw-check` in both core jobs. `just fw-clean` removes `build/fw/`
   and keeps the west workspace.
@@ -103,20 +103,21 @@ physical layout and the keymap order cannot drift. CI regenerates it and fails o
 
 | File | Purpose |
 |---|---|
-| `worxboard.dtsi` | Shared hardware: the `col2row` kscan matrix (rows GP8–GP13 with pull-downs, columns GP14–GP20), UART0 at 115 200 baud with `zmk,wired-split`, the display on PIO1 SPI, USB, flash partitions, and `&xosc` `startup-delay-multiplier = <64>` (about 64 ms) for the rev A crystal (deviation WS1-9) |
+| `worxboard.dtsi` | Shared hardware: the `col2row` kscan matrix (rows GP8–GP13 with pull-downs, columns GP14–GP20), UART0 at 115 200 baud with `zmk,wired-split`, the SSD1306 OLED on I2C1 (GP2 SDA, GP3 SCL, 400 kHz), USB, flash partitions, and `&xosc` `startup-delay-multiplier = <64>` (about 64 ms) for the rev A crystal (deviation WS1-9) |
 | `worxboard-layouts.dtsi` | **Generated**: the 6×14 transform and the physical layout |
 | `worxboard_left_rp2040_zmk.dts` | Left half: the shared definition as is |
 | `worxboard_right_rp2040_zmk.dts` | Right half: `col-gpios` reversed (GP20…GP14) and `col-offset = <7>`, so both PCBs share one matrix netlist |
-| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, LVGL/ls0xx defaults, HID indicators forwarded on both halves (deviation WS1-4), the custom status screen on the right with an 8192 B LVGL heap (`LV_Z_MEM_POOL_SIZE`; the left built-in screen keeps ZMK's 4096 B; WS1-8) |
+| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, I2C, SSD1306 and 1-bit LVGL defaults (full-screen draw buffer), HID indicators forwarded on both halves (deviation WS1-4), the custom status screen on both halves with an 8192 B LVGL heap (`LV_Z_MEM_POOL_SIZE`; WS1-8) |
 | `*_defconfig` | RP2040 SoC, USB on the left only (`CONFIG_ZMK_USB` is not set on the right) |
 | `worxboard.zmk.yml` | ZMK metadata: features keys, display and studio |
 
 The module root is [`zephyr/module.yml`](../zephyr/module.yml): it points cmake, Kconfig and
 `board_root` at `firmware/zmk`. Its [`Kconfig`](../firmware/zmk/Kconfig) adds:
 
-- `WORXBOARD_STATUS_SCREEN`, on when the custom screen is chosen on a right board;
+- `WORXBOARD_STATUS_SCREEN`, on when the custom screen is chosen on any worxboard board (it is the
+  default on both halves);
 - the choice `WORXBOARD_DISPLAY_ROTATION`: `_90` (the default, the rev A mounting) or `_270`
-  (a 180° flip, the stock nice!view orientation).
+  (a 180° flip, should the module's pixel origin be at the other end).
 
 Its `CMakeLists.txt` compiles `src/worx_status_screen.c` and `src/worx_display_rotation.c` when
 those are on. `worxboard2/` is the experimental
@@ -124,44 +125,56 @@ RP2350A copy and includes the same generated layouts file.
 
 ## Displays
 
-Both halves drive a Sharp LS011B7DH03 memory LCD (nice!view-compatible, 160 × 68) with the ZMK
-`sharp,ls0xx` driver over a PIO SPI master (`raspberrypi,pico-spi-pio`; the RP2040 PL022 SPI cannot
-send LSB-first). The stock `nice_view` shield is not used, because it does not build on RP2040.
-The display is write-only, but the PIO driver still muxes a MISO pin in 4-wire mode, and without
-`miso-gpios` it picks GP0, the split UART's TX. The node therefore names MOSI (GP3) as its MISO, as
-ZMK's own pico-spi-pio examples do (deviation REVIEW-FIX-1).
+Both halves drive a 0.91" **SSD1306 OLED, 128 × 32**, the common 4-pin I2C module (address
+0x3C), with Zephyr's `solomon,ssd1306fb` driver on the RP2040's hardware **I2C1**: GP2 = SDA,
+GP3 = SCL, 400 kHz. The PCB pulls both lines up to 3V3 with 4.7 kΩ (R14, R15); the pins'
+internal pull-ups are on as well, as a backup. The node uses the usual ZMK 128 × 32 settings
+(`corne.dtsi`: segment remap, reversed COM scan, sequential COM pins, pre-charge 0x22) and
+`inversion-on`, so the screen shows lit text on black. ZMK blanks the OLED when the keyboard is
+idle (`ZMK_DISPLAY_BLANK_ON_IDLE`, ZMK's default with the SSD1306), which limits burn-in.
 
-The module stands in J3 LCD up, its header at the back of the board, the same way on both halves
-(BOARD-1). LVGL therefore lays out a **68 × 160 portrait** screen, and
-`src/worx_display_rotation.c` turns it onto the 160 × 68 panel with `LV_DISPLAY_ROTATION_90`:
-portrait (u, v) goes to panel (v, 67 − u). Zephyr's LVGL glue cannot rotate, so after `lvgl_init()`
-(SYS_INIT 91 > 90) it replaces the mono flush and rounder: each area is turned into a panel-ordered
-shadow, and the lines it touches go, full width, through Zephyr's own `lvgl_flush_cb_mono()` to the
-ls0xx driver. The pixel map is `src/worx_rotate.h` (deviation WS1-7).
+The module stands in J3 glass up, its header at the back of the board, the same way on both
+halves (BOARD-1). LVGL therefore lays out a **32 × 128 portrait** screen, and
+`src/worx_display_rotation.c` turns it onto the 128 × 32 panel with `LV_DISPLAY_ROTATION_90`:
+portrait (u, v) goes to panel (v, 31 − u). Zephyr's LVGL glue cannot rotate, so after
+`lvgl_init()` (SYS_INIT 91 > 90) it replaces the mono flush and rounder: each area is turned into a
+panel-ordered shadow, and the panel rows it touches, widened to whole 8-row SSD1306 pages (the
+driver writes from a page boundary only), go full width through Zephyr's own
+`lvgl_flush_cb_mono()`, which converts them to the SSD1306's vertical-tiled format. This needs the
+whole screen in one draw buffer (`LV_Z_VDB_SIZE` 100, a build assert). The pixel map and the page
+widening are `src/worx_rotate.h` (deviation WS1-7).
 
-- **Left**: the ZMK built-in status screen, portrait: USB at the top, the active layer at the bottom.
-- **Right**: a custom LVGL screen (`firmware/zmk/src/worx_status_screen.c`), portrait:
-  - `worx/board`;
-  - a column of the Caps / Num / Scroll lock indicators, a lit one shown in upper case in a 2 px
-    frame (forwarded from the central; HID indicators are on for both halves, deviation WS1-4);
-  - a static `wired` label.
+ZMK's built-in status screen is laid out for a landscape 128 × 32 panel and does not fit 32 px
+wide (its layer label alone is about 55 px), so **both halves use the custom screen**
+(`firmware/zmk/src/worx_status_screen.c`). What it shows follows the split role, so the
+role-swap builds show the right screen too:
 
-  It sets its own opaque paper and ink, like the left's mono theme, and runs on an 8 KB LVGL heap
-  (WS1-8). It uses no Bluetooth or battery symbols (`just fw-check` checks the link map).
+- **Central** (the left half in the core build): `worx`, the USB state (the USB symbol; with an ×
+  until the host has set up HID), the active layer's name (Base, Sym, Media; a layer without a
+  name shows `L<n>`), and the Caps / Num / Scroll lock column.
+- **Peripheral** (the right half): `worx`, the lock column (forwarded from the central; HID
+  indicators are on for both halves, deviation WS1-4) and a static `wired` label.
+
+A lit lock shows in upper case in a 1 px frame (`CAP`), an off one in lower case (`cap`). Text is
+Montserrat 12 (logo, USB) and 10 (layer, locks, `wired`). The screen sets its own opaque paper and
+ink, as ZMK's mono theme does, and runs on an 8 KB LVGL heap (WS1-8). It uses no Bluetooth or
+battery symbols (`just fw-check` checks the link map).
 
 ## Known issues
 
 - **Nothing has run on hardware yet**: the displays, the wired split, the forwarded lock indicators
   and the `*_EXPERIMENTAL` role-swap pair are untested.
-- **Display orientation is not checked on hardware.** Which panel end is pixel x = 0 comes from
-  ZMK's nice_view widgets and the vendor's product images; no Sharp LS011B7DH03 datasheet was found.
-  If the first board shows both screens upside down, set
+- **Display orientation is not checked on hardware.** That panel pixel (0, 0) is the top-left
+  corner of the module seen glass up with its header on the left, under the usual ZMK settings, is
+  an assumption: no drawing of the sellers' modules gives it, and clones differ. If the first board
+  shows both screens upside down, set
   `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in `firmware/zmk/config/worxboard.conf` (the
   `worxboard2` rows would need it in their defconfigs).
-- **LVGL heap on hardware.** Measured on a 64-bit host, the right screen peaks at about 5.2 KB of
-  its 8 KB heap. The left built-in screen peaks at about 4.7 KB against ZMK's 4 KB default: the
-  default every nice!view built-in screen runs with in ZMK. Pointers are half that size on the
-  32-bit RP2040, so both should need less there, but nobody has measured it.
+- **The module's pin order is not checked.** The PCB expects GND, VCC, SCL, SDA from J3 pin 1,
+  with jumpers JP2/JP3 for modules that have VCC and GND the other way round. A module with SCL
+  and SDA swapped would need a bit-banged I2C node; none is provided.
+- **LVGL heap on hardware.** The 8 KB heap was sized for the earlier, larger 68 × 160 screen; the
+  32 × 128 screen has fewer and smaller objects. Nobody has measured it on the RP2040.
 - **worxboard2 (RP2350A)**: Zephyr forces `FLASH_PAGE_LAYOUT`, `NVS` and `FLASH_MAP` off for this
   target at the pinned revision, so keymap edits from ZMK Studio would not persist there. The seed
   build had the same warnings; the target is experimental and has no hardware.
@@ -174,5 +187,5 @@ ls0xx driver. The pixel map is `src/worx_rotate.h` (deviation WS1-7).
 
 - RP2350A hardware (rev B, needs the A4 stepping).
 - TRRS detect on GP21 (`detect-gpios`), and runtime role swap.
-- RGB on GP22, encoders, a TFT display on TP1–TP3.
+- RGB on GP22, encoders.
 - No `build.yaml` row has been removed so far; any row that stops building is listed here.

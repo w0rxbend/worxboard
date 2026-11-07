@@ -3,13 +3,14 @@
 
     uv run --group case python pcb/lib/gen_models.py
 
-  pcb/lib/worxboard.3dshapes/PinSocket_1x05_P2.54mm_Vertical_H5.0mm.step
-      J3, Hong Cheng HC-PM254-5.0H-1x5PZ (LCSC C27985230): 1x5 2.54 mm female socket, 5.0 mm tall.
+  pcb/lib/worxboard.3dshapes/PinSocket_1x04_P2.54mm_Vertical_H5.0mm.step
+      J3, Hong Cheng HC-PM254-5.0H-1x4PZ-02A (LCSC C42163122): 1x4 2.54 mm female socket, 5.0 mm tall.
       KiCad's library only has the 8.5 mm socket, which would put a wrong body into the board STEP
       that the case fit check reads (docs/deviations.md ELEC-3).
 
-Dimensions from the C27985230 drawing (Hong Cheng, rev A), taken at their upper tolerance because
-the model feeds a clearance check: body (B + 0.4) +-0.3 = 13.1 +-0.3 long for B = 12.70, 2.4 +-0.15
+Dimensions from the C42163122 drawing (Hong Cheng, rev A; the same series drawing as rev A's 1x5
+C27985230), taken at their upper tolerance because the model feeds a clearance check: body
+(B + 0.4) +-0.3 = 10.56 +-0.3 long for B = 10.16, 2.4 +-0.15
 wide, H = 5.0 +-0.15 tall; contacts 0.64 x 0.4 with a 3.0 +-0.2 mm tail. KiCad model frame: origin at
 pin 1 on the PCB top, pins along -y (the footprint's +y), z up. The STEP header carries no date and
 the model no colours (OCCT writes colour styles in hash order), so a re-run writes the same file.
@@ -25,7 +26,8 @@ from build123d import Align, Box, Compound, Location, Pos, export_step
 OUT = Path(__file__).resolve().parent / "worxboard.3dshapes"
 
 PITCH = 2.54
-PINS = 5
+PINS = 4
+NAME = f"PinSocket_1x{PINS:02d}_P2.54mm_Vertical_H5.0mm"
 BODY = (2.4 + 0.15, (PINS - 1) * PITCH + 2.54 + 0.4 + 0.3, 5.0 + 0.15)   # x, y, z (upper tolerance)
 CONTACT = (0.64, 0.4)
 TAIL = 3.0 + 0.2
@@ -33,7 +35,7 @@ ENTRY = (1.0, 1.0, 1.0)            # square contact entry at the top face (looks
 
 
 def pin_socket_h5() -> Compound:
-    name = "PinSocket_1x05_P2.54mm_Vertical_H5.0mm"
+    name = NAME
     yc = -(PINS - 1) * PITCH / 2
     body = Pos(0, yc, 0) * Box(*BODY, align=(Align.CENTER, Align.CENTER, Align.MIN))
     for i in range(PINS):
@@ -57,7 +59,7 @@ def write_step(shape: Compound, path: Path) -> None:
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
-    path = OUT / "PinSocket_1x05_P2.54mm_Vertical_H5.0mm.step"
+    path = OUT / f"{NAME}.step"
     write_step(pin_socket_h5(), path)
     print(f"wrote {path.relative_to(OUT.parent.parent.parent)}")
     return 0

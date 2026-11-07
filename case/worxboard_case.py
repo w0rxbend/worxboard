@@ -50,8 +50,8 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Case design revision, printed on the drawings and in the STEP headers of the order package
 # (case/production). Bump it with any change to the ordered geometry.
-CASE_REVISION = "A3"
-CASE_REVISION_DATE = "2026-11-04"
+CASE_REVISION = "A4"
+CASE_REVISION_DATE = "2026-11-07"
 
 # Vertical stack, Z = 0 at the bottom face of the case
 FLOOR_T = 3.0            # bottom tray floor thickness
@@ -205,15 +205,16 @@ LEGS = (("outer", (2, 3), (130.0, LEG_MAIN_Y), (1.0, 0.0)),
         ("inner", (12, 13), (130.0, LEG_MAIN_Y), (-1.0, 0.0)),
         ("thumb", (7, 8), thumb_pt(0, LEG_THUMB_V), (-THUMB_U[0], -THUMB_U[1])))
 
-# Display (spec §4, §10.4; gate G1; deviations ELEC-3, CASE-1). J3 is a 5.0 mm socket (C27985230) and a
-# stock nice!view sits on its own male header, so the glass top is 8.9 mm above the PCB top nominally and
-# 9.75 mm at full tolerance: above Z_TOP. The pocket over the module + 0.5 rises over that stack, under
-# a raised bezel around the viewing window.
-DISPLAY_STACK_MAX = 9.75     # glass top above the PCB top, full tolerance (ELEC-3)
+# Display (spec §4, §10.4; gate G1; deviations ELEC-3, CASE-1, DISP-1). J3 is a 5.0 mm socket (C42163122)
+# and the 0.91" OLED sits on its own 2.5 mm male header, so the glass top is 10.2 mm above the PCB top
+# nominally (5.0 + 2.5 + 2.7 mm of module) and 11.0 mm with the socket and header at their upper
+# tolerances and 0.5 mm for sellers' thicker modules: above Z_TOP. The pocket over the module + 0.5
+# rises over that stack, under a raised bezel around the viewing window.
+DISPLAY_STACK_MAX = 11.0     # glass top above the PCB top, full tolerance (DISP-1)
 DISPLAY_GLASS_CLEAR = 0.25   # pocket ceiling above the highest glass top
-Z_DISPLAY_TOP = round(Z_PCB_TOP + DISPLAY_STACK_MAX + DISPLAY_GLASS_CLEAR, 3)   # 18.6
+Z_DISPLAY_TOP = round(Z_PCB_TOP + DISPLAY_STACK_MAX + DISPLAY_GLASS_CLEAR, 3)   # 19.85
 BEZEL_SKIN = 1.0             # skin over the pocket, through which the window opens
-Z_BEZEL_TOP = round(Z_DISPLAY_TOP + BEZEL_SKIN, 3)                             # 19.6: 2.0 proud of Z_TOP
+Z_BEZEL_TOP = round(Z_DISPLAY_TOP + BEZEL_SKIN, 3)                             # 20.85: 3.25 proud of Z_TOP
 BEZEL_WALL = 2.0             # bezel wall around the pocket where the key well leaves room
 BEZEL_R = 2.0                # plan radius of the bezel's free corners
 BEZEL_CHAMFER = 0.5          # 45 deg chamfer on the bezel's top edges
@@ -1145,7 +1146,7 @@ def pcb_check(side: str):
 
 
 def display_check(side: str, top: Solid | None = None):
-    """The window and module lie inside the pocket, the pocket ceiling clears the J3 + nice!view stack
+    """The window and module lie inside the pocket, the pocket ceiling clears the J3 + OLED stack
     under BEZEL_SKIN of bezel, the bezel covers the pocket up to the key well without running over it
     or the top-edge fillet, and (on the built part) the window and pocket are open up to the ceiling
     with bezel skin around the window (CASE-1)."""
@@ -1157,7 +1158,7 @@ def display_check(side: str, top: Solid | None = None):
     if not pocket.buffer(1e-6).contains(module):
         sys.exit(f"{side} display module is not inside the pocket")
     if Z_DISPLAY_TOP - Z_PCB_TOP < DISPLAY_STACK_MAX + DISPLAY_GLASS_CLEAR - 1e-9:
-        sys.exit(f"{side} display pocket ceiling is below the J3 + nice!view stack")
+        sys.exit(f"{side} display pocket ceiling is below the J3 + OLED stack")
     if Z_BEZEL_TOP - Z_DISPLAY_TOP < BEZEL_SKIN - 1e-9 or Z_BEZEL_TOP < Z_TOP:
         sys.exit(f"{side} display bezel leaves less than {BEZEL_SKIN} mm of skin")
     if _area(pocket.difference(bezel).difference(well)) > 1e-3:

@@ -225,7 +225,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "| Confirm parts placement | **Yes** |",
         "| Depanel / remove edge rails | No (break the tabs yourself, see below) |",
         "",
-        "J3 (display socket, C27985230) is a through-hole part: JLC solders it by hand, so the quote carries a",
+        "J3 (display socket, C42163122) is a through-hole part: JLC solders it by hand, so the quote carries a",
         "small THT fee. Every other part is SMT. J1's four shell legs go through plated slots, but the paste",
         "layer opens them (pin-in-paste), so they reflow with J1's pins; the remark asks for them as well.",
         "Nothing is left for you to solder on the board.",
@@ -259,7 +259,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "- **J1** (USB-C): the two plastic pegs in the two small holes, the four shell legs in their slots,",
         "  the mouth over the back edge.",
         "- **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.",
-        "- **J3**: on its five holes.",
+        "- **J3**: on its four holes.",
         "",
     ] + turned_check(facts) + [
         "",

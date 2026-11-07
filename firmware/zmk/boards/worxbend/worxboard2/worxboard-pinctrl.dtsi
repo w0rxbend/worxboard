@@ -13,10 +13,14 @@
         };
     };
 
-    /* nice!view (Sharp LS011B7DH03) on PIO1-SPI: GP2 = SCK, GP3 = MOSI (CS = GP5 as GPIO) */
-    pio1_spi_default: pio1_spi_default {
+    /* SSD1306 OLED on I2C1: GP2 = SDA, GP3 = SCL. R14/R15 (4.7k) pull up on the PCB; the
+     * internal pull-ups are a backup only. */
+    i2c1_default: i2c1_default {
         group1 {
-            pinmux = <PIO1_P2>, <PIO1_P3>;
+            pinmux = <I2C1_SDA_P2>, <I2C1_SCL_P3>;
+            input-enable;
+            input-schmitt-enable;
+            bias-pull-up;
         };
     };
 };

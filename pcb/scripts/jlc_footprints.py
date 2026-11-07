@@ -42,7 +42,7 @@ LCSC_API = "https://wmsc.lcsc.com/ftps/wm/product/detail?productCode={}"
 UA = {"User-Agent": "Mozilla/5.0 (worxboard jlc_footprints.py)"}
 OUT = HERE / "jlc_footprints.json"
 # Fallbacks named in design.py / docs (socket, crystal, display socket): checked so a swap stays safe
-FALLBACKS = ["C49352235", "C9002", "C46061764"]
+FALLBACKS = ["C49352235", "C9002", "C55218874"]
 LAYER = {"1": "top", "2": "bottom", "11": "multi"}
 ARC_STEP = math.radians(10)
 

@@ -160,20 +160,21 @@ def test_window_clear_of_key_well():
 
 def test_display_geometry_right():
     d = L.display("right")
-    assert d["module"] == pytest.approx((65.39, 38.625, 79.39, 74.625), abs=1e-3)
-    assert d["pocket"] == pytest.approx((64.89, 38.125, 79.89, 75.125), abs=1e-3)
-    assert d["header"] == pytest.approx((72.39, 39.925))      # module edge + 1.3 (gate G1)
-    assert len(d["header_pins"]) == len(HEADER_PIN_ORDER) == 5
+    assert d["module"] == pytest.approx((66.39, 36.625, 78.39, 74.625), abs=1e-3)
+    assert d["pocket"] == pytest.approx((65.89, 36.125, 78.89, 75.125), abs=1e-3)
+    assert d["header"] == pytest.approx((72.39, 37.925))      # module edge + 1.3 (gate G1)
+    assert len(d["header_pins"]) == len(HEADER_PIN_ORDER) == 4
+    assert d["window"] == pytest.approx((68.39, 42.625, 76.39, 70.625), abs=1e-3)
 
 
 def test_header_pin1_not_mirrored():
-    """The module is one physical part, LCD up with its header at the back: pin 1 (MOSI) is at high x
-    on both halves (gate G1)."""
+    """The module is one physical part, glass up with its header at the back: pin 1 (GND by default) is
+    at high x on both halves (gate G1)."""
     for s in L.SIDES:
         xs = [p[0] for p in L.display(s)["header_pins"]]
         assert xs == sorted(xs, reverse=True)
-    assert L.display("right")["header_pins"][0] == pytest.approx((77.47, 39.925))
-    assert L.display("left")["header_pins"][0] == pytest.approx((192.69, 39.925))
+    assert L.display("right")["header_pins"][0] == pytest.approx((76.2, 37.925))
+    assert L.display("left")["header_pins"][0] == pytest.approx((191.42, 37.925))
 
 
 def test_holes_equal_spec():

@@ -105,42 +105,31 @@ def test_firmware_pins_match_pins_py(side, reader, name):
     assert fw.uart == {"TX": pins.UART_TX, "RX": pins.UART_RX}
     assert fw.uart == {"TX": pins.gpio("UART_TX"), "RX": pins.gpio("UART_RX")}
     assert fw.uart_input == {pins.UART_RX}
-    spi = {k: g.pin for k, g in fw.spi.items() if k != "miso"}
-    assert spi == {"clk": pins.DISP_SCK, "mosi": pins.DISP_MOSI, "cs": pins.DISP_CS}
-    assert spi == {"clk": pins.gpio("DISP_SCK"), "mosi": pins.gpio("DISP_MOSI"), "cs": pins.gpio("DISP_CS")}
-    assert fw.spi["cs"].flags & fwdt.ACTIVE_LOW == 0, "the LS011B7DH03 chip select is active high"
-    assert fw.pio1 == {pins.DISP_SCK, pins.DISP_MOSI}
+    check_i2c_pins(fw)
 
 
-def check_pio_spi_pins(fw: fwdt.FwPins) -> None:
-    """The PIO SPI muxes clk, mosi and miso to PIO1 on its first transfer, after the UART and kscan
-    have claimed theirs: none of them may be a UART, row or column pin. miso is never driven, so it
-    must reuse MOSI (as ZMK's pico-spi-pio examples do) or be a spare pin with no net."""
+def check_i2c_pins(fw: fwdt.FwPins) -> None:
+    """The OLED's I2C1 is on the PCB's DISP_SDA / DISP_SCL GPIOs, both inputs too (open drain), clear of
+    the UART and the matrix, and the display node is the 128 x 32 SSD1306 at the module's address."""
     taken = {pins.UART_TX: "UART_TX", pins.UART_RX: "UART_RX"} | \
         {g: f"ROW{i}" for i, g in enumerate(pins.ROW_GPIOS)} | {g: f"COL{i}" for i, g in enumerate(pins.COL_GPIOS)}
-    for role in ("clk", "mosi", "miso"):
-        pin = fw.spi[role].pin
-        assert pin not in taken, f"PIO SPI {role} on GP{pin} takes {taken[pin]} away"
-    spare = {int(p.name[4:].split("/")[0]) for p in pins.PINS if p.net is None}
-    assert fw.spi["miso"].pin in {fw.spi["mosi"].pin} | spare
+    for role, pin in fw.i2c.items():
+        assert pin not in taken, f"I2C1 {role} on GP{pin} takes {taken[pin]} away"
+    assert fw.i2c == {"SDA": pins.DISP_SDA, "SCL": pins.DISP_SCL}
+    assert fw.i2c == {"SDA": pins.gpio("DISP_SDA"), "SCL": pins.gpio("DISP_SCL")}
+    assert fw.i2c_input == {pins.DISP_SDA, pins.DISP_SCL}
+    assert fw.oled == {"compatible": "solomon,ssd1306fb", "reg": pins.DISP_I2C_ADDR, "width": 128, "height": 32}
 
 
-@pytest.mark.parametrize("side, reader, name", fw_variants())
-def test_display_spi_keeps_off_uart_and_matrix(side, reader, name):
-    check_pio_spi_pins(load_fw(reader, name, side))
-
-
-@pytest.mark.parametrize("miso", [None, pins.UART_RX, pins.ROW_GPIOS[0], pins.COL_GPIOS[-1], pins.DISP_CS])
-def test_display_spi_check_rejects(miso):
-    """No miso-gpios (the driver then takes GP0, UART TX) or a miso on a used pin must fail."""
-    fw = source_fw(CORE, "left")
-    spi = {k: v for k, v in fw.spi.items() if k != "miso"}
+@pytest.mark.parametrize("pinmux", ["I2C1_SDA_P10, I2C1_SCL_P3", "I2C1_SDA_P2, I2C1_SCL_P11",
+                                    "I2C1_SDA_P6, I2C1_SCL_P7"])
+def test_display_i2c_check_rejects(pinmux):
+    """I2C1 moved to a matrix row or to another valid I2C1 pin pair must fail."""
     text = fwdt.COMMENT.sub("", fwdt._flatten(next((BOARDS / CORE).glob("worxboard_left_*.dts"))))
-    text = re.sub(r"miso-gpios\s*=[^;]*;", "" if miso is None else f"miso-gpios = <&gpio0 {miso} 0>;", text)
-    bad = fwdt.parse(text)
-    assert {k: v for k, v in bad.spi.items() if k != "miso"} == spi
+    bad_text = text.replace("<I2C1_SDA_P2>, <I2C1_SCL_P3>", "<" + pinmux.replace(", ", ">, <") + ">")
+    assert bad_text != text
     with pytest.raises(AssertionError):
-        check_pio_spi_pins(bad)
+        check_i2c_pins(fwdt.parse(bad_text))
 
 
 @pytest.mark.parametrize("side, reader, name", fw_variants())
@@ -245,16 +234,18 @@ def test_trrs_link_crosses_tx_and_rx(kind):
 
 
 @pytest.mark.parametrize("kind, side", pcb_sources())
-def test_display_header_matches_firmware_spi(kind, side):
+def test_display_header_matches_firmware_i2c(kind, side):
+    """J3's bus pins reach the firmware's I2C1 GPIOs; its power pins reach GND / 3V3 through the jumper
+    bridge they ship with (JP2 / JP3 pads 1-2, docs/deviations.md DISP-1)."""
     pcb, fw = load_pcb(kind, side), source_fw(CORE, side)
     header = pcb.parts["J3"].pads
-    want = {"MOSI": fw.spi["mosi"].pin, "SCK": fw.spi["clk"].pin, "CS": fw.spi["cs"].pin}
     for n, name in enumerate(LAYOUT["display_part"]["header_pin_order"], start=1):
         net = header[str(n)]
-        if name in want:
-            assert pcb.gpio(net) == want[name], f"J3 pin {n} ({name}) on {net}"
-        else:
-            assert net == {"VCC": "3V3", "GND": "GND"}[name], f"J3 pin {n} ({name}) on {net}"
+        if name in fw.i2c:
+            assert pcb.gpio(net) == fw.i2c[name], f"J3 pin {n} ({name}) on {net}"
+            continue
+        (jp,) = [p for ref, p in pcb.parts.items() if ref.startswith("JP") and p.pads.get("2") == net]
+        assert jp.pads["1"] == {"VCC": "3V3", "GND": "GND"}[name], f"J3 pin {n} ({name}) on {jp.pads['1']}"
 
 
 # ---- the checks catch the mistakes they exist for ---------------------------------------------------

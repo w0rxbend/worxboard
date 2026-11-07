@@ -25,11 +25,20 @@ config RP2_FLASH_W25Q080
 
 if ZMK_DISPLAY
 
+# SSD1306 OLED on I2C1 (worxboard.dtsi)
+config I2C
+    default y
+
+config SSD1306
+    default y
+
+# The whole 128 x 32 screen in one draw buffer: src/worx_display_rotation.c stages full-width
+# panel bands, and Zephyr's mono conversion buffer is only that large at 100 %
 config LV_Z_VDB_SIZE
     default 100
 
 config LV_DPI_DEF
-    default 161
+    default 148
 
 config LV_Z_BITS_PER_PIXEL
     default 1
@@ -38,25 +47,26 @@ choice LV_COLOR_DEPTH
     default LV_COLOR_DEPTH_1
 endchoice
 
-config LS0XX_VCOM_THREAD_PRIO
-    default 11
-
 choice ZMK_DISPLAY_WORK_QUEUE
     default ZMK_DISPLAY_WORK_QUEUE_DEDICATED
 endchoice
 
-config ZMK_DISPLAY_BLANK_ON_IDLE
-    default n
+# Both halves use the custom portrait screen (src/worx_status_screen.c): ZMK's built-in screen
+# is laid out for a 128 x 32 landscape panel and does not fit 32 px wide. ZMK_DISPLAY_BLANK_ON_IDLE
+# keeps ZMK's SSD1306 default (on): an always-lit OLED burns in.
+choice ZMK_DISPLAY_STATUS_SCREEN
+    default ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+endchoice
 
-# The custom right screen's LVGL heap, as ZMK's nice_view shield sets it: Zephyr's default
-# (2048 B) is less than LVGL 9 needs for the display and the screen. The built-in screen keeps
-# ZMK's own 4096 B, which is defined first and so wins.
+# The custom screen's LVGL heap, as ZMK's nice_view shield sets it: Zephyr's default (2048 B) is
+# less than LVGL 9 needs for the display and the screen
 config LV_Z_MEM_POOL_SIZE
     default 8192 if ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
 
 endif # ZMK_DISPLAY
 
-# Caps/Num/Scroll lock state is forwarded over the wired split to the right screen (§11.6)
+# Caps/Num/Scroll lock state is shown on both screens; the central forwards it to the
+# peripheral over the wired split (§11.6)
 config ZMK_HID_INDICATORS
     default y
 
@@ -64,12 +74,3 @@ config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
     default y
 
 endif # BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT
-
-if BOARD_WORXBOARD_RIGHT
-
-# Right half: custom LVGL screen (firmware/zmk/src/worx_status_screen.c)
-choice ZMK_DISPLAY_STATUS_SCREEN
-    default ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
-endchoice
-
-endif # BOARD_WORXBOARD_RIGHT

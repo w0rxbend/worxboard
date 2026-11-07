@@ -5,4 +5,4 @@
 "^Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12$",".*",0,-1.394,0
 "^Connector_Audio:Jack_3\.5mm_PJ320D_Horizontal$",".*",0.776,0,90
 "^worxboard:SW_MX_Hotswap_Kailh$",".*",0.635,3.81,180
-"^worxboard:PinSocket_1x05_P2\.54mm_Vertical_H5\.0mm$",".*",0,5.08,270
+"^worxboard:PinSocket_1x04_P2\.54mm_Vertical_H5\.0mm$",".*",0,3.81,270

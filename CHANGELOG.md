@@ -67,6 +67,20 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
 
 ### Changed
 
+- **Display: the nice!view is replaced by a 0.91" 128 × 32 SSD1306 I2C OLED** (the cheap AliExpress
+  module), on both halves, in the same slot (DISP-1):
+  - PCB: J3 is a 1×4 5.0 mm THT socket (C42163122; the 1×5 C27985230 is retired). GP2 / GP3 are
+    I2C1 SDA / SCL with 4.7 kΩ pull-ups R14 / R15 (C25900); GP5 is spare. Solder jumpers JP2 / JP3
+    set J3 pins 1 / 2 to GND / 3V3 as shipped and swap them for VCC-GND modules. `netcmp.py` checks
+    the OLED wiring; `route_critical.py` skips U1 pins with no net. Both boards re-placed and
+    re-routed.
+  - Layout: the module is 12 × 38 mm (2 mm longer, toward the back edge), the window 8 × 28 mm.
+  - Case: the pocket rises to Z 19.85 and the bezel to Z 20.85 (3.25 mm proud, was 2.0) over the
+    taller stack: 5.0 mm socket + 2.5 mm header + 2.7 mm module.
+  - Firmware: Zephyr's SSD1306 driver on hardware I2C1 (the PIO SPI is gone). Both halves run the
+    custom portrait screen, chosen by split role; the OLED blanks on idle.
+  - Tests: G1 checks the OLED pinout, the jumpers, the pocket and that the window shows the active
+    area within the sellers' tolerances.
 - `.gitignore` no longer ignores `/zephyr/` (the ZMK module lives at `zephyr/module.yml`). It now
   ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags. The
   two order packages are force-added on `main` (PKG-4).
@@ -158,6 +172,10 @@ Order review of the turnkey packages (deviations ORDER-1 to ORDER-9):
 
 ### Known issues
 
+- The OLED module's dimensions, header position, pin order, orientation and colours come from
+  sellers' listings, not a datasheet: check the first module before power-up (G1, DISP-1).
+- JLC's library record for the TRRS jack C95562 changed (renumbered pads, new body); the committed
+  `jlc_footprints.json` keeps the old record. Re-check it before ordering (DISP-1).
 - Not built or tested on hardware: the displays (including their orientation), the wired split,
   the forwarded lock indicators and the crystal start-up
   ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)).

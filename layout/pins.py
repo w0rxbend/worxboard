@@ -22,19 +22,20 @@ COL_GPIOS = tuple(range(14, 21))         # COL0 (outer)..COL6 (inner), outputs
 RIGHT_COL_GPIOS = COL_GPIOS[::-1]        # right .dts lists GP20..GP14 (col-offset 7)
 UART_TX, UART_RX = 0, 1
 UART_BAUD = 115200
-DISP_SCK, DISP_MOSI, DISP_CS = 2, 3, 5   # PIO1 SPI; CS is active high
+DISP_SDA, DISP_SCL = 2, 3               # I2C1 (the RP2040 mux: GP2 = I2C1 SDA, GP3 = I2C1 SCL)
+DISP_I2C_ADDR = 0x3C                     # SSD1306 7-bit address
 
 _COL_QFN = (17, 18, 27, 28, 29, 30, 31)
 
 PINS: list[Pin] = [
     Pin("GPIO0", 2, "UART_TX", "UART0 TX -> 1k -> jack"),
     Pin("GPIO1", 3, "UART_RX", "UART0 RX <- 1k <- jack; 10k pull-up to 3V3"),
-    Pin("GPIO2", 4, "DISP_SCK", "PIO1 SPI clock"),
-    Pin("GPIO3", 5, "DISP_MOSI", "PIO1 SPI data"),
-    Pin("GPIO4", 6, "DISP_DC", "TP1 (future TFT)"),
-    Pin("GPIO5", 7, "DISP_CS", "display CS, active high"),
-    Pin("GPIO6", 8, "DISP_RST", "TP2 (future TFT)"),
-    Pin("GPIO7", 9, "DISP_BL", "TP3 (future TFT backlight)"),
+    Pin("GPIO2", 4, "DISP_SDA", "I2C1 SDA to the OLED; 4.7k pull-up to 3V3"),
+    Pin("GPIO3", 5, "DISP_SCL", "I2C1 SCL to the OLED; 4.7k pull-up to 3V3"),
+    Pin("GPIO4", 6, "DISP_DC", "TP1, spare"),
+    Pin("GPIO5", 7, None, "spare (was the nice!view CS)"),
+    Pin("GPIO6", 8, "DISP_RST", "TP2, spare"),
+    Pin("GPIO7", 9, "DISP_BL", "TP3, spare"),
     *(Pin(f"GPIO{g}", 11 + i, f"ROW{i}", "matrix row, pull-down") for i, g in enumerate(ROW_GPIOS)),
     *(Pin(f"GPIO{g}", q, f"COL{i}", "matrix column") for i, (g, q) in enumerate(zip(COL_GPIOS, _COL_QFN))),
     Pin("GPIO21", 32, "TRRS_DET", "test pad (future detect-gpios)"),

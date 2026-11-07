@@ -4,7 +4,7 @@
 
 **An ErgoDox-style split keyboard, generated from one layout package.**
 
-On-board RP2040 · ZMK wired split · a memory LCD on each half · USB-C on both halves · MX hot-swap, fully JLC-assembled · CNC aluminium case
+On-board RP2040 · ZMK wired split · a 0.91" OLED on each half · USB-C on both halves · MX hot-swap, fully JLC-assembled · CNC aluminium case
 
 <sub>🚧 <b>rev A is designed, checked and orderable, but not yet built or tested on hardware.</b></sub>
 
@@ -19,14 +19,14 @@ On-board RP2040 · ZMK wired split · a memory LCD on each half · USB-C on both
 
 </div>
 
-worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb cluster. On each half, the top key of the inner column is replaced by a vertical memory LCD, and the two halves link over TRRS with ZMK's wired split. Everything is generated from one layout package, [`layout/`](layout/): the KiCad schematics and PCBs, the build123d case, the ZMK physical layout, the docs tables and the 3D viewer. On every push to `main` and every pull request, CI rebuilds and checks the layout, the firmware, both PCBs with their order packages, and the case with its order package. The generated docs tables are checked by `just docs-check`, and the viewer is built by `just site`. Both also run in the manual `pages` workflow.
+worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb cluster. On each half, the top key of the inner column is replaced by a vertical 0.91" OLED, and the two halves link over TRRS with ZMK's wired split. Everything is generated from one layout package, [`layout/`](layout/): the KiCad schematics and PCBs, the build123d case, the ZMK physical layout, the docs tables and the 3D viewer. On every push to `main` and every pull request, CI rebuilds and checks the layout, the firmware, both PCBs with their order packages, and the case with its order package. The generated docs tables are checked by `just docs-check`, and the viewer is built by `just site`. Both also run in the manual `pages` workflow.
 
 > [!WARNING]
 > **Status: rev A is designed, checked and orderable, but not yet built.** Gates **G1–G3** are recorded as passed in [verification.md](docs/verification.md). The JLCPCB turnkey order for both PCBs and the case order are committed, and CI checks them ([Order it](#-order-it)). No board has been made, and nothing has been tested on hardware. Order 2 assembled boards per side and test them before you machine the case. The frozen design is [`docs/design.md`](docs/design.md), and every change from it is listed in [`docs/deviations.md`](docs/deviations.md). Read the [known open issues](#-known-open-issues) before you order.
 
 | ⌨️ Keys | 🧠 MCU | 📟 Display | 🔗 Split link | 🏭 Assembly | 🧱 Case |
 |:-:|:-:|:-:|:-:|:-:|:-:|
-| **74**, 37 per half | **RP2040** on each PCB | **160 × 68** memory LCD per half | **115 200** baud UART over TRRS | **119** JLC-assembled parts per half | **≈ 349 g** of 6061-T6 per half |
+| **74**, 37 per half | **RP2040** on each PCB | **128 × 32** OLED per half | **115 200** baud UART over TRRS | **121** JLC-assembled parts per half | **≈ 349 g** of 6061-T6 per half |
 
 <details>
 <summary>🚦 Status by part</summary>
@@ -36,7 +36,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 | 🧬 Layout (`layout/`) | ✅ **Done.** Keys, thumbs, display, jacks, holes, outline, zones and the GPIO map; checked by `just layout-check` |
 | 🟩 PCB (`pcb/`) | ✅ **Orderable.** Both halves are generated in KiCad 10. ERC is clean. DRC with schematic parity reports 0 violations and 0 unconnected items. The checks on the USB pair, crystal, decoupling, U1 ground return and GND links, via-in-pad, J1 pin-in-paste and outline all pass. A seeded from-scratch rebuild in CI reproduces the committed boards. The JLC turnkey package (panel, BOM, and a CPL proven against JLC's own footprints) is committed in [`pcb/production/`](pcb/production/). |
 | 💾 Firmware (`firmware/`, `zephyr/`, `build.yaml`) | 🔨 **Builds.** All six `build.yaml` rows build locally and in CI: left central, right peripheral, two role-swap rows and two RP2350A rows. Both screens are laid out portrait for the upright display. Nothing has run on hardware. |
-| 🧱 Case and plates (`case/`, `plates/`) | ✅ **Orderable.** Every case check passes, and so does JLCCNC's internal-corner rule. `just fitcheck` reports 0 mm³ of interference against both PCB STEPs plus the layout envelopes. The JLCCNC / JLC3DP package for case revision A3 is committed in [`case/production/`](case/production/README.md). Nothing has been printed or machined. |
+| 🧱 Case and plates (`case/`, `plates/`) | ✅ **Orderable.** Every case check passes, and so does JLCCNC's internal-corner rule. `just fitcheck` reports 0 mm³ of interference against both PCB STEPs plus the layout envelopes. The JLCCNC / JLC3DP package for case revision A4 is committed in [`case/production/`](case/production/README.md). Nothing has been printed or machined. |
 | 📚 Docs and microsite (`docs/`, `site/`) | ✅ **Done.** The turnkey ordering guide, shopping list, build guide, generated BOM, pinout and matrix, and the electrical, case, legs and firmware docs. The site has the 3D viewer. |
 | 🧪 Gates and release | ✅ **Pass.** [`docs/verification.md`](docs/verification.md) records the integration tests (111 passed), CI, the order-package checks and gates G1–G3. [`release.yml`](.github/workflows/release.yml) is written, but no tag or release exists yet. |
 | 🛠️ Hardware | ⏳ **Not built.** What only a real board can confirm is [listed](docs/verification.md#not-verified-until-a-board-is-built). |
@@ -76,7 +76,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 
 </td><td width="33%" valign="top">
 
-**📟 A display on each half**<br>A Sharp LS011B7DH03 memory LCD (160 × 68) on a nice!view-class module sits where the inner top key was, behind a window in the case. The left half shows the ZMK status screen. The right half shows a custom lock-indicator screen.
+**📟 A display on each half**<br>A cheap 0.91" 128 × 32 SSD1306 I2C OLED module (the common AliExpress part) sits where the inner top key was, behind a window in the case. Two solder jumpers per half take either of the two header orders sellers ship. The left half shows USB, the layer and the locks; the right half shows the locks.
 
 </td><td width="33%" valign="top">
 
@@ -93,7 +93,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 
 </td><td valign="top">
 
-**🔥 Hot-swap, no PCB soldering**<br>MX hot-swap sockets of the CPG151101S11 type sit on the bottom, with 2u plate-mount stabilisers on two thumb keys per half. JLC fits every PCB part, display socket included; you solder only the displays' header pins (and any J1 shell leg that arrives bare).
+**🔥 Hot-swap, no PCB soldering**<br>MX hot-swap sockets of the CPG151101S11 type sit on the bottom, with 2u plate-mount stabilisers on two thumb keys per half. JLC fits every PCB part, display socket included; you solder only the displays' header pins if they come loose (and any J1 shell leg that arrives bare).
 
 </td></tr>
 <tr><td valign="top">
@@ -117,13 +117,13 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 |---|---|
 | ⌨️ **Keys** | 74 (37 per half). Each half has a 6 × 7 `col2row` matrix; ZMK sees one 6 × 14 transform |
 | 🧠 **Controller** | RP2040 (QFN-56) per half, with W25Q128JVSIQ 16 MB QSPI flash and a 12 MHz crystal |
-| 📟 **Display** | Sharp LS011B7DH03, 160 × 68 memory LCD on a nice!view-class module, driven over PIO1 SPI at 1 MHz |
+| 📟 **Display** | 0.91" SSD1306 OLED, 128 × 32, 4-pin I2C module at 0x3C, on hardware I2C1 at 400 kHz |
 | 🔗 **Split link** | 3.5 mm TRRS, ZMK wired split on UART0 at 115 200 baud, full duplex |
 | 🔌 **USB** | USB-C 2.0 full speed on both halves (HRO TYPE-C-31-M-12); the host goes on the left |
 | 🟩 **PCB** | 2 layers, 1.6 mm FR4, 1 oz, ENIG, 182.84 × 158.75 mm per half. JLC places 119 parts per half: 45 on top, and 74 on the bottom (37 sockets + 37 diodes) |
 | 🎹 **Switches** | 74 MX-compatible plate-mount switches, 3- or 5-pin, in hot-swap sockets; 4 × 2u plate-mount stabilisers |
 | 💾 **Firmware** | ZMK, HWMv2 board `worxbend/worxboard`, pinned at `4dd95d78`; ZMK Studio on the left central |
-| 🧱 **Case** | 3 parts per half (CNC top and tray, printed spacer); 192.4 × 165.6 × 17.6 mm, 19.6 mm at the display bezel; about 349 g per half |
+| 🧱 **Case** | 3 parts per half (CNC top and tray, printed spacer); 192.4 × 165.6 × 17.6 mm, 20.85 mm at the display bezel; about 349 g per half |
 | 🦵 **Legs** | 3 per half, held by M3 × 12 DIN 653 thumbscrews with friction washers |
 
 <details>
@@ -137,11 +137,11 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 | Y1 | 12 MHz 3225 crystal, YXC XL2EL89CRI-111YLC-12M | [C49304726](https://jlcpcb.com/partdetail/C49304726) | U3 | AP2112K-3.3, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) |
 | U4, U5 | USBLC6-2SC6 ESD arrays (USB, TRRS) | [C7519](https://jlcpcb.com/partdetail/C7519) | D1 | B5819W, 1 A Schottky | [C8598](https://jlcpcb.com/partdetail/C8598) |
 | F1 | nSMD025-24V PTC, 250 mA hold | [C70069](https://jlcpcb.com/partdetail/C70069) | J1 | HRO TYPE-C-31-M-12 USB-C receptacle | [C165948](https://jlcpcb.com/partdetail/C165948) |
-| J2 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | J3 | 1×5 2.54 mm female socket, 5.0 mm tall (the only through-hole part) | [C27985230](https://jlcpcb.com/partdetail/C27985230) |
+| J2 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | J3 | 1×4 2.54 mm female socket, 5.0 mm tall (the only through-hole part) | [C42163122](https://jlcpcb.com/partdetail/C42163122) |
 | SW1, SW2 | TS-1088R tact switches (BOOT, RESET) | [C455280](https://jlcpcb.com/partdetail/C455280) | SK101–SK137 | MX hot-swap socket, HanElectricity CPG151101S11-16 | [C41430893](https://jlcpcb.com/partdetail/C41430893) |
-| D101–D137 | 1N4148W matrix diodes | [C81598](https://jlcpcb.com/partdetail/C81598) |  |  |  |
+| D101–D137 | 1N4148W matrix diodes | [C81598](https://jlcpcb.com/partdetail/C81598) | R14, R15 | 4.7 kΩ 0402, OLED I2C pull-ups | [C25900](https://jlcpcb.com/partdetail/C25900) |
 
-The BOM has 22 lines with 21 LCSC numbers. The retired parts C2803348 (socket), C113767 (flash) and C91749 (crystal) fail `stock.py` and `netcmp.py` if they come back.
+The BOM has 23 lines with 22 LCSC numbers. The retired parts C2803348 (socket), C113767 (flash), C91749 (crystal) and C27985230 (the nice!view's 1×5 socket) fail `stock.py` and `netcmp.py` if they come back.
 
 **⚡ Power path**, the same on each half ([electrical.md](docs/electrical.md#power-path)):
 
@@ -167,7 +167,7 @@ One cable is enough: the far half runs from VLINK at about 4.4 V. Each VBUS reac
 | GPIO | Use |
 |---|---|
 | GP0 / GP1 | UART0 TX / RX, the wired split |
-| GP2 / GP3 / GP5 | Display SCK / MOSI / CS (PIO1 SPI, CS active high) |
+| GP2 / GP3 | Display SDA / SCL (I2C1, 4.7 kΩ pull-ups R14 / R15); GP5 is now spare |
 | GP8–GP13 | Matrix rows ROW0–ROW5 (inputs, pull-down) |
 | GP14–GP20 | Matrix columns COL0–COL6 (outputs) |
 | GP21 | TRRS detect test pad TP11 (not used in rev A) |
@@ -183,7 +183,7 @@ One cable is enough: the far half runs from VLINK at about 4.4 V. Each VBUS reac
 <a href="docs/images/layout.svg"><img src="docs/images/layout.svg" alt="Generated plan view of both worxboard halves" width="880"></a><br><sub>🗺️ The generated rev A layout (layout/export.py): ErgoDox stagger, 25° thumbs, the display in the C6R0 slot, the jacks, the holes and the component zones. Click to open it full size.</sub>
 </p>
 
-On each half, the inner top key C6R0 is replaced by a vertical 14 × 36 mm display module. Its bottom edge lies on the old C6R0 cell boundary, so no other key moves. Each half has a 6 × 7 `col2row` matrix with rows on GP8–GP13 and columns on GP14–GP20. **Both PCBs share one matrix netlist**: the right `.dts` reverses `col-gpios` and sets `col-offset = <7>`, so the two netlists differ only in the TRRS TX/RX crossover at R11/R12.
+On each half, the inner top key C6R0 is replaced by a vertical 12 × 38 mm OLED module. Its front edge lies on the old C6R0 cell boundary and it reaches back towards the back edge, so no other key moves. Each half has a 6 × 7 `col2row` matrix with rows on GP8–GP13 and columns on GP14–GP20. **Both PCBs share one matrix netlist**: the right `.dts` reverses `col-gpios` and sets `col-offset = <7>`, so the two netlists differ only in the TRRS TX/RX crossover at R11/R12.
 
 | What changed from an ErgoDox EZ | worxboard rev A |
 |---|---|
@@ -208,7 +208,7 @@ This is the global map that the keymap and ZMK Studio see. Left columns 0–6 ar
 
 | Row | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|---|
-| 0 | `=` | `1` | `2` | `3` | `4` | `5` | 📟 LCD |
+| 0 | `=` | `1` | `2` | `3` | `4` | `5` | 📟 OLED |
 | 1 | `DEL` | `Q` | `W` | `E` | `R` | `T` | `TG(1)` |
 | 2 | `BSPC` | `A` | `S` | `D` | `F` | `G` | · |
 | 3 | `LSFT` | `CTL_T(Z)` | `X` | `C` | `V` | `B` | `HYPER` |
@@ -219,7 +219,7 @@ This is the global map that the keymap and ZMK Studio see. Left columns 0–6 ar
 
 | Row | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
 |---|---|---|---|---|---|---|---|
-| 0 | 📟 LCD | `6` | `7` | `8` | `9` | `0` | `-` |
+| 0 | 📟 OLED | `6` | `7` | `8` | `9` | `0` | `-` |
 | 1 | `TG(1)` | `Y` | `U` | `I` | `O` | `P` | `\` |
 | 2 | · | `H` | `J` | `K` | `L` | `LT(2,;)` | `GUI_T(')` |
 | 3 | `MEH` | `N` | `M` | `,` | `.` | `CTL_T(/)` | `RSFT` |
@@ -261,8 +261,8 @@ Around the viewer, the page carries the specs, the build journey, the order pack
 | Step | What you do | Docs and files |
 |---|---|---|
 | 1️⃣ 🟩 **Order the PCBs** | Two designs at JLCPCB: 5 PCBs each, 2 assembled, both sides. | 📄 [ordering-jlcpcb.md](docs/ordering-jlcpcb.md), [placement checklist](docs/ordering-jlcpcb.md#placement-preview-checklist)<br>📂 [`pcb/production/left/`](pcb/production/left/README.md), [`pcb/production/right/`](pcb/production/right/README.md) |
-| 2️⃣ 🛍️ **Buy the parts** | 74 MX switches, keycaps, 4 stabilisers, 2 nice!view, cables, case hardware. | 📄 [shopping-list.md](docs/shopping-list.md)<br>📂 [`case/production/hardware.csv`](case/production/hardware.csv) |
-| 3️⃣ ⚡ **Flash and test the bare boards** | Flash both UF2s, test every socket with tweezers, set JP1, fit the displays. | 📄 [build guide §1–4](docs/buildguide_en.md#1-check-the-assembled-pcbs), [firmware.md](docs/firmware.md#flash)<br>📦 the `worxboard-firmware` artifact of a green [firmware run](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml) |
+| 2️⃣ 🛍️ **Buy the parts** | 74 MX switches, keycaps, 4 stabilisers, 2 × 0.91" I2C OLED, cables, case hardware. | 📄 [shopping-list.md](docs/shopping-list.md)<br>📂 [`case/production/hardware.csv`](case/production/hardware.csv) |
+| 3️⃣ ⚡ **Flash and test the bare boards** | Flash both UF2s, test every socket with tweezers, set JP1, set JP2/JP3 for your OLEDs and fit them. | 📄 [build guide §1–4](docs/buildguide_en.md#1-check-the-assembled-pcbs), [firmware.md](docs/firmware.md#flash)<br>📦 the `worxboard-firmware` artifact of a green [firmware run](https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml) |
 | 4️⃣ 🧱 **Order the case** | Print a test top, then order from JLCCNC and JLC3DP. | 📄 [case.md](docs/case.md#before-machining), [build guide §5](docs/buildguide_en.md#5-prepare-the-case)<br>📂 [`jlccnc/`](case/production/jlccnc/ORDER_NOTES.md), [`jlc3dp/`](case/production/jlc3dp/ORDER_NOTES.md) |
 | 5️⃣ 🔩 **Assemble** | Stabilisers into the top shell first, then PCB, spacer, top shell and screws; then switches, caps and legs. | 📄 [build guide §6–8](docs/buildguide_en.md#6-assemble-the-case), [legs.md](docs/legs.md) |
 | 6️⃣ ⌨️ **Type** | TRRS in while both halves are unpowered, host into the **left** half, remap in ZMK Studio. | 📄 [build guide §9](docs/buildguide_en.md#9-connect-and-use), [keymap](docs/firmware.md#keymap) |
@@ -276,9 +276,9 @@ Every order file for one keyboard is committed, and CI rebuilds and checks the P
 | 🟩 Left and right PCBs, fully assembled (2 designs: 5 PCBs each, 2 of them assembled) | [JLCPCB](https://jlcpcb.com), Standard PCBA, both sides | [`pcb/production/left/`](pcb/production/left/README.md), [`pcb/production/right/`](pcb/production/right/README.md): `gerbers.zip`, `bom.csv`, `cpl.csv` | [ordering-jlcpcb.md](docs/ordering-jlcpcb.md) |
 | 🧱 2 top shells, 2 bottom trays, 6 tent legs (6061-T6, bead blast + anodize, Strict tier if the form offers it) | [JLCCNC](https://jlccnc.com) | [`case/production/jlccnc/`](case/production/jlccnc/ORDER_NOTES.md) | the order notes |
 | 🖨️ 2 plate spacers (MJF PA12), 1 tree of 8 leg foot caps (TPU 95A) | [JLC3DP](https://jlc3dp.com) | [`case/production/jlc3dp/`](case/production/jlc3dp/ORDER_NOTES.md) | the order notes |
-| 🎹 Switches, keycaps, stabilisers, 2 nice!view displays, cables; 🔩 screws, feet, thumbscrews, washers | keyboard and hardware shops | [`case/production/hardware.csv`](case/production/hardware.csv) (the case hardware) | [shopping-list.md](docs/shopping-list.md) |
+| 🎹 Switches, keycaps, stabilisers, 2 × 0.91" I2C OLED displays, cables; 🔩 screws, feet, thumbscrews, washers | keyboard and hardware shops | [`case/production/hardware.csv`](case/production/hardware.csv) (the case hardware) | [shopping-list.md](docs/shopping-list.md) |
 
-JLC fits every part on the PCB. That includes the display socket J3, which JLC hand-solders, and J1's shell legs, which are pin-in-paste. You only solder the displays' own header pins. The build guide still asks you to check that all four J1 shell-leg slots show solder, and to solder any bare leg yourself ([step 1](docs/buildguide_en.md#1-check-the-assembled-pcbs)).
+JLC fits every part on the PCB. That includes the display socket J3, which JLC hand-solders, and J1's shell legs, which are pin-in-paste. You only solder the OLED modules' own header pins, if they ship loose. The build guide still asks you to check that all four J1 shell-leg slots show solder, and to solder any bare leg yourself ([step 1](docs/buildguide_en.md#1-check-the-assembled-pcbs)).
 
 > [!IMPORTANT]
 > **💰 About \$307–425** for the JLCPCB order of both halves with 2 assembled each, shipping included, before import duty and VAT. This was estimated on 2026-11-04. The PCBA subtotal is \$246.72; the fabrication and shipping lines are ranges, not quotes ([cost estimate](docs/ordering-jlcpcb.md#cost-estimate)). JLCCNC and JLC3DP quote the case when you upload the files.
@@ -301,7 +301,7 @@ JLC fits every part on the PCB. That includes the display socket J3, which JLC h
 Do it once for the left side and once for the right, so the cart holds two designs, and paste the remark from each side's README into the order. The remark also answers JLC's likely question about the two pairs of stabiliser holes, 0.28 mm apart (deviation ORDER-3), so it doesn't hold the order. Every field is in [ordering-jlcpcb.md](docs/ordering-jlcpcb.md#step-by-step).
 
 - **`pcb/production/<side>/`**: `gerbers.zip` (the 198.84 × 174.75 mm panel: 14 mouse-bite tabs, 3 fiducials per side, 4 tooling holes, panel DRC 0 / 0), `bom.csv` (22 lines, 21 LCSC numbers), `cpl.csv` (119 placements, 74 on the bottom, JLC rotation and centre corrections applied), `README.md` (the order form), `worxboard-<side>-jlc-order.zip` (the same files plus that README) and `bare-board/` (a 182.84 × 158.75 mm fallback in case JLC refuses the panel).
-- **`case/production/`** (case revision A3): `jlccnc/` (STEP + PDF drawings for the left and right tops, the left and right bottoms and the leg, plus `hole_table.csv` and `ORDER_NOTES.md`), `jlc3dp/` (`worxboard_{left,right}_spacer.stl`, `worxboard_leg_cap_tree.stl`, `ORDER_NOTES.md`), `hardware.csv` and the package [README](case/production/README.md). CI fails if any of it drifts from the model.
+- **`case/production/`** (case revision A4): `jlccnc/` (STEP + PDF drawings for the left and right tops, the left and right bottoms and the leg, plus `hole_table.csv` and `ORDER_NOTES.md`), `jlc3dp/` (`worxboard_{left,right}_spacer.stl`, `worxboard_leg_cap_tree.stl`, `ORDER_NOTES.md`), `hardware.csv` and the package [README](case/production/README.md). CI fails if any of it drifts from the model.
 
 </details>
 
@@ -317,7 +317,7 @@ Do it once for the left side and once for the right, so the cart holds two desig
 <tr><td align="center"><a href="docs/images/cpl-y1-crystal-3225.svg"><img src="docs/images/cpl-y1-crystal-3225.svg" alt="CPL proof: Y1 crystal" width="100%"></a><br><sub>Y1 12 MHz crystal: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-d1-schottky-sod123.svg"><img src="docs/images/cpl-d1-schottky-sod123.svg" alt="CPL proof: D1 Schottky" width="100%"></a><br><sub>D1 Schottky on the USB power path: both halves pass</sub></td></tr>
 <tr><td align="center"><a href="docs/images/cpl-c-0402.svg"><img src="docs/images/cpl-c-0402.svg" alt="CPL proof: 0402 capacitors" width="100%"></a><br><sub>0402 capacitors: 38 placed, 38 pass</sub></td><td align="center"><a href="docs/images/cpl-r-0402.svg"><img src="docs/images/cpl-r-0402.svg" alt="CPL proof: 0402 resistors" width="100%"></a><br><sub>0402 resistors: 26 placed, 26 pass</sub></td></tr>
 <tr><td align="center"><a href="docs/images/cpl-f1-ptc-1206.svg"><img src="docs/images/cpl-f1-ptc-1206.svg" alt="CPL proof: F1 PTC" width="100%"></a><br><sub>F1 polyfuse on the TRRS power line: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-j1-usb-c.svg"><img src="docs/images/cpl-j1-usb-c.svg" alt="CPL proof: J1 USB-C" width="100%"></a><br><sub>J1 USB-C, mouth over the back edge: both halves pass</sub></td></tr>
-<tr><td align="center"><a href="docs/images/cpl-j2-trrs-pj320d.svg"><img src="docs/images/cpl-j2-trrs-pj320d.svg" alt="CPL proof: J2 TRRS jack" width="100%"></a><br><sub>J2 TRRS jack on the inner bump: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-j3-display-socket.svg"><img src="docs/images/cpl-j3-display-socket.svg" alt="CPL proof: J3 display socket" width="100%"></a><br><sub>J3 display socket: five contacts in five holes</sub></td></tr>
+<tr><td align="center"><a href="docs/images/cpl-j2-trrs-pj320d.svg"><img src="docs/images/cpl-j2-trrs-pj320d.svg" alt="CPL proof: J2 TRRS jack" width="100%"></a><br><sub>J2 TRRS jack on the inner bump: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-j3-display-socket.svg"><img src="docs/images/cpl-j3-display-socket.svg" alt="CPL proof: J3 display socket" width="100%"></a><br><sub>J3 display socket: four contacts in four holes</sub></td></tr>
 <tr><td align="center" colspan="2"><a href="docs/images/cpl-sw-tact-ts1088.svg"><img src="docs/images/cpl-sw-tact-ts1088.svg" alt="CPL proof: BOOT and RESET tact switches" width="50%"></a><br><sub>SW1, SW2 BOOT and RESET tact switches: 4 placed, 4 pass</sub></td></tr>
 </table>
 
@@ -333,7 +333,7 @@ The [build guide](docs/buildguide_en.md) has nine steps plus a [troubleshooting 
 1. 🔍 [**Check the assembled PCBs.**](docs/buildguide_en.md#1-check-the-assembled-pcbs) Break each board out at its 14 mouse-bite tabs and file the nubs flush, because the case leaves only about 0.3 mm around the PCB.
 2. ⚡ [**Flash and test the bare boards**](docs/buildguide_en.md#2-flash-and-test-the-bare-boards) before anything is fitted.
 3. ✂️ [**Choose the power mode (JP1)**](docs/buildguide_en.md#3-choose-the-power-mode-jp1) before you close the case.
-4. 📟 [**Plug in the displays.**](docs/buildguide_en.md#4-plug-in-the-displays) Trim the header pins flush on the glass side, and do not raise the module on an extra spacer.
+4. 📟 [**Plug in the displays.**](docs/buildguide_en.md#4-plug-in-the-displays) Read your module's pin order and set JP2/JP3 **before** first power-up; plug it in glass up, header to the back.
 5. 🖨️ [**Prepare the case**](docs/buildguide_en.md#5-prepare-the-case) by fitting a 3D-printed test top first.
 6. 🧱 [**Assemble the case.**](docs/buildguide_en.md#6-assemble-the-case) Clip the 2u stabilisers into the upturned top shell **before** you close it.
 7. 🎹 [**Fit the switches and keycaps.**](docs/buildguide_en.md#7-switches-stabilisers-and-keycaps) The stabilisers went in at step 6.
@@ -365,17 +365,18 @@ worxboard runs [ZMK](https://zmk.dev) as a custom HWMv2 board, `worxbend/worxboa
 2. Get the **`RPI-RP2`** drive. A blank board shows it by itself. Otherwise double-tap <kbd>RESET</kbd>, or hold <kbd>BOOT</kbd>, tap <kbd>RESET</kbd> and release <kbd>BOOT</kbd>. On a running keyboard, `&bootloader` on layer 2 does the same.
 3. Drag `worxboard_left_central.uf2` onto the left half and `worxboard_right_peripheral.uf2` onto the right half. The right half flashes through its own USB-C. If a board never shows `RPI-RP2`, a debug probe connects to the SWD pads TP8, TP9 and TP10.
 
-**📟 The displays.** Both screens are laid out as 68 × 160 portrait and rotated onto the 160 × 68 panel. The left shows ZMK's built-in status screen, with USB at the top and the active layer at the bottom. The right shows a custom LVGL screen. The sketch below is drawn from the source comment in `worx_status_screen.c`; it is not a capture:
+**📟 The displays.** Both screens are laid out as 32 × 128 portrait and rotated onto the 128 × 32 OLED. ZMK's built-in screen does not fit 32 px wide, so both halves run the custom LVGL screen in `worx_status_screen.c`, by split role. The OLED blanks when the keyboard is idle, to limit burn-in. The sketch below is drawn from the source; it is not a capture:
 
 ```
-┌────────────┐
-│  worx      │  ← logo
-│  board     │
-│ [ CAPS ]   │  ← lit lock: upper case in a 2 px frame
-│   num      │  ← unlit: lower case
-│   scrl     │
-│  wired     │  ← static: the link is TRRS, no BLE or battery
-└────────────┘
+ central (left)        peripheral (right)
+┌──────┐               ┌──────┐
+│ worx │ ← logo        │ worx │
+│ USB  │ ← host link   │      │
+│ Base │ ← layer       │[CAP] │ ← lit lock: upper case, framed
+│[CAP] │               │ num  │ ← unlit: lower case
+│ num  │               │ scr  │
+│ scr  │               │wired │ ← static: TRRS, no BLE or battery
+└──────┘               └──────┘
 ```
 
 If both screens read upside down on the first board, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in `firmware/zmk/config/worxboard.conf`.
@@ -390,7 +391,7 @@ If both screens read upside down on the first board, set `CONFIG_WORXBOARD_DISPL
 |---|---|
 | 🧩 **Parts** | A CNC top shell with the 1.5 mm plate milled into its key well, a CNC bottom tray, and a separate 3 mm plate spacer (182.7 × 136.6 × 3.0 mm, MJF PA12) with a channel for each stabiliser wire |
 | ✨ **Finish** | Aluminium 6061-T6, anodize **with** bead blasting, Strict (or Premium) appearance tier, if JLCCNC's form offers it, so the 2 halves and 6 legs match |
-| 📏 **Size, mass** | 192.4 × 165.6 × 17.6 mm, 19.6 mm at the raised display bezel; about 349 g (top 140.6 g, tray 208.1 g) |
+| 📏 **Size, mass** | 192.4 × 165.6 × 17.6 mm, 20.85 mm at the raised display bezel; about 349 g (top 140.6 g, tray 208.1 g) |
 | 🔩 **Screws** | 8 × M2.5 countersunk from below into blind threads tapped in the top (no inserts): 6 × M2.5 × 12 at the edge bosses, 2 × M2.5 × 10 under the key well (snug only) |
 | 🦶 **Feet** | 4 × Ø10 mm rubber feet in 0.6 mm recesses; an L or R mark engraved under each tray |
 | 🦵 **Legs** | 3 mounts, one symmetric 6061 leg (4.9 g) with a TPU 95A foot cap, held by an M3 × 12 thumbscrew and a friction washer ([legs.md](docs/legs.md)); friction only, no click stops ([limits](docs/legs.md#known-limitations)) |
@@ -406,7 +407,7 @@ If both screens read upside down on the first board, set `CONFIG_WORXBOARD_DISPL
 
 | Z (mm) | Layer |
 |---|---|
-| 17.6 – 19.6 | 🔲 display bezel B1, 2.0 mm proud of the top face; the display pocket ceiling is at 18.6, under a 1.0 mm skin with the 26 × 12 mm window |
+| 17.6 – 20.85 | 🔲 display bezel B1, 3.25 mm proud of the top face; the display pocket ceiling is at 19.85, under a 1.0 mm skin with the 28 × 8 mm window |
 | 13.6 – 17.6 | ⌨️ key well; the pocket ceiling over the back strip and the TRRS bump is at 14.6 |
 | 12.1 – 13.6 | 🔳 1.5 mm switch plate, milled into the top shell |
 | 9.1 – 12.1 | 🟧 3 mm plate spacer, floating 0.5 mm above the PCB |
@@ -468,7 +469,7 @@ flowchart TB
 | `__init__.py` | The right-half KiCad frame; the left half is its mirror, x → 260 − x |
 | `keys.py` | Main-block centres from the original ErgoDox PCB, 1u = 19.05 mm, 7 columns per half, the layer-0 legends |
 | `thumbs.py` | The 25° six-key cluster around T0 (34.69894, 143.2687), with stabiliser holes on the 2u keys T4 and T5 |
-| `display.py` | The 14 × 36 mm module over the old C6R0 cell, the J3 header, the 12 × 26 mm window |
+| `display.py` | The 12 × 38 mm OLED module over the old C6R0 cell, the 1×4 J3 header, the 8 × 28 mm window |
 | `jacks.py` | J1 USB-C flush with the back edge, J2 TRRS on the inner bump at y 103.0 |
 | `holes.py` | 8 × M2.5 NPTH on the ErgoDox pattern, hole #7 moved to (88.0, 37.135) for the display |
 | `outline.py` | The Edge.Cuts polygon from the original ErgoDox outline: jack tabs removed, back edge straight, TRRS bump added |
@@ -506,7 +507,7 @@ Every stage runs with `--network none`; the KiCad stages also set `PYTHONHASHSEE
 
 | Gate (per half) | Recorded result |
 |---|---|
-| 🔌 ERC · 🧬 netcmp | 0 errors · 10 / 10 |
+| 🔌 ERC · 🧬 netcmp | 0 errors · 11 / 11 |
 | 📏 DRC with schematic parity | 0 violations · 0 unconnected · 0 parity issues |
 | ✅ `checks.py` | 14 / 14 (USB length and skew, crystal, decoupling, U1 GND return, via-in-pad, J1 pin-in-paste, outline and more) |
 | 🎯 `cpl_check` | 119 / 119 placements, within 0.033 mm |
@@ -607,15 +608,16 @@ The layout, firmware, pcb and case workflows run on every push to `main`, on pul
 ## 🐛 Known open issues
 
 - 🧪 **Not built yet.** No board has been made. The displays, the wired split, the forwarding of the lock indicators, the role-swap firmware and the XOSC start-up with the new crystal are untested on hardware ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)). The J2 contact naming and the case fit (USB-C and TRRS plug seating, the BOOT/RESET pin holes, C6R1 keycap clearance) also wait for a real board; check the fit on a 3D-printed test top.
-- 🔄 **Display orientation.** Both screens are laid out portrait and turned by the firmware. Which panel end is pixel 0 comes from ZMK's code and the vendor's images, not from a datasheet. If the screens read upside down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` ([firmware.md](docs/firmware.md#known-issues)).
+- 🔄 **Display orientation and module.** Both screens are laid out portrait and turned by the firmware. Which panel corner is pixel 0 comes from ZMK's usual 128 × 32 settings, not from a datasheet. If the screens read upside down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` ([firmware.md](docs/firmware.md#known-issues)). AliExpress OLED modules differ: measure the first one and check its pin order before power-up ([verification.md](docs/verification.md#g1-oled-display)).
+- 🧩 **JLC footprint record for J2.** JLC's library record for the TRRS jack C95562 changed (renumbered pads, new body). The committed `jlc_footprints.json` keeps the old record; re-check it before ordering (deviation DISP-1).
 - 🎯 **JLC placement.** Every CPL placement is proven against JLC's own footprints, but JLC does not document its bottom-side convention. Check the sockets and diodes in JLC's placement preview ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md#placement-preview-checklist)). The hot-swap socket C41430893 is a second-source part, and nobody has reported JLC assembling it yet.
-- 📦 **Stock** moves daily. Re-check it on the day you order ([Order it](#-order-it)). J3 (C27985230) has no drop-in alternate that fits the case ([alternates](docs/ordering-jlcpcb.md#if-a-part-is-out-of-stock)).
+- 📦 **Stock** moves daily. Re-check it on the day you order ([Order it](#-order-it)). J3 (C42163122) has no drop-in alternate that fits the case ([alternates](docs/ordering-jlcpcb.md#if-a-part-is-out-of-stock)).
 - 🧊 **3D models.** KiCad has no model for the USB-C, the TRRS jack or the hot-swap socket, so the board STEP lacks those bodies. The case fit check adds their layout envelopes instead.
 - 📤 **Release packaging.** [`release.yml`](.github/workflows/release.yml) still packs KiKit's raw fab files, not `pcb/production/` (deviation PKG-4).
 - 🐳 **Build image.** The firmware builds in the floating `zmkfirmware/zmk-build-arm:stable` image, as ZMK's own workflow does; only the ZMK source is pinned ([firmware.md](docs/firmware.md#known-issues)).
 - 💾 **RP2350A target** (`worxboard2`): settings do not persist, because the flash map and NVS are forced off.
 - 🧠 **LVGL heap.** Heap use has not been measured on hardware. On a 64-bit host the right screen peaks at about 5.2 KB of its 8 KB heap, and the left at about 4.7 KB against ZMK's 4 KB default.
-- 🖼️ **Stale previews.** The viewer screenshots predate case revision A3, and `spacer.png` predates the stabiliser-wire channels. CI re-renders the case into the `worxboard-case` artifact.
+- 🖼️ **Stale previews.** The viewer screenshots predate case revisions A3 and A4 (and the OLED), and `spacer.png` predates the stabiliser-wire channels. CI re-renders the case into the `worxboard-case` artifact.
 - 📜 **Licence split** ([below](#-license)): it still needs the maintainer's confirmation.
 
 ## 🔭 Future work
@@ -624,7 +626,7 @@ Listed in [firmware.md](docs/firmware.md#future-work):
 
 - 🧠 RP2350A hardware for a rev B (needs the A4 stepping). The `worxboard2` firmware rows already build.
 - 🔗 TRRS detect on GP21 (TP11) and a runtime role swap.
-- 🌈 RGB on GP22, encoders, a TFT display on TP1–TP3.
+- 🌈 RGB on GP22, encoders.
 
 ## 🌳 Repository layout
 
@@ -693,7 +695,7 @@ Full list: [docs/sources.md](docs/sources.md); licences: [THIRD_PARTY.md](THIRD_
 - Per-file headers under `firmware/zmk/`: the board files, keymaps and C sources say `SPDX-License-Identifier: MIT`, and the Python scripts say GPL-3.0-or-later. The confirmation above covers them too.
 - Third-party material: [`THIRD_PARTY.md`](THIRD_PARTY.md); attribution in [docs/sources.md](docs/sources.md).
 
-The key and mounting-hole coordinates come from the original ErgoDox PCB by Fredrik Atmer and contributors (GPL-3.0). ErgoDox EZ is a product of ZSA Technology Labs and nice!view of Nice Keyboards; Cherry MX, Kailh, Raspberry Pi and JLCPCB are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
+The key and mounting-hole coordinates come from the original ErgoDox PCB by Fredrik Atmer and contributors (GPL-3.0). ErgoDox EZ is a product of ZSA Technology Labs; Cherry MX, Kailh, Raspberry Pi and JLCPCB are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
 
 <div align="center">
 

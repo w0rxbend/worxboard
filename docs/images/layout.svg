@@ -118,13 +118,13 @@
 <path class="cap" d="M194.716,140.068 L179.037,173.692 L162.678,166.063 L178.357,132.439 Z"/>
 <path class="hsg" d="M189.063,149.293 L182.470,163.431 L168.332,156.838 L174.924,142.700 Z"/>
 <text font-size="2.6" fill="#222" text-anchor="middle" x="178.697" y="153.965" transform="rotate(25 178.697 153.065)">SPC</text>
-<rect class="disp" x="180.610" y="38.625" width="14.000" height="36.000" rx="1.0"/>
-<rect class="win" x="181.610" y="42.865" width="12.000" height="26.000" rx="1.0"/>
+<rect class="disp" x="181.610" y="36.625" width="12.000" height="38.000" rx="1.0"/>
+<rect class="win" x="183.610" y="42.625" width="8.000" height="28.000" rx="1.0"/>
 <rect class="part" x="90.500" y="40.500" width="7.000" height="7.000" rx="0.3"/>
 <rect class="part" x="104.000" y="39.350" width="8.000" height="5.300" rx="0.3"/>
 <rect class="part" x="82.500" y="48.000" width="3.000" height="4.000" rx="0.3"/>
 <rect class="part" x="78.500" y="48.000" width="3.000" height="4.000" rx="0.3"/>
-<rect class="part" x="180.880" y="38.275" width="13.460" height="3.300" rx="0.3"/>
+<rect class="part" x="182.150" y="36.275" width="10.920" height="3.300" rx="0.3"/>
 <rect class="jack" x="69.530" y="30.600" width="8.940" height="7.350" rx="0.5"/>
 <rect class="jack" x="196.900" y="99.950" width="14.100" height="6.100" rx="0.5"/>
 <circle class="hole" cx="206.101" cy="165.837" r="3.25"/>
@@ -253,13 +253,13 @@
 <path class="cap" d="M325.481,132.439 L341.160,166.063 L324.801,173.692 L309.122,140.068 Z"/>
 <path class="hsg" d="M328.914,142.700 L335.507,156.838 L321.368,163.431 L314.775,149.293 Z"/>
 <text font-size="2.6" fill="#222" text-anchor="middle" x="325.141" y="153.965" transform="rotate(-25 325.141 153.065)">ENT</text>
-<rect class="disp" x="309.228" y="38.625" width="14.000" height="36.000" rx="1.0"/>
-<rect class="win" x="310.228" y="42.865" width="12.000" height="26.000" rx="1.0"/>
+<rect class="disp" x="310.228" y="36.625" width="12.000" height="38.000" rx="1.0"/>
+<rect class="win" x="312.228" y="42.625" width="8.000" height="28.000" rx="1.0"/>
 <rect class="part" x="406.338" y="40.500" width="7.000" height="7.000" rx="0.3"/>
 <rect class="part" x="391.838" y="39.350" width="8.000" height="5.300" rx="0.3"/>
 <rect class="part" x="418.338" y="48.000" width="3.000" height="4.000" rx="0.3"/>
 <rect class="part" x="422.338" y="48.000" width="3.000" height="4.000" rx="0.3"/>
-<rect class="part" x="309.498" y="38.275" width="13.460" height="3.300" rx="0.3"/>
+<rect class="part" x="310.768" y="36.275" width="10.920" height="3.300" rx="0.3"/>
 <rect class="jack" x="425.368" y="30.600" width="8.940" height="7.350" rx="0.5"/>
 <rect class="jack" x="292.838" y="99.950" width="14.100" height="6.100" rx="0.5"/>
 <circle class="hole" cx="297.737" cy="165.837" r="3.25"/>

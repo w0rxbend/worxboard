@@ -2,16 +2,17 @@
 # worxboard ZMK module options (zephyr/module.yml -> kconfig: firmware/zmk/Kconfig)
 
 config WORXBOARD_STATUS_SCREEN
-    bool "worxboard right-half status screen"
+    bool "worxboard status screen (both halves)"
     default y
     depends on ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
-    depends on BOARD_WORXBOARD_RIGHT || BOARD_WORXBOARD2_RIGHT
+    depends on BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT || BOARD_WORXBOARD2_LEFT || BOARD_WORXBOARD2_RIGHT
     select LV_USE_LABEL
-    select LV_FONT_MONTSERRAT_16
     select LV_FONT_MONTSERRAT_12
+    select LV_FONT_MONTSERRAT_10
     help
-      Logo, Caps/Num/Scroll lock column and a static "wired" label, laid out portrait
-      (design.md §11.6). Uses no BLE or battery symbols.
+      Portrait 32 x 128 screen for the 0.91" SSD1306 OLED (design.md §11.6). Central: logo, USB
+      state, active layer and the Caps/Num/Scroll lock column. Peripheral: logo, the forwarded
+      lock column and a static "wired" label. Uses no BLE or battery symbols.
 
 choice WORXBOARD_DISPLAY_ROTATION
     prompt "worxboard display orientation"
@@ -19,19 +20,20 @@ choice WORXBOARD_DISPLAY_ROTATION
     depends on ZMK_DISPLAY
     depends on BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT || BOARD_WORXBOARD2_LEFT || BOARD_WORXBOARD2_RIGHT
     help
-      The nice!view-class display (160 x 68) stands upright, so both halves lay their screen out
-      portrait, 68 x 160, and src/worx_display_rotation.c turns it onto the panel.
+      The 0.91" SSD1306 OLED (128 x 32) stands upright, so both halves lay their screen out
+      portrait, 32 x 128, and src/worx_display_rotation.c turns it onto the panel.
 
 config WORXBOARD_DISPLAY_ROTATION_90
     bool "Portrait, J3 header at the back (rev A mounting)"
     help
       LVGL LV_DISPLAY_ROTATION_90: the module's header points away from the user, as J3 holds it
-      on both rev A boards.
+      on both rev A boards. Assumes panel pixel (0, 0) is the top-left corner of the module seen
+      glass up with its header on the left (not yet checked on hardware).
 
 config WORXBOARD_DISPLAY_ROTATION_270
-    bool "Portrait, header toward the user (the stock nice!view orientation)"
+    bool "Portrait, turned 180 degrees from the rev A setting"
     help
-      LVGL LV_DISPLAY_ROTATION_270, the orientation ZMK's nice_view shield draws for. Turns the
-      screen by 180 degrees from the rev A setting.
+      LVGL LV_DISPLAY_ROTATION_270. Use it if both screens come out upside down: the module's
+      pixel (0, 0) is then at the other end from the one rev A assumes.
 
 endchoice

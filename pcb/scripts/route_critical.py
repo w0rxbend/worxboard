@@ -229,6 +229,8 @@ class Router:
             r = PAD_END + FAN_R0
             vias_done = 0
             for i, num in enumerate(pins):
+                if num not in pads:                # no net: GP5 since the OLED moved to I2C (DISP-1)
+                    continue
                 lx, ly = pads[num]
                 lat = lx if normal[0] == 0 else ly
                 def at(rad: float, t: float):

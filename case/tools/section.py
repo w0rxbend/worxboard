@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Cross-sections through the right half (top + bottom + spacer): the middle-finger column,
 the display column, across the display bezel, the back-edge screws / USB-C, and the TRRS jack row.
-The display cuts also outline the J3 + nice!view envelope of the fit check (deviation CASE-1).
+The display cuts also outline the J3 + OLED envelope of the fit check (deviations CASE-1, DISP-1).
 
 Usage: section.py <exports_dir> <out.png>
 """
@@ -38,7 +38,7 @@ for ax, (origin, normal, axis, title) in zip(axs, cuts):
             continue
         for ent in sec.discrete:
             ax.fill(ent[:, axis], ent[:, 2], color=col, alpha=0.9, lw=0.3, ec="k")
-    if "display" in title:     # the J3 + nice!view envelope of the fit check, cut by the same plane
+    if "display" in title:     # the J3 + OLED envelope of the fit check, cut by the same plane
         for sol in F.display_envelope("right"):
             bb = sol.bounding_box()
             lo, hi = (bb.min.Y, bb.max.Y) if axis == 1 else (bb.min.X, bb.max.X)

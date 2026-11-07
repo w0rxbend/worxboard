@@ -28,5 +28,5 @@ python3 pcb/scripts/prune.py "$SIDE"               # dangling rip-up stubs (devi
 python3 pcb/scripts/pin_in_paste.py "$SIDE"        # paste on J1's shell legs, after routing (ORDER-1)
 drc || { python3 pcb/scripts/checks.py "$SIDE" || true; exit 1; }
 python3 pcb/scripts/checks.py "$SIDE"
-# the LCSC fields parity ignores (ELEC-6), and J3 pad n under nice!view pin n (G1, ELEC-8)
+# the LCSC fields parity ignores (ELEC-6), and J3 pad n under OLED pin n (G1, ELEC-8)
 python3 pcb/scripts/netcmp.py --board "$PCB" "$SIDE"

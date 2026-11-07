@@ -13,6 +13,8 @@ Parses the s-expression netlist (KiCad 10, version "E") and asserts:
   - every GPIO net matches layout/pins.py (by RP2040 symbol pin name)
   - Tip/Ring1 reach TX/RX on the left and RX/TX on the right through 1 kΩ
   - CC1/CC2 each have 5.1k to GND
+  - the OLED: J3 pin 3 / 4 on GP3 / GP2 (I2C1 SCL / SDA) with 4.7k to 3V3, and JP2 / JP3 bridged so
+    J3 pin 1 / 2 are GND / 3V3 as shipped and 3V3 / GND when both are swapped (docs/deviations.md DISP-1)
   - every RP2040 supply pin has a capacitor to GND on its net
   - the USB-C VBUS reaches only J1, D1's anode and the R5 sense divider (nothing can back-drive it),
     and the ESD arrays take their clamp reference from VSYS (U4) and VLINK (U5)
@@ -25,7 +27,7 @@ from the board, and KiCad's schematic parity ignores the LCSC field (docs/deviat
   - every board footprint is a design.py part with its footprint, value, LCSC number and
     DNP / BOM / CPL attributes, or a board-only part (stabiliser holes) kept out of BOM and CPL
   - no retired LCSC number (design.RETIRED) is on the board
-  - J3 meets the nice!view the right way round: pad n where module pin n plugs in (gate G1)
+  - J3 meets the OLED the right way round: pad n where module pin n plugs in (gate G1)
   - with the kikit output directory: bom.csv and pos.csv list exactly the parts JLC fits, each
     bom.csv line with the design.py LCSC number of every designator on it
 """
@@ -46,7 +48,7 @@ sys.path.insert(0, str(ROOT))
 import layout  # noqa: E402
 from design import RETIRED, SUPPLY_PIN_NAMES, Part, design, switch_net  # noqa: E402
 from layout.display import HEADER_PIN_ORDER  # noqa: E402
-from layout.pins import PINS, TRRS  # noqa: E402
+from layout.pins import DISP_SCL, DISP_SDA, PINS, TRRS  # noqa: E402
 
 TOKEN = re.compile(r'\(|\)|"(?:[^"\\]|\\.)*"|[^\s()]+')
 MATRIX_NET = re.compile(r"^(ROW\d|COL\d|MX_\w+)$")
@@ -263,6 +265,40 @@ def check_decoupling(nl: Netlist) -> list[str]:
     return errs
 
 
+# OLED header (docs/deviations.md DISP-1): J3 pin -> RP2040 GPIO for the bus pins, and the jumper that
+# powers each power pin with its (pad 1, pad 3) nets: pad 2 is the J3 pin, pads 1-2 are bridged as shipped
+J3_BUS = {"3": DISP_SCL, "4": DISP_SDA}
+J3_POWER = {"1": ("JP2", ("GND", "3V3")), "2": ("JP3", ("3V3", "GND"))}
+
+
+def check_oled(nl: Netlist) -> list[str]:
+    j3, u1, errs = nl.comps.get("J3"), nl.comps.get("U1"), []
+    if j3 is None or u1 is None:
+        return ["J3 or U1 missing"]
+    for pin, gp in J3_BUS.items():
+        (net,) = j3.pin_net(pin)
+        if u1.pin_net(f"GPIO{gp}") != [net]:
+            errs.append(f"J3.{pin} on {net}, not on GP{gp}")
+        if "3V3" not in via_resistor(nl, net, "4.7k"):
+            errs.append(f"J3.{pin} ({net}) has no 4.7k pull-up to 3V3")
+    shipped = []
+    for pin, (jp, (pad1, pad3)) in J3_POWER.items():
+        (net,) = j3.pin_net(pin)
+        c = nl.comps.get(jp)
+        if c is None or c.lib_id != "Jumper:SolderJumper_3_Bridged12":
+            errs.append(f"{jp} is not a 3-pad jumper bridged 1-2")
+            continue
+        got = (c.pins["1"][1], c.pins["2"][1], c.pins["3"][1])
+        if got != (pad1, net, pad3):
+            errs.append(f"{jp} pads 1/2/3 on {got}, want ({pad1}, {net}, {pad3})")
+        if {r for r, _ in nl.nets[net]} - {jp, "J3"}:
+            errs.append(f"J3.{pin} ({net}) reaches more than {jp}")
+        shipped.append(pad1)
+    if sorted(shipped) != ["3V3", "GND"]:
+        errs.append(f"JP2/JP3 as shipped give J3 pins 1/2 {shipped}, not one GND and one 3V3")
+    return errs
+
+
 # USB-C VBUS loads that cannot source current into it, and the ESD clamp references (deviation ELEC-2)
 VBUS_LOADS = {("J1", "VBUS"), ("D1", "A"), ("R5", None)}
 ESD_REFERENCE = {"U4": "VSYS", "U5": "VLINK"}
@@ -396,18 +432,18 @@ def check_board(board: list[BoardPart], parts: list[Part]) -> list[str]:
     return errs
 
 
-# nice!view (gate G1, docs/verification.md): seen from the LCD side with its header at the bottom, the
-# module's pins are MOSI, SCK, VCC, GND, CS from left to right (nicekeyboards.com pinout drawing), and
-# J3 pin n carries module pin n (design.py). Plugged in LCD up, the module runs from J3 over the case
-# window: turning the front view so its header-to-LCD direction (screen up) points there turns its
-# left-to-right pin direction alike, a quarter turn clockwise on screen from the header-to-LCD one.
-J3_PINS = 5
+# 0.91" OLED (gate G1, docs/verification.md): seen glass up with its header on the left, the module's
+# pins read GND, VCC, SCL, SDA from the top (sellers' silkscreens; VCC and GND trade places on some,
+# which JP2 / JP3 absorb), and J3 pin n carries module pin n (design.py). Plugged in glass up, the module
+# runs from J3 over the case window: its top-to-bottom pin direction is a quarter turn clockwise on
+# screen from its header-to-glass one.
+J3_PINS = 4
 J3_PITCH = 2.54
 PAD_TOL = 0.05
 
 
 def check_display(board: list[BoardPart], side: str) -> list[str]:
-    """J3 pad n sits where pin n of a nice!view plugged in LCD up meets the board."""
+    """J3 pad n sits where pin n of an OLED plugged in glass up meets the board."""
     j3 = next((b for b in board if b.ref == "J3"), None)
     pads = [j3.pads.get(str(n)) for n in range(1, J3_PINS + 1)] if j3 else []
     if not pads or None in pads:
@@ -415,15 +451,15 @@ def check_display(board: list[BoardPart], side: str) -> list[str]:
     cx, cy = (sum(p[i] for p in pads) / J3_PINS for i in (0, 1))
     wx, wy = layout.display(side)["window_centre"]
     norm = math.hypot(wx - cx, wy - cy)
-    ux, uy = (wx - cx) / norm, (wy - cy) / norm        # header -> LCD (KiCad screen frame, y down)
-    ex, ey = -uy, ux                                   # module pin 1 -> pin 5
+    ux, uy = (wx - cx) / norm, (wy - cy) / norm        # header -> glass (KiCad screen frame, y down)
+    ex, ey = -uy, ux                                   # module pin 1 -> pin 4
     mid = (J3_PINS + 1) / 2
     want = [(cx + (n - mid) * J3_PITCH * ex, cy + (n - mid) * J3_PITCH * ey) for n in range(1, J3_PINS + 1)]
     if all(math.dist(p, w) <= PAD_TOL for p, w in zip(pads, want)):
         return []
     names = HEADER_PIN_ORDER
     over = [i for i in range(J3_PINS) if math.dist(pads[0], want[i]) <= PAD_TOL]
-    meets = f"the nice!view's pin {over[0] + 1} ({names[over[0]]})" if over else "no nice!view pin"
+    meets = f"the OLED's pin {over[0] + 1} ({names[over[0]]})" if over else "no OLED pin"
     ax, ay = pads[-1][0] - pads[0][0], pads[-1][1] - pads[0][1]
     turn = round(math.degrees(abs(math.atan2(ax * ey - ay * ex, ax * ex + ay * ey))))
     return [f"J3 pad 1 at ({pads[0][0]:.2f}, {pads[0][1]:.2f}) meets {meets}; its pin 1 ({names[0]}) is at "
@@ -489,7 +525,7 @@ def main_board(argv: list[str]) -> int:
     parts, board = design(side), load_board(path)
     ck = Checker()
     ck.section(f"{path.name} footprint/value/LCSC/DNP per design.py", check_board(board, parts))
-    ck.section("J3 pad n under nice!view pin n (G1)", check_display(board, side))
+    ck.section("J3 pad n under OLED pin n (G1)", check_display(board, side))
     if len(argv) == 3:
         jlc = Path(argv[2])
         n = sum(p.in_bom and not p.dnp for p in parts)
@@ -513,6 +549,7 @@ def main(argv: list[str]) -> int:
     ck.section("GPIO nets per layout/pins.py", check_gpio(nl))
     ck.section(f"TRRS Tip/Ring1 -> {TRRS[side]['TRRS_A']}/{TRRS[side]['TRRS_B']} ({side})", check_trrs(nl, side))
     ck.section("CC1/CC2 5.1k to GND", check_cc(nl))
+    ck.section("OLED: J3 SCL/SDA on GP3/GP2 with 4.7k, JP2/JP3 power pins 1/2", check_oled(nl))
     ck.section("RP2040 supply pins decoupled", check_decoupling(nl))
     ck.section("VBUS only J1/D1/R5; ESD references U4 VSYS, U5 VLINK", check_power(nl))
     ck.section("LCSC on every BOM part, none retired", check_lcsc(nl))

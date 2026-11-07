@@ -26,7 +26,7 @@ const CAP_GAP = 1.0;          // keycap = key cell minus this
 const CAP_TAPER = 0.8;        // top face scale of a keycap
 const SW_LOWER = 14.0, SW_UPPER = 15.6;
 const SOCKET = { off: [-0.6, -3.8], size: [11.0, 5.0], h: 1.8 };   // Kailh MX hot-swap, footprint frame
-const DISPLAY_T = 2.9, DISPLAY_Z = 13.0;
+const DISPLAY_T = 2.7, DISPLAY_Z = Z.pcbTop + 7.5;   // 0.91" OLED: 5.0 mm J3 + 2.5 mm header, 2.7 mm module
 const J3_H = DISPLAY_Z - Z.pcbTop;   // display socket: up to the module
 const CASE_MARGIN = 6.2;      // case wall + clearance + leg boss beyond the PCB edge
 const PAIR_GAP = 30;
@@ -262,7 +262,7 @@ function keyGroup(side, k, groups) {
 function displayGroup(side) {
   const d = lay.sides[side].display;
   const g = new THREE.Group();
-  const info = `${side} display\nSharp LS011B7DH03 (nice!view), 160 × 68\nPIO1 SPI: SCK GP2, MOSI GP3, CS GP5`;
+  const info = `${side} display\n0.91" SSD1306 OLED, 128 × 32\nI2C1 at 0x3C: SDA GP2, SCL GP3`;
   g.add(rectBox(d.module, DISPLAY_Z, DISPLAY_Z + DISPLAY_T, M.display, info));
   // the active area under the window, drawn as the status screen would look
   const [a, b] = [cad(d.window.slice(0, 2)), cad(d.window.slice(2))];

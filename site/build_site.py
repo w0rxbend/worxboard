@@ -83,7 +83,7 @@ GALLERY = {  # image stem -> (caption, group), in gallery order; unknown images 
     "cpl-f1-ptc-1206": ("Placement proof, F1 polyfuse on the TRRS power line: both halves pass", "proof"),
     "cpl-j1-usb-c": ("Placement proof, J1 USB-C, mouth over the back edge: both halves pass", "proof"),
     "cpl-j2-trrs-pj320d": ("Placement proof, J2 TRRS jack on the inner bump: both halves pass", "proof"),
-    "cpl-j3-display-socket": ("Placement proof, J3 display socket: five contacts in five holes", "proof"),
+    "cpl-j3-display-socket": ("Placement proof, J3 display socket: four contacts in four holes", "proof"),
     "cpl-sw-tact-ts1088": ("Placement proof, SW1 and SW2 BOOT and RESET switches: 4 placed, 4 pass", "proof"),
 }
 WIDE = ("pair_top_iso", "section")   # layout.svg is shown full width in its own section

@@ -75,7 +75,7 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
     the OLED wiring; `route_critical.py` skips U1 pins with no net. Both boards re-placed and
     re-routed.
   - Layout: the module is 12 × 38 mm (2 mm longer, toward the back edge), the window 8 × 28 mm.
-  - Case: the pocket rises to Z 19.85 and the bezel to Z 20.85 (3.25 mm proud, was 2.0) over the
+  - Case revision A4: the pocket rises to Z 19.85 and the bezel to Z 20.85 (3.25 mm proud, was 2.0) over the
     taller stack: 5.0 mm socket + 2.5 mm header + 2.7 mm module.
   - Firmware: Zephyr's SSD1306 driver on hardware I2C1 (the PIO SPI is gone). Both halves run the
     custom portrait screen, chosen by split role; the OLED blanks on idle.

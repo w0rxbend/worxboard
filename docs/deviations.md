@@ -2129,3 +2129,74 @@ JLC3DP's published rules and the parts they hold. Each defect below was confirme
   remark does not change the tier.
 - **Change:** the form-settings table has an "Appearance standard: Strict (or Premium), if the form
   offers it" row, and the remark paragraph says why.
+
+## DISP: the display swap (`layout/`, `pcb/`, `case/`, `firmware/`, `tests/`, `docs/`)
+
+On 2026-11-07 the owner asked for "a cheap LCD from AliExpress instead of the nice!view display",
+with solder jumpers for the module's pin-order variants.
+
+### DISP-1. A 0.91" 128 × 32 SSD1306 I2C OLED replaces the nice!view (§4, §3, §7, §10.4, §11; supersedes the display part of ELEC-3, BOARD-1 and CASE-1)
+
+- **Spec:** §4 names a nice!view (Sharp LS011B7DH03, 160 × 68, 3-wire SPI on PIO1) in J3, a 1×5
+  socket; §3 puts SCK / MOSI / CS on GP2 / GP3 / GP5.
+- **Problem:** the nice!view costs far more than the AliExpress displays and is sold by few shops.
+  The display slot is about 14 × 36 mm (the old C6R0 cell plus the back strip). The cheap TFTs
+  (0.96" ST7735, 1.14" / 1.3" ST7789) are 23–27 mm wide, so they would need the inner keys moved.
+  The 0.91" 128 × 32 SSD1306 OLED, about US$1–2, is 38 × 12 mm and fits. Its sellers ship two
+  header orders, `GND VCC SCL SDA` and `VCC GND SCL SDA`, and publish no drawing.
+- **Choice:**
+  - **Module:** the common 4-pin I2C 0.91" OLED, address 0x3C. Assumed 38 × 12 mm, header row
+    1.3 mm from one short end, active area 22.38 × 5.58 centred about 20 mm from that end, 2.7 mm
+    thick with its glass. These are gate G1, to measure on the first module.
+  - **Bus:** hardware I2C1 on the same two pins: GP2 = SDA, GP3 = SCL (the RP2040 mux allows only
+    that pairing there), 400 kHz. No PIO is needed. R14 / R15, 4.7 kΩ 0402 (C25900, basic), pull
+    the lines up to 3V3; most modules carry their own pull-ups as well. GP5 is freed.
+  - **Pin order:** J3 pins 1 and 2 come from JP2 and JP3, 3-pad solder jumpers
+    (`SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm_NumberLabels`). Pad 2 is the J3 pin and
+    pads 1-2 are bridged in copper: JP2 gives pin 1 GND (3V3 on 2-3), JP3 gives pin 2 3V3 (GND on
+    2-3). A VCC-GND module needs both 1-2 bridges cut and both 2-3 soldered. Both jumpers sit under
+    the module in the columns of J3 pins 1 and 2, with `OLED VCC-GND: JP2+JP3` / `cut 1-2, solder
+    2-3` on the silkscreen. A module with SCL / SDA in other places is not supported.
+  - **J3:** the 1×4 of rev A's series, Hong Cheng HC-PM254-5.0H-1x4PZ-02A (C42163122, extended,
+    THT, 18 495 at JLC on 2026-11-07), 5.0 mm, the lowest 1×4 THT socket JLC stocks; 5.7 mm
+    fallback C55218874 (it does not fit the case at full tolerance). C27985230 joins
+    `design.RETIRED`.
+  - **Geometry:** the module is 2 mm longer than the nice!view. Its front edge stays on the C6R0
+    cell boundary, so the extra length goes back: module y 36.625–74.625, header row y 37.925
+    (right frame). Window 8 × 28 mm at (72.39, 56.625): it shows the active area anywhere within
+    ±1.2 mm across and ±2.8 mm along of the nominal centre.
+  - **Stack:** 5.0 mm socket + the module's 2.5 mm header + 2.7 mm module: glass 10.2 mm above
+    the PCB, 11.0 mm at full tolerance (was 9.75). The pocket ceiling goes to Z 19.85 and the bezel
+    top to Z 20.85, 3.25 mm proud of the top face (was 2.0): case revision A4.
+- **Change:**
+  - `layout/display.py`: the module, header (4 pins, pin 1 at high x on both halves), window and
+    stack; `layout/pins.py`: `DISP_SDA` / `DISP_SCL` on GP2 / GP3, GP5 not connected; tests.
+  - `pcb/scripts/design.py`: J3 1×4, JP2, JP3, R14, R15. `pcb/lib`: the
+    `PinSocket_1x04_P2.54mm_Vertical_H5.0mm` footprint (KiCad's pads, silk and courtyard) and its
+    STEP from `gen_models.py`; the 1×5 files are removed. `jlc_rotations.csv`: J3 correction
+    (0, 3.81, 270), from JLC's footprint of C42163122 (`jlc_footprints.json`).
+  - `place.py`: JP2 / JP3 / R15 / R14 placed from the J3 pins, under the module, and the silkscreen
+    note. `route_critical.py`: the U1 fan-out skips pins with no net (GP5).
+  - `netcmp.py`: a new gate, SCL / SDA on GP3 / GP2 with 4.7 kΩ to 3V3 and the JP2 / JP3 nets; the
+    J3 pin-1 board check for 4 pins.
+  - `case/worxboard_case.py`: `DISPLAY_STACK_MAX` 11.0; `case/check_fit.py`: the J3 body
+    10.86 × 2.55 × 5.15 and the module envelope from 6.2 mm up.
+  - Firmware: `solomon,ssd1306fb` on I2C1 replaces the PIO SPI and `sharp,ls0xx`; both halves run
+    the custom portrait screen by split role; the rotation flush widens bands to 8-row pages; the
+    OLED blanks on idle ([firmware.md](firmware.md#displays)).
+  - `tests/integration`: G1 for the OLED (pinout with the jumpers, pocket, window over the active
+    area at its tolerance corners); the firmware DT reader checks I2C1 and the OLED node.
+- **Open item:** re-fetching JLC's footprints for the new parts showed that JLC's library now links
+  the TRRS jack C95562 to another record: the same pad positions, renumbered pads (old pad 4 is now
+  pad 2) and a new body outline. The committed `jlc_footprints.json` keeps the old C95562 record on
+  purpose, so this change does not move J2. Check J2 in JLC's placement preview and update the
+  record and `cpl_check.py`'s pad map before ordering.
+- **Result:**
+  - Stage A on both halves: ERC 0 violations, `netcmp.py` 11 / 11 with the OLED gate.
+  - `just model`: every case check passes; pocket x 65.89–78.89, y 36.125–75.125, Z 8.6–19.85;
+    bezel x 63.89–80.89, y 34.125–74.023, Z 17.6–20.85; window 3.40 mm from the C6R1 well; corners
+    R2.0, thinnest wall 1.41 mm.
+  - Firmware: all six `build.yaml` rows compile; `fw_check.py` passes on both core rows.
+  - AS-BUILT: <filled in after routing>
+- **Consumers:** the builder (buy OLEDs, set the jumpers before power-up), the order package, the
+  case package (A4), [electrical.md](electrical.md#display), [verification.md](verification.md#g1-oled-display).

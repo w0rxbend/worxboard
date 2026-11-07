@@ -14,12 +14,19 @@ docs. The gates block **ordering**, not the repository.
 | [CI on `main`](#ci) | **PASS**: layout, firmware, case and pcb on `f4c95bb`, every job, both from-scratch board rebuilds included |
 | [Order package](#order-package) (`pcb/production/`) | **PASS**: `jlc_check` on both halves, 119 of 119 placements per half proven against JLC's footprints, and the package rebuilds byte for byte |
 | [Boards](#boards-after-the-turnkey-re-placement) | **PASS**: DRC with schematic parity 0 / 0 / 0, `checks.py` 14 of 14 per half |
-| [G1 display](#g1-niceview-display) | **PASS** |
+| [G1 display](#g1-oled-display) | **PASS** against the sellers' listings (DISP-1); measure the first module |
 | [G2 TRRS jack](#g2-pj-320d-trrs-jack) | **PASS** |
 | [G3 parts, rules and placement](#g3-parts-stock-and-track-width) | **PASS**: every line in stock on 2026-11-04 at 05:17 UTC; re-check on the order day |
 | [Hardware](#not-verified-until-a-board-is-built) | **not built**: the items only a real board can confirm are listed |
 
-Nothing blocks the order now ([open items](#open-items-that-block-ordering)). Order 2 assembled
+> [!NOTE]
+> **DISP-1 (2026-11-07) replaced the nice!view with a 0.91" SSD1306 I2C OLED** and re-placed and
+> re-routed both boards. G1 below is re-done for the OLED. The board, order-package, CI and
+> integration-test figures on this page are from before DISP-1 until they are re-recorded.
+> AS-BUILT: <filled in after routing>
+
+Nothing blocks the order now ([open items](#open-items-that-block-ordering)), but see the open
+DISP-1 item on JLC's TRRS-jack footprint record. Order 2 assembled
 boards per side and test them before ordering the aluminium case
 ([ordering-jlcpcb.md](ordering-jlcpcb.md)).
 
@@ -51,8 +58,8 @@ and the netlists `just pcb-sch` exports) and `layout/pins.py`:
 - **TRRS crossover.** This follows each jack's 1 kΩ resistors to the UART pins. With a straight
   cable, the left TX meets the right RX and the reverse. Ring2 is VLINK and Sleeve is GND on both
   halves.
-- **Display header.** J3 pins 1–5 carry the firmware's PIO1 SPI MOSI, SCK and CS GPIOs, 3V3 and
-  GND.
+- **Display header.** J3 pins 3 and 4 carry the firmware's I2C1 SCL and SDA GPIOs; pins 1 and 2
+  reach GND and 3V3 through the JP2 / JP3 bridges they ship with.
 - **Firmware vs `pins.py`.** These must hold for the board files and all six compiled builds:
   - rows GP8–GP13 with pull-down;
   - columns GP14–GP20 (reversed on the right);
@@ -177,41 +184,38 @@ The pcb run's 10 jobs:
 `release.yml` runs only on a `v*` tag push and has not run: no tag or release exists. `pages.yml`
 is manual and has not run.
 
-## G1: nice!view display
+## G1: OLED display
 
-**Sources:**
+The display is a 0.91" 128 × 32 SSD1306 I2C OLED module, the common AliExpress board (DISP-1). No
+maker publishes a drawing, and sellers' listings differ, so the design takes the most common figures
+and leaves margin where they disagree.
 
-- the nice!view pinout, dimension and schematic drawings
-  ([nicekeyboards.com](https://nicekeyboards.com/docs/nice-view/pinout-schematic), re-read
-  2026-11-03);
-- the splitkb [FAQ](https://docs.splitkb.com/product-guides/nice-view/frequently-asked-questions):
-  36 × 14 × 2.9 mm, five pins, socket and pins included;
-- the viewing area of the Sharp LS011B7DH03, from its
-  [DigiKey listing](https://www.digikey.com/en/products/detail/sharp-microelectronics/LS011B7DH03/25953418).
+**Sources:** sellers' and distributors' listings of the 4-pin I2C module (38 × 12 mm board; DFRobot
+gives 38 × 12 × 2.7 mm), and the 22.38 × 5.58 mm active area that the 128 × 32 panels list.
 
-| Item | Drawing | Design | Result |
+| Item | Listing | Design | Result |
 |---|---|---|---|
-| Size | 36 (+0.1–0.2 V-cut) × 14 × 2.9: glass 0.9, PCB 1.0, parts below 1.0 | 36 × 14 × 2.9 | PASS |
-| Pin order | MOSI, SCK, VCC, GND, CS | J3 pins 1–5: `DISP_MOSI`, `DISP_SCK`, `3V3`, `GND`, `DISP_CS` | PASS |
-| Pin-1 end | Front (LCD) view with the header at the bottom: MOSI at the left. Mounted LCD up with the header at the back (low y), MOSI is at **high x** | J3 pad 1 (`DISP_MOSI`) at **high x** on both halves: right (77.47, 39.925), left (192.69, 39.925) (BOARD-1) | PASS, and a gate: `netcmp.py --board` stops stages C and D otherwise (ELEC-8) |
-| Header row to the module edge | 1.3 mm, pins centred across the 14 mm width | 1.3: header y 39.925, module y 38.625–74.625 | PASS |
-| Module in the pocket | 36.2 mm with the V-cut | module y 38.625–74.825; pocket 38.125–75.125 | PASS |
-| Viewing area | 25.28 × 10.74, starting 4.6 mm from the header-end edge | 26 × 12 window centred on it (y 55.865), following the header | PASS |
-| Stack above the PCB | J3 5.0 (C27985230, ELEC-3) + the stock header 2.0 + PCB 1.0 + glass 0.9 | glass 8.9 nominal, 9.4 with a 2.5 mm header carrier, **9.75 at full tolerance**; pocket ceiling at Z 18.6 = PCB + 10.0, under a 1.0 mm skin in a raised bezel (CASE-1) | PASS |
-| Fit | | `just fitcheck`: the J3 body to 5.8 mm, then the module to 9.75 mm, against both case tops: **0 mm³**. A top with the old 16.8 ceiling gives 138 mm³, so the check has teeth | PASS |
-| CS polarity | active high (LS011B7DH03) | `cs-gpios … GPIO_ACTIVE_HIGH` | PASS |
-| Screen orientation | the module stands LCD up, header at the back | both screens are laid out portrait and turned by the firmware (`LV_DISPLAY_ROTATION_90`, WS1-7) | on hardware |
+| Size | 38 × 12 × 2.7 (board and glass) | 38 (+0.2 V-cut) × 12; module x 66.39–78.39, y 36.625–74.625; pocket 65.89–78.89 × 36.125–75.125 | PASS |
+| Pin order | `GND VCC SCL SDA` or `VCC GND SCL SDA`, by seller | J3 pins 1–4: `DISP_P1`, `DISP_P2`, `DISP_SCL`, `DISP_SDA`; JP2 / JP3 give pins 1 / 2 GND / 3V3 as shipped and 3V3 / GND when both are swapped | PASS; set the jumpers per module |
+| Pin-1 end | Glass up, header on the left: the pins read GND, VCC, SCL, SDA from the top. Mounted glass up with the header at the back (low y), pin 1 is at **high x** | J3 pad 1 at **high x** on both halves: right (76.2, 37.925), left (191.42, 37.925) | PASS, and a gate: `netcmp.py --board` stops stages C and D otherwise (ELEC-8) |
+| Header row to the module edge | about 1.3 mm, pins centred across the width | 1.3: header y 37.925 | to measure |
+| Active area | 22.38 × 5.58, centre about 20 mm from the header-end edge, ±2 mm between listings | 8 × 28 window centred at (72.39, 56.625): shows it anywhere within ±1.2 mm across and ±2.8 mm along | PASS; to measure |
+| Stack above the PCB | J3 5.0 (C42163122) + the module's header 2.5 + module 2.7 | glass 10.2 nominal, **11.0 at full tolerance**; pocket ceiling at Z 19.85 = PCB + 11.25, under a 1.0 mm skin in a raised bezel (CASE-1, DISP-1) | PASS |
+| Fit | | `just fitcheck`: the J3 body (10.86 × 2.55 × 5.15) to 6.2 mm, then the module to 11.0 mm, against both case tops | re-run after the re-route |
+| Bus | I2C, address 0x3C | I2C1, GP2 SDA / GP3 SCL, 4.7 kΩ pull-ups R14 / R15; `solomon,ssd1306fb` at 0x3C | PASS |
+| Screen orientation, colours | | both screens are laid out portrait and turned by the firmware (`LV_DISPLAY_ROTATION_90`, WS1-7) | on hardware |
 
-- **J3 is fitted by JLC.** It is C27985230, a 5.0 mm THT socket and the same height as the socket
-  that ships with the nice!view. A stock nice!view plugs in on its own header. The header pins must
-  be **trimmed flush** on the glass side: untrimmed, they reach the pocket ceiling (CASE-1).
-- **Integration tests.** `test_g1_header_is_at_the_back_end`, `…_j3_pin_order_is_the_module_order`,
-  `…_module_pins_land_on_their_nets`, `…_module_fits_the_pocket` and
-  `…_window_shows_the_viewing_area` all pass on both halves.
-- **Firmware orientation.** The panel end that is pixel x = 0 comes from ZMK's nice_view widgets
-  and the vendor's product images. No Sharp datasheet was found. If the first board shows the
-  screens upside down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in
-  `firmware/zmk/config/worxboard.conf` ([firmware.md](firmware.md#known-issues)).
+- **J3 is fitted by JLC.** It is C42163122, a 5.0 mm THT 1×4 socket from the same series as rev A's
+  1×5. The module plugs in on its own header. Trim the header pins **flush** on top: untrimmed, they
+  can reach the pocket ceiling.
+- **Integration tests.** `test_g1_header_is_at_the_back_end`, `…_j3_pin_order_is_the_module_order`
+  (with the jumper pads), `…_module_pins_land_on_their_nets`, `…_module_fits_the_pocket` and
+  `…_window_shows_the_active_area` (at the nominal centre and the four tolerance corners) check
+  these on both halves.
+- **Firmware orientation.** Which corner is pixel (0, 0) comes from ZMK's usual 128 × 32 settings,
+  not from a drawing. If the first board shows the screens upside down, set
+  `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in `firmware/zmk/config/worxboard.conf`
+  ([firmware.md](firmware.md#known-issues)).
 
 ## G2: PJ-320D TRRS jack
 
@@ -258,7 +262,7 @@ same stock. "Need" is the quantity for both designs, plus JLC's attrition, and n
 | C70069 | F1 | nSMD025-24V | extended | SMT | 50 | 18 951 | PASS |
 | C165948 | J1 | HRO TYPE-C-31-M-12 | extended | SMT | 50 | 165 043 | PASS |
 | C95562 | J2 | HRO PJ-320D-4A | extended | SMT | 50 | 5 513 | PASS |
-| C27985230 | J3 | HC-PM254-5.0H-1x5PZ socket | extended | **THT** | 50 | 6 294 | PASS |
+| C42163122 | J3 | HC-PM254-5.0H-1x4PZ-02A socket (DISP-1; JLC stock on 2026-11-07) | extended | **THT** | 50 | 18 495 | PASS |
 | C455280 | SW1, SW2 | TS-1088R-02026 | extended | SMT | 50 | 124 616 | PASS |
 | C41430893 | SK101–SK137 | HanElectricity CPG151101S11-16 | extended | SMT | 374 | 229 543 | PASS |
 | C81598 | D101–D137 | 1N4148W | basic | SMT | 398 | 3 815 633 | PASS |
@@ -266,6 +270,7 @@ same stock. "Need" is the quantity for both designs, plus JLC's attrition, and n
 | C2909343 | R3, R4 | 27 Ω 0402 | extended | SMT | 50 | 252 149 | PASS |
 | C11702 | R7, R9, R11, R12 | 1 kΩ 0402 | basic | SMT | 60 | 21 052 308 | PASS |
 | C25744 | R5, R6, R8, R10, R13 | 10 kΩ 0402 | basic | SMT | 70 | 15 634 607 | PASS |
+| C25900 | R14, R15 | 4.7 kΩ 0402 (DISP-1; JLC stock on 2026-11-07) | basic | SMT | 50 | 15 874 224 | PASS |
 | C1525 | C5, C8–C17 | 100 nF 0402 | basic | SMT | 130 | 33 658 574 | PASS |
 | C52923 | C4, C18, C19 | 1 µF 0402 | basic | SMT | 50 | 10 144 033 | PASS |
 | C15525 | C1–C3 | 10 µF 0402 | basic | SMT | 50 | 9 704 103 | PASS |
@@ -276,8 +281,8 @@ same stock. "Need" is the quantity for both designs, plus JLC's attrition, and n
   replacements are C41430893, C97521 and C49304726. `stock.py` and `netcmp.py` fail if a retired
   number comes back.
 - **Alternates**, re-checked on 2026-11-04: C49352235 (socket, 26 943), C9002 (crystal, basic,
-  286 104) and C46061764 (5.7 mm socket, 4 487). C46061764 does not fit the display pocket at full
-  tolerance; see [ordering-jlcpcb.md](ordering-jlcpcb.md#if-a-part-is-out-of-stock).
+  286 104) and, since DISP-1, C55218874 (5.7 mm 1×4 socket). The 5.7 mm socket does not fit the
+  display pocket at full tolerance; see [ordering-jlcpcb.md](ordering-jlcpcb.md#if-a-part-is-out-of-stock).
 - **PTC.** C70069 is WS2's choice for the spec's "PTC 1206, 250 mA hold" (WS2a-4): 250 mA hold,
   500 mA trip, 24 V.
 - **Fees.** In Standard PCBA, JLC charges every unique part the same $1.53 loading fee, basic or
@@ -302,7 +307,7 @@ them:
 
 | Finding | Fix | Since then |
 |---|---|---|
-| The display's PIO SPI took GP0 (UART0 TX) on its first transfer: no TRRS link on any build | `miso-gpios` = MOSI on both targets (REVIEW-FIX-1) | unchanged; `test_pins.py` fails a PIO SPI pin on a UART, row or column |
+| The display's PIO SPI took GP0 (UART0 TX) on its first transfer: no TRRS link on any build | `miso-gpios` = MOSI on both targets (REVIEW-FIX-1) | moot since DISP-1 (I2C1, no PIO SPI); `test_pins.py` fails an I2C pin on a UART, row or column |
 | Right-central build had no USB product name | `ZMK_KEYBOARD_NAME` on both halves | unchanged |
 | Left 3V3 caps reached U1 only through a 75–86 mm detour | caps at the five U1 supply exits on locked copper (REVIEW-FIX-2) | kept; their GND returns are now gated too (BOARD-14) |
 | Vias in SMD pads | router, session import and a check keep them out (REVIEW-FIX-3) | unchanged |
@@ -317,12 +322,20 @@ host (BOARD-2), and `prune.py` leaves no unlocked dangling copper (BOARD-4, BOAR
 
 ## Open items that block ordering
 
-None. The five items WS5 listed are done:
+None that block it. One DISP-1 item to clear before ordering:
+
+- **JLC's footprint record for J2 changed.** Re-fetched on 2026-11-07, JLC's library links C95562
+  to a record with renumbered pads (old pad 4 is now pad 2) and a new body outline; the pad
+  positions are the same. `pcb/scripts/jlc_footprints.json` keeps the old record on purpose, so
+  `cpl_check.py` still proves the placement against it. Check J2 in JLC's placement preview, and
+  update the record and `cpl_check.py`'s pad map in a separate change (DISP-1).
+
+The five items WS5 listed are done:
 
 | # | Gate | Item | Done in |
 |---|---|---|---|
 | 1 | G1 | J3 pin 1 at high x on both halves | BOARD-1 (`bf7a642`), gated by ELEC-8 |
-| 2 | G1 | J3 row at y 39.925, so the module stays inside the pocket | BOARD-1 |
+| 2 | G1 | J3 row at the module's header (y 37.925 since DISP-1), so the module stays inside the pocket | BOARD-1, DISP-1 |
 | 3 | G1 | Window centred on the viewing area | REVIEW-FIX-6 |
 | 4 | G2 | TRRS body at the drawing size, relieved in the case | BOARD-13 (`68f812e`), CASE-9 (`dec5f7b`) |
 | 5 | G3 | Discontinued socket replaced; flash and crystal swapped | ELEC-1 (`f5f051d`), boards re-placed in BOARD-1 |
@@ -338,6 +351,9 @@ Nothing below blocks the order. Each item can only be confirmed on the first ass
   `CONFIG_WORXBOARD_DISPLAY_ROTATION_270`), the wired split, the forwarded lock indicators, the
   role-swap builds, and the XOSC start-up with the YXC crystal (64× delay, WS1-9). The LVGL heap use
   on 32-bit ARM has not been measured (WS1-8).
+- **OLED module (G1, DISP-1).** Measure the first module: its size, header row position and the
+  active area against the window. Read its pin order and set JP2 / JP3 **before** first power-up.
+  Then check the screen orientation and colours, and that the screens blank on idle.
 - **J2 contacts.** Check the T/R1/R2/S naming with a plug and a meter (G2 note).
 - **Case.** That the USB-C and TRRS plugs seat fully, the BOOT/RESET pin holes reach the buttons,
   and the C6R1 keycap clears the display module's far end. Check these on a 3D-printed test top

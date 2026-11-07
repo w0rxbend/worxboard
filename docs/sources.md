@@ -20,7 +20,8 @@ worxboard builds on the work below. The licence terms and where each piece is us
 | [foostan/crkbd](https://github.com/foostan/crkbd), Corne v4 (MIT) | The electrical reference: RP2040 support circuit and production BOM part numbers (marked [C] in [bom.md](bom.md)), the repo structure and the build-guide format. The ground-stitching mitigation answers [crkbd#265](https://github.com/foostan/crkbd/issues/265). |
 | [Raspberry Pi: Hardware design with RP2040](https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf) and the [RP2040 datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) | Crystal, flash, decoupling and USB recommendations |
 | [ceoloide/ergogen-footprints](https://github.com/ceoloide/ergogen-footprints) `switch_mx` (MIT) | Cross-check of the Kailh MX hot-swap footprint geometry |
-| [nice!view](https://nicekeyboards.com/nice-view/) by Nice Keyboards | The display module format (Sharp LS011B7DH03 memory LCD) and its pinout |
+| [nice!view](https://nicekeyboards.com/nice-view/) by Nice Keyboards | The rev A display format before DISP-1 (Sharp LS011B7DH03 memory LCD) and its pinout |
+| Sellers' listings of the 0.91" 128 × 32 SSD1306 I2C OLED module (AliExpress, DFRobot and others) | The display since DISP-1: its size, header and pin orders (G1) |
 | [KiCad](https://www.kicad.org/) 10.0.7 and its [libraries](https://gitlab.com/kicad/libraries) (CC-BY-SA-4.0 with the library exception) | Schematic and PCB tools (`kicad-cli`, the `pcbnew` Python API, the official `kicad/kicad` Docker images); stock symbols, footprints and 3D models |
 | [kicad-sch-api](https://github.com/circuit-synth/kicad-sch-api) 0.5.6 (MIT) | Writes the schematics from `pcb/scripts/design.py` |
 | [Freerouting](https://github.com/freerouting/freerouting) 2.5.0 (GPL-3.0) | Autorouter, run as a tool in an `eclipse-temurin` container |
@@ -32,8 +33,8 @@ worxboard builds on the work below. The licence terms and where each piece is us
 | Source | What it gave this project |
 |---|---|
 | [ZMK Firmware](https://github.com/zmkfirmware/zmk) (MIT) | The firmware, wired split, ZMK Studio, the board conventions, the `zmk-build-arm` build image and the `build-user-config.yml` workflow that the firmware CI mirrors |
-| [ZMK documentation](https://zmk.dev/docs) | New-board (HWMv2) guide, physical layouts and the `sharp,ls0xx` display setup |
-| [Zephyr RTOS](https://www.zephyrproject.org/) (Apache-2.0) | RP2040 support, the PIO SPI driver, the `sharp,ls0xx` display driver and LVGL |
+| [ZMK documentation](https://zmk.dev/docs) | New-board (HWMv2) guide, physical layouts and the display setup (the 128 × 32 SSD1306 settings of its Corne board) |
+| [Zephyr RTOS](https://www.zephyrproject.org/) (Apache-2.0) | RP2040 support, the I2C and `solomon,ssd1306fb` display drivers and LVGL |
 
 ## Tools
 

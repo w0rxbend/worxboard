@@ -62,7 +62,7 @@ STAB_ROT_DIGITS = 3              # stabiliser rotation from layout.json's rounde
 # the same inputs give a byte-identical board (with PYTHONHASHSEED=0, set by pcb.just). The
 # per-side base seeds are ones whose rebuild routes to 0 unconnected (docs/deviations.md WS2c-4,
 # BOARD-2).
-KIID_SEED = {"left": 0x4, "right": 0x1}
+KIID_SEED = {"left": 0x4, "right": 0x5}
 
 
 def layout_seed(side: str) -> bytes:

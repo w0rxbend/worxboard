@@ -362,6 +362,10 @@
       },
       {
         "netclass": "Power",
+        "pattern": "VLED"
+      },
+      {
+        "netclass": "Power",
         "pattern": "3V3"
       },
       {

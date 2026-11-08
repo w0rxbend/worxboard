@@ -25,6 +25,9 @@
 - no via overlaps an SMD pad (the U1 exposed pad's thermal vias excepted);
 - pin-in-paste: J1's four through-hole shell legs are on the paste layer (pin_in_paste.py, deviations
   ORDER-1), so JLC's stencil opens them;
+- per-key RGB (rev B, deviations REVB-1): every LED<n> sits on B.Cu at layout.json's leds[n] (its
+  switch's LED window) with its own Edge.Cuts cutout, its DIN -> DOUT runs towards the next LED, and
+  its 100 nF C<n> reaches the LED's VDD pad within LED_CAP_MAX_MM of VLED copper;
 - Edge.Cuts: every outline vertex equals layout/build/layout.json within EDGE_TOL_MM;
 - DRC: build/<side>/drc.json lists 0 unconnected items and no error-level violations.
 """
@@ -71,6 +74,7 @@ GND_RET_GROW = 0.03          # mm: copper grown so that thin joins survive the r
 GND_RET_VIA_MM = 1.6         # mm charged per layer change (the board thickness)
 GND_RET_MAX_MM = 20.0        # each U1 cap's GND pad -> the exposed pad (its decoupling loop)
 EP_PLANE_MAX_MM = 8.0        # the exposed pad -> the main B.Cu GND plane
+MAIN_PLANE_MIN_MM2 = 2000.0  # a B.Cu GND island this large counts as the main plane (rev B, REVB-7)
 # U1 GND links and the GND pins near U1 (deviations ORDER-4): a single thin track and one via once tied
 # the left EP, U2, U4 and 11 caps to the planes
 GND_NECK_W = 0.4             # mm: a link counts only over copper about this wide or wider ...
@@ -88,6 +92,10 @@ GND_PIN_WIN = 12.0           # mm: the raster covers both pads' box grown by thi
 # U4's clamp reference pin 5 is on VSYS (deviations ELEC-2); C2 sits at its via (BOARD-5)
 U4_REF = ("U4.5", "VSYS", ("C1.1", "C2.1"))
 U4_CAP_MAX_MM = 5.0
+# Rev B LEDs
+LED_POS_TOL_MM = 0.01
+LED_CAP_MAX_MM = 8.0         # VLED copper, LED VDD pad -> its own 100 nF
+LED_PADS = {"VSS": "1", "DIN": "2", "VDD": "3", "DOUT": "4"}
 
 
 def mm_xy(v) -> tuple[float, float]:
@@ -245,10 +253,15 @@ def decoupling(board: pcbnew.BOARD) -> tuple[dict[str, float], dict[str, float],
 
 
 def main_plane(board: pcbnew.BOARD):
-    """The main B.Cu GND plane: the largest filled B.Cu GND pour area (a complete_routes.Item), or None."""
+    """The main B.Cu GND plane, as geometry: every filled B.Cu GND island of at least MAIN_PLANE_MIN_MM2
+    (else the largest), or None. Rev A had one B.Cu plane; rev B's B.Cu LED routing splits it into large
+    islands, each stitched to the F.Cu plane, so U1 must reach a plane-sized island, not one of them in
+    particular (deviations REVB-7)."""
+    from shapely.ops import unary_union
     gnd, B = board.FindNet("GND").GetNetCode(), pcbnew.B_Cu
-    pours = [it for it in complete_routes.pour_copper(board) if it.net == gnd and B in it.geoms]
-    return max(pours, key=lambda it: it.geoms[B].area) if pours else None
+    pours = [it.geoms[B] for it in complete_routes.pour_copper(board) if it.net == gnd and B in it.geoms]
+    big = [g for g in pours if g.area >= MAIN_PLANE_MIN_MM2] or ([max(pours, key=lambda g: g.area)] if pours else [])
+    return unary_union(big) if big else None
 
 
 def u1_gnd(board: pcbnew.BOARD) -> tuple[int, int, list[str], float]:
@@ -420,7 +433,7 @@ def gnd_return(board: pcbnew.BOARD) -> tuple[dict[str, float], float]:
         cells = [i for li, i in r.pad_cells(f"{c}.2") if li == 0]
         out[c] = float(dist[0][np.array(cells)].min()) if cells else math.inf
     main = main_plane(board)
-    cells = r.cells(main.geoms[pcbnew.B_Cu], 1) if main else []
+    cells = r.cells(main, 1) if main is not None else []
     return out, float(dist[1][cells].min()) if len(cells) else math.inf
 
 
@@ -551,6 +564,38 @@ def check_edges(board: pcbnew.BOARD, side: str) -> list[str]:
     return errs
 
 
+def check_rgb(board: pcbnew.BOARD, side: str) -> tuple[str, list[str]]:
+    leds = layout_side(side)["leds"]
+    errs, worst = [], 0.0
+    graph = copper_graph(board, board.FindNet("VLED").GetNetCode())
+    for i, d in enumerate(leds):
+        fp = board.FindFootprintByReference(d["ref"])
+        if fp is None:
+            errs.append(f"{d['ref']} missing")
+            continue
+        x, y = mm_xy(fp.GetPosition())
+        if math.dist((x, y), (d["x"], d["y"])) > LED_POS_TOL_MM or not fp.IsFlipped():
+            errs.append(f"{d['ref']} at ({x:.3f}, {y:.3f}) {'B' if fp.IsFlipped() else 'F'}.Cu, "
+                        f"layout wants B.Cu ({d['x']:.3f}, {d['y']:.3f}) under {d['key']}")
+        if not any(g.GetLayer() == pcbnew.Edge_Cuts for g in fp.GraphicalItems()):
+            errs.append(f"{d['ref']}: no cutout on Edge.Cuts")
+        pads = {p.GetNumber(): mm_xy(p.GetPosition()) for p in fp.Pads()}
+        step = d["next"] or leds[i - 1]["next"]
+        (ax, ay), (bx, by) = pads[LED_PADS["DIN"]], pads[LED_PADS["DOUT"]]
+        n = math.hypot(bx - ax, by - ay)
+        # turned the better of its two ways (key rot or + 180): where the chain turns 90 deg at a row end
+        # the best projection is only ~0.27 (DIN -> DOUT also steps 1.5 mm across), so the gate is > 0
+        if ((bx - ax) * step[0] + (by - ay) * step[1]) / n <= 0.0:
+            errs.append(f"{d['ref']}: DIN -> DOUT points away from the chain")
+        cap = f"{d['cap']}.1"
+        dist = dijkstra(graph, [f"{d['ref']}.{LED_PADS['VDD']}"], {cap})
+        worst = max(worst, dist)
+        if dist > LED_CAP_MAX_MM:
+            errs.append(f"{d['ref']} VDD -> {d['cap']}: {dist:.1f} mm of VLED copper > {LED_CAP_MAX_MM}")
+    return (f"per-key RGB: {len(leds)} LEDs in their switch windows with cutouts, chained in order, "
+            f"each 100 nF <= {worst:.1f} mm of VLED copper from its VDD pad", errs)
+
+
 def check_drc(path: Path) -> list[str]:
     if not path.exists():
         return [f"{path} missing: run the DRC gate first"]
@@ -623,6 +668,7 @@ def main(argv: list[str]) -> int:
     results.append(("no via in an SMD pad", [f"{v.GetNetname()} via at ({pcbnew.ToMM(v.GetPosition().x):.3f}, "
                                               f"{pcbnew.ToMM(v.GetPosition().y):.3f}) in {pad}"
                                               for v, pad in vias_in_pads(board)]))
+    results.append(check_rgb(board, side))
     results.append(("Edge.Cuts equals layout", check_edges(board, side)))
     results.append(("DRC: 0 unconnected, 0 errors", check_drc(ROOT / "build" / side / "drc.json")))
     failed = 0

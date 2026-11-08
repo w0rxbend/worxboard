@@ -6,6 +6,29 @@ turnkey work of 2026-11-03 and 2026-11-04 fixed them (deviations ELEC, BOARD, PK
 to WS1-9). This page was re-checked on **2026-11-04** at `f4c95bb`, the last commit before these
 docs. The gates block **ordering**, not the repository.
 
+> [!NOTE]
+> **Rev B** (per-key RGB, the display setback and the review fixes, [deviations REVB](deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)) changes
+> both boards and their order packages. Everything recorded below is **rev A's**. The rev B results
+> (integration tests, CI, the order packages, the boards and gates G1–G3) are recorded on this page
+> after the boards are regenerated; until then, nothing here is a rev B result. What only a built
+> rev B board can confirm is listed under [Not verified until a board is built](#not-verified-until-a-board-is-built).
+
+## Rev B results (2026-11-08)
+
+**Not orderable.** No left board has passed stage C, so the rev B fab outputs, order packages, from-scratch rebuild, and gate table were not run. The files in `pcb/production/` are still rev A. Main-tree `KIID_SEED` is still `{"left": 0x4, "right": 0x1}`, and `pcb/left/worxboard-left.kicad_pcb` is the placed board (492 segments), not a routed one. Commit under the working tree is `ff4449a`. Nothing was committed.
+
+| Half | Seed | Result |
+|---|---|---|
+| Right | `0x1`, `build/seedtrials/right-1` | **Pass.** DRC 0 violations / 0 unconnected / 0 parity, `checks.py` 15/15, `netcmp --board` 2/2 (221 footprints). U4 pin 2 to J1 GND is 10.3 mm. |
+| Left | `0x1` with U7 at (65.6, 49.0), `leftB-1` | **Fail.** DRC ended 0/0/0. U4 pin 2 to J1 GND is 13.2 mm (the move opened that path). U1 ground links 1 of 2. C5 to U2 pin 4 has no copper path. Stage C stopped in `gnd_ties.py`. |
+| Left | `0x3`, `0x4`, `0x5`, old U7 at (73.35, 48.19) | **Fail.** `0x3` and `0x5` lost the U4 clamp-ground path. `0x4` left COL2 unconnected and missed an LED cutout by 0.002 mm under the old 0.30 mm rule. |
+| Left | `0x6`, old U7, `left-6` | **Fail.** DRC 0/0/0. U4 path 20.5 mm, U1 links 2. C5 to U2 pin 4 stayed 38.8 mm (limit 30). |
+| Left | `0x2`, `0x3`, `0x4`, `0x5` with U7 moved (`leftB-2` .. `leftB-5`), and old-placement `0x7` .. `0x9` | **No result.** Freerouting had finished (54–64 connections left, against 67 on the clean right board). Stage C was still running when the machine went down at 05:20. No `trial.done`. |
+
+The 11:00 Europe/Kyiv stop arrived with those jobs dead. They were not restarted: a finish plus the order gates cannot complete in the time that was left, and a new seed was already out of bounds after 09:15. `leftB-2`, `leftB-3`, and `leftB-5` still have their Freerouting session files and an unrouted placed board, so `just pcb-finish left` in those trees is the resume. `leftB-4`'s board file was already imported and still had COL2 open; do not finish that copy in place.
+
+Host checks that do not read copper had already passed on this working tree before the route: layout pytest, `layout.export --check`, the ZMK layout and keymap checks, the display-rotation host test, and 9 firmware regressions. `just pcb-mpn-check` inside the KiCad container was not run. Hardware items below are unchanged: no board has been built.
+
 ## Summary
 
 | Check | Result |
@@ -342,3 +365,34 @@ Nothing below blocks the order. Each item can only be confirmed on the first ass
 - **Case.** That the USB-C and TRRS plugs seat fully, the BOOT/RESET pin holes reach the buttons,
   and the C6R1 keycap clears the display module's far end. Check these on a 3D-printed test top
   first ([case.md](case.md#before-machining)).
+
+Rev B adds these ([deviations REVB-1 and REVB-2](deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs),
+[electrical.md](electrical.md#per-key-rgb-rev-b), [firmware.md](firmware.md#known-issues)):
+
+- **LED assembly.** That the fab places all 37 reverse-mount SK6812MINI-E per half in their cutouts,
+  flat and on their pads: `cpl_check.py` accepts 55 % of each terminal on its pad for this part, not
+  the usual 75 %, because JLC's leads start over the cutout. Whether the fab's viewer shows the
+  bottom-side LEDs as the placement file means them: check them in the placement preview.
+- **LED chain.** That every LED lights, in chain order (row 0 inward, row 1 outward, row 2 inward,
+  C6R2, row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1), in the right colour
+  order (GRB).
+- **VLED switch and limit.** That U6 keeps VLED off until the firmware drives GP23, switches it with
+  the underglow (toggle-off and idle-off), and limits a short or the inrush into the 37 × 100 nF and
+  C20 to about 0.45 A (±25 %), as R14 15k sets it.
+- **U7 waveform.** That GP22's 800 kHz signal (T0H 375 ns, T1H 750 ns) reaches LED101 with clean
+  edges through U7 at the VLED level and R16's 470 Ω, on USB (VSYS about 4.6 V) and over the cable
+  (about 4.4 V).
+- **Brightness and current.** The real current per half at the 8 % cap, at full white and with the
+  LEDs dark (estimated at about 107–129 mA plus 22 mA and ~30 mA of logic), against the right half's 250 mA through F1 and
+  the left port's 500 mA for both halves; and that the cap holds in every effect.
+- **RGB over the split.** That a press on the left half sets the right half, and that one or two
+  presses of the toggle bring the halves back in step if they ever disagree.
+- **Right-half settings writes.** The right half now keeps its own RGB state in flash. The RP2040
+  flash driver locks interrupts while it writes, about a minute after an RGB change or an idle
+  transition; whether that drops a frame on the 115 200 baud split UART is unmeasured. Also that both
+  halves restore their state after a power cycle.
+- **Display setback fit.** That the nice!view, set 1.0 mm back, plugs into J3 and lies in the pocket
+  under the moved window, and that the C6R1 keycap clears it at bottom-out (the module now ends
+  about 0.2–0.3 mm short of the key well). Check it on the 3D-printed test top.
+- **Plug-in capacitance.** That the hosts you use accept about 40 µF on VSYS at plug-in (both
+  halves together, above USB's nominal 10 µF); almost every host does (REVB-3).

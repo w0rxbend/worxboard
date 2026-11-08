@@ -50,8 +50,8 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Case design revision, printed on the drawings and in the STEP headers of the order package
 # (case/production). Bump it with any change to the ordered geometry.
-CASE_REVISION = "A3"
-CASE_REVISION_DATE = "2026-11-04"
+CASE_REVISION = "A4"
+CASE_REVISION_DATE = "2026-11-07"
 
 # Vertical stack, Z = 0 at the bottom face of the case
 FLOOR_T = 3.0            # bottom tray floor thickness

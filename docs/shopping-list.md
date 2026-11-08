@@ -30,7 +30,7 @@ hardware shops.
 
 | Item | Qty | Spec | Where |
 |---|---|---|---|
-| MX-style switches | **74** (+ a few spares) | MX-compatible, plate-mount, **3-pin or 5-pin**: the PCB has the two Ø1.75 mm peg holes for 5-pin switches, and the Kailh-type hot-swap sockets take standard MX pins. Not Choc, Alps or other low-profile switches | any keyboard shop (Gateron, Kailh, Cherry, Akko and others). LCSC stocks HanElectricity's 3-pin MX copies: red C49234236 (2 757 in stock), brown C49234237 (3 414), blue C49234235 (9 850), black C49234238 (1 298), at about $0.11 each |
+| MX-style switches | **74** (+ a few spares) | MX-compatible, plate-mount, **3-pin or 5-pin**: the PCB has the two Ø1.75 mm peg holes for 5-pin switches, and the Kailh-type hot-swap sockets take standard MX pins. For the per-key RGB (rev B) pick switches with an **LED window or a clear/translucent housing** ("SMD RGB", "north/south LED slot"): the LED sits under the window **at the south side** (towards you). Not Choc, Alps or other low-profile switches | any keyboard shop (Gateron, Kailh, Cherry, Akko and others). LCSC stocks HanElectricity's 3-pin MX copies: red C49234236 (2 757 in stock), brown C49234237 (3 414), blue C49234235 (9 850), black C49234238 (1 298), at about $0.11 each |
 | Keycaps, 1u | **58** | | keyboard shops |
 | Keycaps, 1.5u | **12** | 8 for the outer column, mounted horizontally (C0R0–C0R3 on each half), and 4 for the inner column, mounted **vertically** (C6R1, C6R2) | |
 | Keycaps, 2u | **4** | the two large thumb keys per half (T4, T5), mounted **vertically** | |
@@ -40,11 +40,16 @@ hardware shops.
   4 × 1.5u horizontal, 2 × 1.5u vertical and 2 × 2u vertical, 37 keys. There is no key where the
   display sits, at the top of the inner column (C6R0). On an ErgoDox that key is 1u, so a standard
   76-key ErgoDox keycap set covers the keyboard and leaves **2 × 1u spare**.
+- **Lighting (rev B):** every key has an SK6812MINI-E under its switch, facing south. **Shine-through
+  keycaps** show it best; with opaque caps the light is a glow round each cap. South-facing LEDs
+  suit Cherry-profile caps (no interference with the switch housing), but a legend at the top of a
+  shine-through cap gets less light than one near the bottom.
 - **Profile:** a uniform profile (DSA, XDA, KAM or another row-less one) is the easy choice. The
   vertical 1.5u and 2u caps and the 25° thumb cluster otherwise need an ErgoDox-specific sculpted
   kit.
-- **Next to the display:** the back edge of the C6R1 cap ends about 0.25 mm in plan from the display
-  module's far end (CASE-1). Standard-size caps fit. Check an oversized cap on the first assembly.
+- **Next to the display:** rev B moved the display 1.0 mm back (REVB-2), so the back edge of the C6R1
+  cap now ends about 1.25 mm in plan from the display module's far end (0.25 mm on rev A). Standard
+  and slightly oversized caps fit.
 
 ### Displays
 

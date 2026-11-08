@@ -72,7 +72,7 @@ class Pcb:
         """Key id -> (socket, diode)."""
         out: dict[str, list] = {}
         for ref, p in self.parts.items():
-            if p.key:
+            if p.key and re.match(r"(SK|D)\d+$", ref):       # rev B: LED<n> and C<n> carry a Key too
                 out.setdefault(p.key, [None, None])[0 if ref.startswith("SK") else 1] = p
         return {k: tuple(v) for k, v in out.items()}
 

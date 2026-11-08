@@ -8,7 +8,11 @@ Post-processing of KiCad's export (docs/deviations.md WS2b-3):
 - the U1 signal nets move to a FANOUT_W class (fanout_class);
 - pin offsets are rounded to 1 um and every clearance gets CLEARANCE_MARGIN (snap_pins, margin);
 - rounded-rectangle pads become their bounding rectangles (rect_pads);
-- with DROP_PLANES the GND pours are left out, so GND is routed as tracks.
+- with DROP_PLANES the GND pours are left out, so GND is routed as tracks;
+- the rev B LED cutouts (KiCad exports them as keepouts) grow by LED_KEEPOUT_GROW: Freerouting keeps
+  only its track clearance (0.2 mm, not the 0.5 mm copper-to-edge setting) from a keepout, so the grown
+  keepout puts its copper >= 0.3 mm from the real cutout, the LED-cutout rule of the .kicad_dru, while
+  the LED pads (0.348 mm from their cutout) stay clear of it (grow_led_keepouts; deviations REVB-1).
 The 0.5 mm copper-to-edge rule is passed on Freerouting's command line (pcb.just).
 """
 from __future__ import annotations
@@ -30,6 +34,8 @@ FANOUT_W = 0.18              # mm; Freerouting necks tracks to 75 % at pins: 0.1
 DROP_PLANES = False
 CLEARANCE_MARGIN = 2         # um added to every DSN clearance
 STRIP_REFS = ("U1",)         # parts whose pins Freerouting reaches only through locked tracks
+KEEPOUT_CLEARANCE = 0.2      # mm, the Default / Power track clearance Freerouting keeps from a keepout
+LED_KEEPOUT_MARGIN = 0.01    # mm over the LED-cutout rule
 
 
 def drop_planes(text: str) -> tuple[str, int]:
@@ -82,6 +88,32 @@ def strip_pins(text: str, refs: tuple[str, ...]) -> tuple[str, int]:
         n += len(pins) - len(keep)
         return f"(pins {' '.join(keep)})"
     return re.sub(r"\(pins ([^)]*)\)", sub, text), n
+
+
+def grow_led_keepouts(text: str, board: pcbnew.BOARD) -> tuple[str, int]:
+    """Grow every keepout polygon that holds an LED centre so Freerouting's keepout clearance lands on the
+    LED-cutout rule (0.3 mm) instead of 0.2 mm."""
+    from shapely.geometry import Point, Polygon
+    from place import LED_EDGE_CLEARANCE
+    grow = (LED_EDGE_CLEARANCE - KEEPOUT_CLEARANCE + LED_KEEPOUT_MARGIN) * UM
+    centres = [Point(pcbnew.ToMM(f.GetPosition().x) * UM, -pcbnew.ToMM(f.GetPosition().y) * UM)
+               for f in board.GetFootprints() if f.GetReference().startswith("LED")]
+    n = 0
+
+    def sub(m: re.Match) -> str:
+        nonlocal n
+        v = [float(t) for t in m.group(2).split()]
+        poly = Polygon(list(zip(v[0::2], v[1::2])))
+        if not any(poly.contains(c) for c in centres):
+            return m.group(0)
+        n += 1
+        big = poly.buffer(grow, join_style=1, quad_segs=4)
+        pts = " ".join(f"{x:.1f} {y:.1f}" for x, y in list(big.exterior.coords)[:-1])
+        return f"{m.group(1)}{pts})"
+    text = re.sub(r'(\(keepout "" \(polygon signal 0 )([-\d.\s]+)\)', sub, text)
+    if n != len(centres):
+        raise SystemExit(f"{n} LED keepouts grown, {len(centres)} LEDs on the board")
+    return text, n
 
 
 def margin(text: str) -> str:
@@ -143,10 +175,12 @@ def main(argv: list[str]) -> int:
     text, rects = rect_pads(fanout_class(text, nets))
     text, snapped = snap_pins(text)
     text, stripped = strip_pins(text, STRIP_REFS)
+    text, leds = grow_led_keepouts(text, board)
     out.write_text(margin(text))
     print(f"{rects} rounded-rectangle padstacks as rectangles, {snapped} pins snapped to 1 um, "
           f"{stripped} {'/'.join(STRIP_REFS)} pins routed through their locked tracks")
-    print(f"dropped {planes} copper pour plane(s); {len(nets)} nets in the {FANOUT_W} mm '{FANOUT_CLASS}' class")
+    print(f"dropped {planes} copper pour plane(s); {len(nets)} nets in the {FANOUT_W} mm '{FANOUT_CLASS}' class; "
+          f"{leds} LED cutout keepouts grown to the LED-cutout rule")
     print(f"wrote {out.relative_to(ROOT)}")
     return 0
 

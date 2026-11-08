@@ -17,13 +17,14 @@ from shapely.ops import unary_union
 
 from . import display as _display
 from . import holes as _holes
+from . import leds as _leds
 from . import outline as _outline
 from . import zones as _zones
 from .jacks import JACKS, Jack
 from .keys import MAIN_KEYS, PITCH, Key, cell, housing
 from .thumbs import THUMB_KEYS, stab_dir, stab_holes
 
-__all__ = ["MIRROR_X", "PITCH", "SIDES", "Key", "Jack", "keys", "display", "jacks", "holes",
+__all__ = ["MIRROR_X", "PITCH", "SIDES", "Key", "Jack", "keys", "leds", "display", "jacks", "holes",
            "anchors", "outline", "outline_vertices", "outline_segments", "zones",
            "transform_order", "cell", "housing", "stab_holes", "stab_dir"]
 
@@ -58,6 +59,18 @@ def keys(side: str) -> list[Key]:
     _check(side)
     return [replace(k, x=mx(side, k.x), rot=k.rot if side == "right" else -k.rot)
             for k in (*MAIN_KEYS, *THUMB_KEYS)]
+
+
+def leds(side: str) -> list[dict]:
+    """Per-key RGB chain (rev B) in data order: LED/cap refs, key id, centre, direction to the next."""
+    _check(side)
+    return _leds.leds(keys(side))
+
+
+def diode_point(side: str, key_id: str) -> tuple[float, float]:
+    """Matrix diode centre of a key (below its LED)."""
+    _check(side)
+    return _leds.diode(next(k for k in keys(side) if k.id == key_id))
 
 
 def display(side: str) -> dict[str, Rect | tuple[float, float] | list]:

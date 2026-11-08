@@ -1,4 +1,4 @@
-# Case order package (case revision A3)
+# Case order package (case revision A4)
 
 Everything needed to order the worxboard case for one keyboard (both halves). The files are
 generated from the model; only this page and the two `ORDER_NOTES.md` are written by hand.
@@ -46,7 +46,7 @@ part of this package.
 |---|---|---|
 | `jlccnc/worxboard_{right,left}_top.step` | 4.9 MB each | committed (under the 5 MB limit for committed STEPs; the relief pockets' arcs are 4 chords per quarter circle to keep them there) |
 | `jlccnc/worxboard_{right,left}_bottom.step`, `worxboard_leg.step` | 0.2–0.5 MB | |
-| `jlccnc/*.pdf` | 50–110 kB | A3 drawings: views, thread tables, notes, detail C through the display bezel |
+| `jlccnc/*.pdf` | 50–110 kB | A4 drawings: views, thread tables, notes, detail C through the display bezel |
 | `jlc3dp/*.stl` | 0.6–2.0 MB | |
 
 Not committed: the STEP versions of the printed parts and the right-half assembly with legs

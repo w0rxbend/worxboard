@@ -21,11 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import layout  # noqa: E402
 from layout.pins import PINS, TRRS  # noqa: E402
 
-GROUPS = ("MCU", "USB-POWER", "TRRS", "DISPLAY", "MATRIX")
+GROUPS = ("MCU", "USB-POWER", "TRRS", "DISPLAY", "RGB", "MATRIX")
 
 # Footprints
 R0402 = "Resistor_SMD:R_0402_1005Metric"
 C0402 = "Capacitor_SMD:C_0402_1005Metric"
+C0603 = "Capacitor_SMD:C_0603_1608Metric"
 SOD123 = "Diode_SMD:D_SOD-123"
 TESTPAD = "TestPoint:TestPoint_Pad_D1.0mm"
 HOLE_FP = "MountingHole:MountingHole_2.7mm_M2.5"
@@ -33,8 +34,12 @@ MX_FP = "worxboard:SW_MX_Hotswap_Kailh"
 STAB_FP = "worxboard:Stab_MX_2u"
 
 # Value -> LCSC (spec §7; [G3] parts are re-checked before ordering)
-LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744"}
-LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C15525", "27p": "C1557"}
+LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744",
+          "15k": "C25756", "470": "C25117"}
+# Rev B: the 10 uF caps are 0603 10 V X5R (CL10A106KP8NNNC, JLC basic). The 0402 6.3 V part (C15525)
+# kept only ~2-3 uF at the ~5 V of VSYS (DC bias); 0603 10 V keeps more (docs/deviations.md REVB-3)
+LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C19702", "27p": "C1557"}
+C_FP = {"10u": C0603}           # every other value is 0402
 LCSC_F1 = "C70069"        # nSMD025-24V: 1206 PTC, 250 mA hold, 24 V (WS2 choice, spec §7 F1)
 # Replacements for discontinued / low-stock parts (docs/deviations.md ELEC-1), JLC stock 2026-11-02
 LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket (Kailh C2803348 discontinued);
@@ -52,14 +57,22 @@ RETIRED = {
     "C2803348": "Kailh CPG151101S11 hot-swap socket: discontinued (JLC and LCSC 0, 2026-11-02)",
     "C113767": "W25Q128JVSIQ: no longer manufactured per JLC; same part is the basic C97521",
     "C91749": "Epson 12 MHz crystal: 19 left at JLC on 2026-11-02",
+    "C15525": "10 uF 0402 6.3 V: replaced by the 0603 10 V C19702 for DC-bias margin (rev B, REVB-3)",
 }
+# Per-key RGB (rev B, docs/deviations.md REVB-1): SK6812MINI-E under every switch, VLED from VSYS through
+# a current-limited switch the firmware enables, data through a 3.3 V -> VLED buffer
+LCSC_LED = "C5149201"       # OPSCO SK6812MINI-E, reverse mount through a 3.4 x 3.0 mm cutout
+LCSC_VLED_SW = "C55136"     # Silergy SY6280AAC: Ilim = 6800 / Rset; R14 15k -> 0.45 A (its 0.4 A minimum)
+LCSC_BUF = "C100024"        # TI SN74LV1T34DBVR: VIH 2.0 V at 5 V VCC, 5.5 V tolerant input (no positive input
+                            # clamp, so GP22 may drive it while VLED is off; U6 discharges VLED through 150 ohm)
+LED_FP = "worxboard:LED_SK6812MINI-E_ReverseMount"   # stock, pads 0.1 mm out (gen_footprints.py)
 
 # Matrix references: SK<n> socket + D<n> diode, n = KEY_REF0 + index in layout.keys()
 # (the spec's SK_xx / D_xx names are not valid KiCad references; deviation WS2a-1)
 KEY_REF0 = 101
 
 # Power nets (netclass Power, spec §8.4)
-POWER_NETS = ("VBUS", "VSYS", "VLINK", "3V3", "GND")
+POWER_NETS = ("VBUS", "VSYS", "VLINK", "VLED", "3V3", "GND")
 SUPPLY_PIN_NAMES = ("IOVDD", "USB_VDD", "ADC_AVDD", "DVDD", "VREG_VIN", "VREG_VOUT")
 
 
@@ -82,8 +95,8 @@ def R(ref: str, value: str, a: str, b: str, group: str) -> Part:
     return Part(ref, "Device:R", value, R0402, LCSC_R[value], {"1": a, "2": b}, group)
 
 
-def C(ref: str, value: str, net: str, group: str) -> Part:
-    return Part(ref, "Device:C", value, C0402, LCSC_C[value], {"1": net, "2": "GND"}, group)
+def C(ref: str, value: str, net: str, group: str, **kw) -> Part:
+    return Part(ref, "Device:C", value, C_FP.get(value, C0402), LCSC_C[value], {"1": net, "2": "GND"}, group, **kw)
 
 
 def TP(ref: str, net: str, group: str) -> Part:
@@ -153,7 +166,7 @@ def _mcu() -> list[Part]:
     parts += [C(f"C{8 + i}", "100n", "3V3", g) for i in range(8)]
     parts += [C("C16", "100n", "1V1", g), C("C17", "100n", "1V1", g),
               C("C18", "1u", "3V3", g), C("C19", "1u", "1V1", g)]
-    parts += [TP(f"TP{4 + i}", f"TP{4 + i}", g) for i in range(4)]       # GP22..GP25 spares
+    parts += [TP(f"TP{6 + i}", f"TP{6 + i}", g) for i in range(2)]       # GP24, GP25 spares (GP22/23: RGB)
     parts += [TP("TP8", "SWCLK", g), TP("TP9", "SWDIO", g), TP("TP10", "GND", g)]
     return parts
 
@@ -182,6 +195,36 @@ def _display() -> list[Part]:
     ]
 
 
+def _rgb(side: str) -> list[Part]:
+    """VLED switch, data buffer, and one SK6812MINI-E + 100 nF per key in chain order (layout.leds)."""
+    g = "RGB"
+    parts = [
+        Part("U6", "worxboard:SY6280AAC", "SY6280AAC", "Package_TO_SOT_SMD:SOT-23-5", LCSC_VLED_SW,
+             {"IN": "VSYS", "EN": "RGB_EN", "OUT": "VLED", "ISET": "VLED_ISET", "GND": "GND"}, g),
+        R("R14", "15k", "VLED_ISET", "GND", g),
+        R("R15", "10k", "RGB_EN", "GND", g),                 # LEDs off until the firmware enables VLED
+        C("C21", "10u", "VSYS", g),                          # U6 IN: the SY6280 datasheet "strongly recommends"
+                                                             # 10 uF at VIN (input ringing on an output short)
+        C("C20", "10u", "VLED", g),                          # U6 OUT bulk
+        # JLC's footprint of C100024 has pin 1 in the other corner from the SOT-23-5 row of
+        # jlc_rotations.csv (AP2112K, SY6280): kikit takes this per-part correction instead (cpl_check)
+        Part("U7", "74xGxx:74LVC1G34", "SN74LV1T34DBVR", "Package_TO_SOT_SMD:SOT-23-5", LCSC_BUF,
+             {"1": None, "2": "RGB_DIN", "3": "GND", "4": "RGB_BUF", "5": "VLED"}, g,
+             extra={"JLCPCB_CORRECTION": "0;0;180"}),
+        C("C22", "100n", "VLED", g),                         # U7 VCC
+        R("R16", "470", "RGB_BUF", "RGB_D101", g),           # the datasheet's input series resistor
+    ]
+    chain = layout.leds(side)
+    for n, d in enumerate(chain):
+        din = f"RGB_D{101 + n}"
+        dout = f"RGB_D{102 + n}" if n + 1 < len(chain) else None
+        key = {"Key": d["key"]}
+        parts.append(Part(d["ref"], "LED:SK6812MINI-E", "SK6812MINI-E", LED_FP, LCSC_LED,
+                          {"VDD": "VLED", "VSS": "GND", "DIN": din, "DOUT": dout}, g, key=d["key"], extra=key))
+        parts.append(C(d["cap"], "100n", "VLED", g, key=d["key"], extra=key))
+    return parts
+
+
 def switch_net(key_id: str) -> str:
     return f"MX_{key_id}"
 
@@ -203,7 +246,7 @@ def _matrix(side: str) -> list[Part]:
 def design(side: str) -> list[Part]:
     if side not in layout.SIDES:
         raise ValueError(f"side must be one of {layout.SIDES}")
-    parts = [*_mcu(), *_usb_power(), *_trrs(side), *_display(), *_matrix(side)]
+    parts = [*_mcu(), *_usb_power(), *_trrs(side), *_display(), *_rgb(side), *_matrix(side)]
     refs = [p.ref for p in parts]
     assert len(refs) == len(set(refs)), "duplicate reference"
     return parts

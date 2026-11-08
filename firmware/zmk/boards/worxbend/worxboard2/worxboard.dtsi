@@ -5,6 +5,7 @@
 #include <raspberrypi/rpi_pico/m33.dtsi>
 #include <arm/raspberrypi/rp2350-boot-mode-retention.dtsi>
 #include <freq.h>
+#include <zephyr/dt-bindings/led/led.h>
 
 #include "worxboard-pinctrl.dtsi"
 #include "../worxboard/worxboard-layouts.dtsi"   /* shared, generated */
@@ -18,6 +19,7 @@
         zmk,kscan = &kscan0;
         zmk,physical-layout = &worxboard_layout;
         zephyr,display = &nice_view;
+        zmk,underglow = &led_strip;
     };
 
     /* Matrix 6 x 7 col2row (design.md §3/§5). COLn = physical column Cn, C0 outer, on both
@@ -48,6 +50,13 @@
     wired_split {
         compatible = "zmk,wired-split";
         device = <&uart0>;
+    };
+
+    /* VLED: GP23 = RGB_EN drives U6 SY6280AAC EN (VSYS -> VLED, active high, 10k pull-down).
+     * ZMK turns it on at boot and off with the underglow (CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER). */
+    vled: vled {
+        compatible = "zmk,ext-power-generic";
+        control-gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
     };
 };
 
@@ -80,6 +89,32 @@
     current-speed = <115200>;
     pinctrl-0 = <&uart0_default>;
     pinctrl-names = "default";
+};
+
+/* Per-key RGB (rev B): one chain of 37 SK6812MINI-E per half, LED101 = layout/leds.py CHAIN[0].
+ * PIO0 belongs to the strip alone: the driver loads its 4-instruction program with origin -1 and
+ * starts the state machine at instruction 31, which is its own only in an otherwise empty PIO. */
+&pio0 {
+    status = "okay";
+
+    pio0_ws2812: pio0_ws2812 {
+        compatible = "worldsemi,ws2812-rpi_pico-pio";
+        status = "okay";
+        pinctrl-0 = <&pio0_ws2812_default>;
+        pinctrl-names = "default";
+        /* 10 PIO cycles per bit at 800 kHz: T0H 375 ns, T1H 750 ns (as Zephyr's RP2040 boards) */
+        bit-waveform = <3>, <3>, <4>;
+
+        led_strip: ws2812 {
+            status = "okay";
+            gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;  /* pin number only; the mux is pinctrl-0 */
+            chain-length = <37>;
+            color-mapping = <LED_COLOR_ID_GREEN LED_COLOR_ID_RED LED_COLOR_ID_BLUE>;
+            reset-delay = <500>;                   /* us; > 200 us low between frames: the driver starts this
+                                                      sleep when the last word is queued, up to ~270 us before it is sent */
+            frequency = <800000>;
+        };
+    };
 };
 
 &pio1 {

@@ -79,18 +79,19 @@ lb.addEventListener("keydown", (e) => {
 // ---------- documentation links ----------
 const DOCS = [
   ["docs/buildguide_en.md", "Build guide", "Check, flash, plug in the displays, assemble"],
-  ["docs/ordering-jlcpcb.md", "Ordering PCBs", "The JLCPCB turnkey order, step by step"],
+  ["docs/ordering-jlcpcb.md", "Ordering at JLCPCB", "The JLCPCB turnkey order, step by step"],
+  ["docs/ordering-pcbway.md", "Ordering at PCBWay", "The same order at PCBWay, with its own BOM and centroids"],
   ["docs/shopping-list.md", "Shopping list", "The four orders and every off-board part"],
   ["docs/bom.md", "Bill of materials", "JLC parts, fees, gates (generated)"],
-  ["docs/electrical.md", "Electrical design", "Power path, TRRS, USB-C, MCU, display"],
+  ["docs/electrical.md", "Electrical design", "Power path, TRRS, USB-C, MCU, display, per-key RGB"],
   ["docs/pinout.md", "Pinout", "GPIO map, TRRS, J3, part positions (generated)"],
   ["docs/matrix.md", "Key matrix", "6×7 per half, sockets, ZMK 6×14 transform (generated)"],
-  ["docs/firmware.md", "Firmware", "ZMK builds, flashing, keymap, displays"],
+  ["docs/firmware.md", "Firmware", "ZMK builds, flashing, keymap, displays, RGB"],
   ["docs/case.md", "Case and plates", "build123d case, Z stack, files"],
   ["docs/legs.md", "Tent legs", "Mounts, positions, the custom leg"],
   ["docs/design.md", "Design spec", "The frozen rev A specification"],
   ["docs/deviations.md", "Deviations", "What changed from the spec, and why"],
-  ["docs/verification.md", "Verification", "Integration results, CI, gates G1–G3"],
+  ["docs/verification.md", "Verification", "Integration results, CI, gates G1–G3, what only a board can confirm"],
   ["docs/sources.md", "Sources", "Prior art and attribution"],
 ];
 $("doclinks").innerHTML = DOCS.map(([p, t, d]) => `<a href="${blob(p)}">${t}<span>${d}</span></a>`).join("");

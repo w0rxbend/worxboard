@@ -87,6 +87,7 @@ def obstacles(board: pcbnew.BOARD) -> STRtree:
     for z in board.Zones():
         if z.GetIsRuleArea() and z.GetDoNotAllowVias():
             geoms += poly_of(z.Outline())
+    geoms += complete_routes.led_cutouts(board)        # rev B LED cutouts, grown by their 0.3 mm rule
     return STRtree(geoms)
 
 

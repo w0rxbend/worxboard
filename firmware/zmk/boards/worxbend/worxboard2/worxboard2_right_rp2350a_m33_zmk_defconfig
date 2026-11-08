@@ -21,6 +21,16 @@ CONFIG_RETAINED_MEM=y
 CONFIG_RETENTION=y
 CONFIG_RETENTION_BOOT_MODE=y
 
+# Per-key RGB power cap (docs/firmware.md#rgb). ZMK scales brightness 0-100 onto BRT_MIN-BRT_MAX %.
+# Full white at 8 %: 37 x 36 mA x 8 % ~ 107 mA per half (129 mA at the datasheet's 14.5 mA per colour),
+# plus 22 mA of dark LEDs and ~30 mA of RP2040, flash and display: <= ~181 mA, ~72 % of the 250 mA hold of
+# the cable polyfuse F1 that feeds the right half (a PTC's hold falls when warm). Raise it only in
+# split-power mode (JP1 cut on both halves, a USB-C cable on each half), and to 20 at most (U6's limit).
+CONFIG_ZMK_RGB_UNDERGLOW_BRT_MIN=1
+CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=8
+# ZMK limits BRT_START to BRT_MAX on the 0-100 scale: 8 -> 1 + 7 x 8 / 100 = 1 % at boot (BRT_MIN keeps it lit)
+CONFIG_ZMK_RGB_UNDERGLOW_BRT_START=8
+
 # ZMK_CONFIG has no worxboard2.conf: enable the user options of config/worxboard.conf here
 CONFIG_ZMK_DISPLAY=y
 CONFIG_ZMK_POINTING=y

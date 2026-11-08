@@ -1,15 +1,15 @@
-# worxboard rev A build guide
+# worxboard rev B build guide
 
 This guide follows the [Corne (crkbd) build guides](https://github.com/foostan/crkbd/tree/main/docs):
 check the parts, test the bare boards, then build up from the PCB. JLCPCB assembles **every** part
-on the PCB: the RP2040 and its support parts, the USB-C and TRRS connectors, the 37 hot-swap sockets
-and 37 diodes per half, and the display socket J3. **Nothing on the PCB needs soldering.** You
+on the PCB: the RP2040 and its support parts, the USB-C and TRRS connectors, the 37 hot-swap sockets,
+37 diodes and 37 RGB LEDs per half, and the display socket J3. **Nothing on the PCB needs soldering.** You
 solder only the displays' own header pins, then plug in the displays, the switches and the keycaps.
 
 > [!IMPORTANT]
-> Rev A has **not been built yet**. Gates G1–G3 pass ([verification.md](verification.md#summary)),
-> the boards pass DRC and every scripted check, and the firmware and the case build, but nothing has
-> run on hardware. Order the boards as [ordering-jlcpcb.md](ordering-jlcpcb.md) describes. Read
+> Rev B (rev A plus per-key RGB and the display setback, [deviations.md](deviations.md)) has **not
+> been built yet**. The boards pass DRC and every scripted check, and the firmware and the case
+> build, but nothing has run on hardware ([verification.md](verification.md)). Order the boards as [ordering-jlcpcb.md](ordering-jlcpcb.md) describes. Read
 > [electrical.md](electrical.md) once before you start.
 
 > [!WARNING]
@@ -83,10 +83,14 @@ Lay out both boards and compare them with the KiCad renders of the committed boa
   the polyfuse (F1) and solder jumper (JP1), the BOOT (SW1) and RESET (SW2) buttons, the test pads
   and the 1×5 display socket J3. The TRRS jack (J2), its ESD part (U5) and resistors sit in the bump
   on the inner edge.
-- The **bottom side** carries the 37 MX hot-swap sockets (SK101–SK137) and their 37 diodes
-  (D101–D137). Each socket's curved notch wraps the round switch-centre hole.
+- The **bottom side** carries the 37 MX hot-swap sockets (SK101–SK137), their 37 diodes
+  (D101–D137) and, rev B, the 37 SK6812MINI-E LEDs (LED101–LED137) with their 100 nF caps
+  (C101–C137). Each socket's curved notch wraps the round switch-centre hole. Each LED sits in a
+  small rectangular cutout below its switch centre, its lens pointing up through the board; look
+  through each cutout from the top and check that the LED is there, flat and not tilted.
+- Rev B adds, on the top side next to the regulator, the LED power switch U6 and the data buffer U7.
 - The silkscreen next to the jack reads `DO NOT HOT-PLUG TRRS` and `HOST → LEFT`; next to JP1 it
-  reads `JP1: cut = split power`. The board label reads `worxboard L rev A` or `worxboard R rev A`.
+  reads `JP1: cut = split power`. The board label reads `worxboard L rev B` or `worxboard R rev B`.
 - Every part's position is in [pinout.md](pinout.md#part-positions). The left RP2040 is turned
   180° compared with the right one; that is intended (deviation WS2b-1).
 
@@ -121,6 +125,12 @@ Test each board on its own, before anything is fitted, so any fault is easy to r
    the peripheral and sends its keys over TRRS.
 6. With both boards **unpowered**, connect them with the TRRS cable. Then plug the host into the
    **left** board and test every right-hand socket the same way.
+7. **LEDs (rev B).** At start-up the firmware switches the LED supply on and lights every LED dimly
+   (the brightness is capped at 8 %, see [firmware.md](firmware.md)). Check that all 37 light on
+   each board, in the same colour. A dark LED and every LED after it in the chain (row 0 inward, row 1
+   outward, row 2 inward, C6R2, row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1)
+   points at that LED or the one before it. On layer 1 the thumbs carry the RGB controls (toggle,
+   effect, brightness, hue); a press on the left half also sets the right half.
 
 ## 3. Choose the power mode (JP1)
 

@@ -5,11 +5,13 @@
  *   rows 0..4: 12 / 14 / 12 / 14 / 10 keys, left outer -> inner, then right inner -> outer;
  *   thumbs:    (5,5) (5,6) (5,7) (5,8) / (5,4) (5,9) / (5,1) (5,2) (5,3) (5,10) (5,11) (5,12).
  * The inner-top keys of the EZ are the displays; their LEFT / RGHT move to layer 1.
+ * Layer 1 thumbs carry the EZ's RGB keys (per-key RGB, rev B; docs/firmware.md#rgb).
  * Check with `just fw-keymap-check` (74 bindings per layer, base layer = layout.json legends).
  */
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/pointing.h>
+#include <dt-bindings/zmk/rgb.h>
 
 #define BASE 0
 #define SYMB 1
@@ -17,6 +19,9 @@
 
 #define HYPER LC(LS(LA(LGUI)))
 #define MEH   LC(LS(LALT))
+
+/* QMK RGB_SLD (solid mode): select ZMK underglow effect 0, solid */
+#define RGB_SLD RGB_EFS_CMD 0
 
 / {
     behaviors {
@@ -55,9 +60,9 @@
 &trans       &kp HASH    &kp DLLR       &kp LPAR &kp RPAR  &kp GRAVE                      &kp DOWN &kp N4   &kp N5    &kp N6  &kp PLUS        &trans
 &trans       &kp PRCNT   &kp CARET      &kp LBKT &kp RBKT  &kp TILDE &kp LEFT   &kp RIGHT &kp AMPS &kp N1   &kp N2    &kp N3  &kp BSLH        &trans
 &trans       &trans      &trans         &trans   &trans                                            &trans   &kp DOT   &kp N0  &kp EQUAL       &trans
-                                        &trans   &trans                           &trans   &trans
+                                        &rgb_ug RGB_EFF &trans                    &rgb_ug RGB_TOG &rgb_ug RGB_SLD
                                                  &trans                           &trans
-                               &trans   &trans   &trans                           &trans   &trans  &trans
+                      &rgb_ug RGB_BRD &rgb_ug RGB_BRI &trans                      &trans   &rgb_ug RGB_HUD &rgb_ug RGB_HUI
             >;
         };
 

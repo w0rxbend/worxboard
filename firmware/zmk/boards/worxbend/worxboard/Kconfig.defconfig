@@ -63,6 +63,37 @@ config ZMK_HID_INDICATORS
 config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
     default y
 
+# Per-key RGB (rev B, docs/firmware.md#rgb): ZMK underglow on each half's 37-LED chain, with VLED
+# switched by ext-power (worxboard.dtsi). The brightness cap (BRT_MAX) and BRT_START are set in the
+# *_defconfig files: ZMK's Kconfig.defaults is read before this file, so defaults here would lose.
+config ZMK_RGB_UNDERGLOW
+    default y
+
+if ZMK_RGB_UNDERGLOW
+
+endif # ZMK_RGB_UNDERGLOW
+
+# The host port feeds both halves' LEDs (docs/firmware.md#rgb): declare 500 mA, bus powered. Zephyr's
+# defaults (100 mA, self powered) let a host that budgets by descriptor refuse or starve the board
+config USB_MAX_POWER
+    default 250 if USB_DEVICE_STACK
+
+config USB_SELF_POWERED
+    default n if USB_DEVICE_STACK
+
+if ZMK_RGB_UNDERGLOW
+
+# Dark LEDs still draw 0.6 mA each: going idle switches the strip and VLED off
+config ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE
+    default y
+
+# Only Studio (left) and BLE enable settings in ZMK. Without them the wired right half would forget
+# its RGB state and boot lit at BRT_START whatever the left restored.
+config SETTINGS
+    default y
+
+endif # ZMK_RGB_UNDERGLOW
+
 endif # BOARD_WORXBOARD_LEFT || BOARD_WORXBOARD_RIGHT
 
 if BOARD_WORXBOARD_RIGHT

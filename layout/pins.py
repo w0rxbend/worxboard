@@ -23,6 +23,10 @@ RIGHT_COL_GPIOS = COL_GPIOS[::-1]        # right .dts lists GP20..GP14 (col-offs
 UART_TX, UART_RX = 0, 1
 UART_BAUD = 115200
 DISP_SCK, DISP_MOSI, DISP_CS = 2, 3, 5   # PIO1 SPI; CS is active high
+# Per-key RGB (rev B): GP22 -> U7 SN74LV1T34 (3.3 V -> VLED) -> 470R -> LED101 DIN, WS2812 protocol on
+# PIO0; GP23 -> U6 SY6280AAC EN (VSYS -> VLED, active high, 10k pull-down: LEDs off until the
+# firmware enables them, ZMK ext-power)
+RGB_DATA, RGB_EN = 22, 23
 
 _COL_QFN = (17, 18, 27, 28, 29, 30, 31)
 
@@ -38,8 +42,8 @@ PINS: list[Pin] = [
     *(Pin(f"GPIO{g}", 11 + i, f"ROW{i}", "matrix row, pull-down") for i, g in enumerate(ROW_GPIOS)),
     *(Pin(f"GPIO{g}", q, f"COL{i}", "matrix column") for i, (g, q) in enumerate(zip(COL_GPIOS, _COL_QFN))),
     Pin("GPIO21", 32, "TRRS_DET", "test pad (future detect-gpios)"),
-    Pin("GPIO22", 34, "TP4", "spare; reserved for RGB"),
-    Pin("GPIO23", 35, "TP5", "spare"),
+    Pin("GPIO22", 34, "RGB_DIN", "per-key RGB data (PIO0 WS2812) -> U7 level shifter"),
+    Pin("GPIO23", 35, "RGB_EN", "U6 VLED switch enable, active high, 10k pull-down"),
     Pin("GPIO24", 36, "TP6", "spare"),
     Pin("GPIO25", 37, "TP7", "spare"),
     Pin("GPIO26/ADC0", 38, "VBUS_SENSE", "VBUS 10k/10k divider, unused by rev A"),

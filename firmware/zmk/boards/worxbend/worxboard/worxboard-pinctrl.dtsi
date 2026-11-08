@@ -19,4 +19,11 @@
             pinmux = <PIO1_P2>, <PIO1_P3>;
         };
     };
+
+    /* Per-key RGB (rev B) on PIO0: GP22 = RGB_DIN -> U7 SN74LV1T34 -> 470R -> LED101 DIN */
+    pio0_ws2812_default: pio0_ws2812_default {
+        group1 {
+            pinmux = <PIO0_P22>;
+        };
+    };
 };

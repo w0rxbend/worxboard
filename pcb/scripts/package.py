@@ -8,6 +8,7 @@
   README.md                         the order form, the preview checks, the panel facts
   worxboard-<side>-jlc-order.zip    the four files above, ready to hand over
   bare-board/                       gerbers.zip, bom.csv, cpl.csv, README.md for JLC-added rails
+  (pcbway/                          the PCBWay files, written next to these by pcbway.py, stage P6)
 The output is byte-for-byte reproducible: the gerbers lose KiCad's creation dates, the zips carry fixed
 times and order, so CI can rebuild the package from the committed boards and compare.
   gerbers.zip  copper, mask, silk, paste, Edge.Cuts, PTH and NPTH Excellon drills (KiKit names). Left
@@ -174,7 +175,9 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         f"| CPL file | `cpl.csv` | {n} placements, {nb} on the bottom, JLC rotations and centroids applied |",
         "",
         f"`worxboard-{side}-jlc-order.zip` holds the same three files and this README. `bare-board/` holds the",
-        "board without the panel frame, for an order where JLC adds the rails.",
+        "board without the panel frame, for an order where JLC adds the rails. `pcbway/` holds the files for an",
+        "order at PCBWay instead (manufacturer part numbers, KiCad's centroids without JLC's corrections): this",
+        "`cpl.csv` misplaces parts anywhere but at JLC.",
         "",
         "## The panel",
         "",
@@ -240,7 +243,9 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "> J1 (USB-C) and J2 (TRRS) overhang the board edge into the milled slot on purpose.",
         "> J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens them "
         "for pin-in-paste.",
-        "> Bottom side: 37 hot-swap sockets SK101-SK137 and 37 diodes D101-D137. J3 is a THT socket (hand solder).",
+        "> Bottom side: 37 hot-swap sockets SK101-SK137, 37 diodes D101-D137, 37 reverse-mount SK6812MINI-E LEDs "
+        "LED101-LED137 (body in a PCB cutout, lens through to the top side) and their 100 nF caps C101-C137.",
+        "> J3 is a THT socket (hand solder).",
     ] + [f"> {line}" for line in hole_remark(facts)] + [
         "> Ship with the frame attached.",
         "",
@@ -254,8 +259,12 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "  switch-centre hole, and its two pads sit on the two pads. A socket turned 180° also covers its",
         "  pads but hides the centre hole under its body: rotate it 180° if you see that.",
         "- **Bottom, D101-D137**: the cathode bar on the diode is at pad 1 (the ROW side).",
+        "- **Bottom, LED101-LED137** (SK6812MINI-E, reverse mount): the body sits in the rectangular cutout",
+        "  5 mm below each switch centre, and pin 1 (GND, the cut corner) is on KiCad pad 1. Each 100 nF",
+        "  C101-C137 sits beside its LED.",
         "- **U1** (RP2040): the pin-1 dot at the pin-1 corner of the silkscreen.",
-        "- **U2, U3, U4, U5, Y1**: pin 1 on the pin-1 pad.",
+        "- **U2, U3, U4, U5, U6, U7, Y1**: pin 1 on the pin-1 pad (U7 carries its own rotation: its JLC",
+        "  footprint has pin 1 in another corner than the other SOT-23-5 parts).",
         "- **J1** (USB-C): the two plastic pegs in the two small holes, the four shell legs in their slots,",
         "  the mouth over the back edge.",
         "- **J2** (TRRS): the two pegs in their holes, the mouth over the bump edge.",

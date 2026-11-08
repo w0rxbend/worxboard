@@ -54,10 +54,15 @@ LCSC = {
     "C25744": ("10 kΩ 0402", "[C]", False),
     "C1525": ("100 nF 0402", "[C]", False),
     "C52923": ("1 µF 0402", "[C]", False),
-    "C15525": ("10 µF 0402", "[C]", False),
+    "C19702": ("10 µF 0603, 10 V X5R (rev B: was 0402 6.3 V)", "[J]", False),
     "C1557": ("27 pF 0402", "[C]", True),
     "C81598": ("1N4148W switching diode", "[J]", False),
     "C41430893": ("MX hot-swap socket CPG151101S11-16 (HanElectricity)", "[J]", True),
+    "C5149201": ("SK6812MINI-E RGB LED, reverse mount through a PCB cutout (rev B)", "[J]", True),
+    "C55136": ("SY6280AAC VLED load switch, 0.45 A limit (rev B)", "[J]", True),
+    "C100024": ("SN74LV1T34DBVR 3.3 V -> VLED data buffer (rev B)", "[J]", True),
+    "C25756": ("15 kΩ 0402 (U6 current limit)", "[J]", False),
+    "C25117": ("470 Ω 0402 (LED data series)", "[J]", False),
     "C27985230": ("1×5 2.54 mm female socket, 5.0 mm, **THT** (display, G1)", "[J], G1", True),
 }
 # Parts kept out of the JLC BOM/CPL (reference prefix -> what it is, why)

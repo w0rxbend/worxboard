@@ -17,6 +17,10 @@ the case always matches the PCB.
 > [`pcb` workflow](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) runs it on every
 > push. Gates G1 and G2 pass ([verification.md](verification.md#summary)). Nothing has been printed
 > or machined: print a test top first ([below](#before-machining)).
+>
+> **Rev B** moves the display module, J3 and the window 1.0 mm back from the C6R1 key well
+> ([REVB-2](deviations.md#revb-2-the-display-moves-10-mm-back-from-the-c6r1-key-well-4-pre-order-review)). The case reads them from `layout/`, so the pocket and the window follow, and
+> `just model` passes with them ([Display](#what-changed-from-the-reference-ergodox-case) below).
 
 ![Both top shells](../case/renders/pair_top_iso.png)
 
@@ -53,12 +57,12 @@ Wall 3.0 mm, top fillet 1.5 mm, seam chamfer 0.5 mm, well clearance 0.6 mm aroun
 
 ## What changed from the reference ErgoDox case
 
-| Feature | worxboard rev A |
+| Feature | worxboard rev B |
 |---|---|
 | Outline | The PCB polygon from `layout.outline(side)` offset by 3.5 mm (0.5 clearance + 3.0 wall). Short PCB corner chamfers collapse into one filleted corner. Radii by vertex class: back corners r8 (r10 left too little cavity clearance), front-outer r12, thumb r8, concave r6 / r14, TRRS bump r5 (deviations WS3-1, WS3-2). The cavity keeps ≥ 0.3 mm to the PCB everywhere. |
 | Keys | 37 per half (the inner top key is the display). The two 2u thumb keys get Cherry-spec plate stabiliser cut-outs (6.65 × 12.3 mm with the side and end notches; the 0.875 mm side notch is 1.0 mm for a 1 mm end mill). Each cut-out's long half points the same way as the PCB's Ø4.0 stabiliser holes: both read `layout.stab_dir`, and the left half is the mirror image (deviation REVIEW-FIX-7). The stabiliser wire runs under the plate, so the spacer has a 3.5 mm channel on both sides of each 2u switch, 6.5–10 mm from the key centre, from one stabiliser to the other (`STAB_WIRE_U`, checked by `spacer_check()`; ORDER-6). Clip the stabilisers into the top shell before the case is closed ([build guide](buildguide_en.md#6-assemble-the-case)). The key well is clipped to keep 2.0 mm of wall at the T0/T3 cap corners (WS3-4). |
 | Screws | 8 × M2.5 on the ErgoDox pattern, with hole 7 moved to (88.0, 37.135) for the display. |
-| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to **Z 18.6**, through the spacer and plate, under a **raised bezel** B1 (the pocket + 2.0 mm, Z 17.6–19.6, 1.0 mm skin, R2 plan corners; CASE-1). It holds a stock nice!view on the 5.0 mm J3 socket: the glass is 8.9 mm above the PCB nominally and 9.75 mm at full tolerance, 0.25 mm under the ceiling. The 26 × 12 mm viewing window (r1, 0.5 mm chamfer) is centred on the LCD viewing area and follows the J3 header (y 55.865). The pocket's two back corners have R2 dog-bones for JLCCNC's Ø3 tool (CASE-8). `display_check()` checks the ceiling, the skin, the window, the corners and the walls on the built part. |
+| Display | A pocket over the module + 0.5 mm, from the PCB top (Z 8.6) to **Z 18.6**, through the spacer and plate, under a **raised bezel** B1 (the pocket + 2.0 mm, Z 17.6–19.6, 1.0 mm skin, R2 plan corners; CASE-1). It holds a stock nice!view on the 5.0 mm J3 socket: the glass is 8.9 mm above the PCB nominally and 9.75 mm at full tolerance, 0.25 mm under the ceiling. The 26 × 12 mm viewing window (r1, 0.5 mm chamfer) is centred on the LCD viewing area and follows the J3 header (window y 41.865–67.865, centre y 54.865). The pocket's two back corners have R2 dog-bones for JLCCNC's Ø3 tool (CASE-8). **Rev B setback** ([REVB-2](deviations.md#revb-2-the-display-moves-10-mm-back-from-the-c6r1-key-well-4-pre-order-review)): the module (now y 37.625–73.625), the J3 header (y 38.925), the window and the pocket's back end sit 1.0 mm further back than in rev A, so the module ends 0.4 mm short of the C6R1 key well instead of 0.6 mm into it, where rev A left the C6R1 keycap only 0.12–0.30 mm at bottom-out. The pocket now spans y 37.125–75.125: its far end stays where it was, 1.1 mm into the well, because its two far corners must lie a cutter radius inside the well (CASE-8), so the setback only shortens the module inside the pocket. `just model` passes, with the window 2.92 mm from the well. `display_check()` checks the ceiling, the skin, the window, the corners and the walls on the built part. |
 | USB-C | On **both** halves: a 9.4 × 3.6 mm notch (r1.6) in the back wall at x 186.0 (right frame), Z centre 10.2, with a 13 × 8 mm outside recess 1.8 mm deep for the plug's overmould. The recess continues 0.8 mm into the tray. J1's mouth is flush with the PCB edge, 0.5 mm inside the wall, so the recess floor is **1.7 mm in front of the mouth**: only the plug's bare metal shell passes the notch, and it must stick out of the overmould by **at least 8 mm** for the plug to mate fully (a common plug's 6.5–6.6 mm shell stops about 1.2 mm short; ORDER-7). See [USB-C cable](shopping-list.md#cables). |
 | TRRS | A Ø6.5 hole through the inner bump wall at y 103.0, on the jack axis (Z 11.1); `jack_check()` asserts it matches `layout` J2 within 0.2 mm. The J2 body (14.1 × 6.1 × 5.0, the HRO drawing) is relieved by **0.75 mm** all round, with R1.5 corners and at least 0.38 mm at the body's corners, in the top, the spacer and the plate DXF, with 1.0 mm headroom. `jack_check()` fails if any jack body comes closer than `JACK_MIN_CLEAR` = 0.3 mm (G2; BOARD-13, CASE-9). The plug has to pass 3.65 mm of Ø6.5 hole before it seats (see [TRRS cable](#trrs-cable)). |
 | Back strip | A relief pocket over Z_BACK and Z_TRRS (ceiling 14.6), with a 1 mm wall kept to the key well (WS3-6), and Ø3 pin holes through the top over BOOT (176, 50) and RESET (180, 50). |
@@ -148,6 +152,10 @@ A longer screw reaches past the end of the thread and stops before its head seat
 
 ## Previews
 
+These renders were made before rev B, so they show the display window and the back end of the
+display pocket 1.0 mm further forward than the model now builds them. `just renders` redraws them,
+and the `case` workflow uploads fresh ones in the `worxboard-case` artifact.
+
 | Top shell, underside | Bottom tray |
 |---|---|
 | ![](../case/renders/right_top_underside.png) | ![](../case/renders/right_bottom_tray.png) |
@@ -178,7 +186,8 @@ The outline comes from the PCB, not from photos, but print a test fit anyway:
    - the TRRS plug goes all the way in;
    - the display glass sits under the bezel skin, and the window shows its active area;
    - the BOOT/RESET pin holes reach the buttons;
-   - the C6R1 keycap clears the display module's far end (CASE-1).
+   - the C6R1 keycap clears the display module's far end (CASE-1; about 0.2–0.3 mm short of the key well
+     since rev B's setback, REVB-2).
 
 Then order from [`case/production/`](../case/production/README.md). The JLCCNC
 [`ORDER_NOTES.md`](../case/production/jlccnc/ORDER_NOTES.md) has the form settings, the remarks to

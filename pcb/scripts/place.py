@@ -52,7 +52,11 @@ HOLE_KEEPOUT = 6.5               # copper keepout diameter around each mounting 
 ZONE_TOL = 0.02                  # courtyard vs zone check slack (mm)
 SILK_TEXT = (1.0, 0.15)          # size, thickness
 SKIP_FIELDS = ("Footprint", "Datasheet", "Description", "Reference", "Value")
-DIODE_OFFSET = (0.0, 5.0)        # B.Cu diode centre in the key frame (below the switch centre)
+# Rev B (docs/deviations.md REVB-1): the matrix diode moves from (0, 5.0) in the key frame to below the
+# switch's LED window (layout.json "diodes"); the SK6812MINI-E sits in the window (layout.json "leds")
+LED_DIR = (-5.65, 1.5)           # DIN (pad 2) -> DOUT (pad 4) of a B.Cu-flipped SK6812MINI-E at rotation 0:
+                                 # the 1.5 mm across decides the turn where the chain steps 90 deg
+LED_CAP = (-4.6, 0.0)            # its 100 nF, LED frame: beside VDD (pad 3) on the DOUT side, pads along y
 STAB_ROT_DIGITS = 3              # stabiliser rotation from layout.json's rounded stab_dir
 
 # U1 (x, y, rot) per half. The RP2040 cannot be mirrored: the left one is turned 180 deg so its
@@ -70,7 +74,7 @@ def layout_seed(side: str) -> bytes:
     fields only the case reads (jack bodies, display module, pocket and window) leave the board as it
     is, so they must not reseed it either (docs/deviations.md BOARD-3)."""
     lay = layout_side(side)
-    used = {k: lay[k] for k in ("keys", "holes", "outline", "zones")}
+    used = {k: lay[k] for k in ("keys", "leds", "diodes", "holes", "outline", "zones")}
     used["header_pins"] = lay["display"]["header_pins"]
     return json.dumps(used, sort_keys=True).encode()
 
@@ -117,18 +121,30 @@ PLACE_R = {
     "U3": (199.6, 46.4, 0), "C3": (202.8, 45.2, 90), "C4": (202.8, 48.0, 90),
     "R5": (190.6, 47.6, 90), "R6": (190.6, 50.4, 90),
     "JP1": (186.6, 51.6, 0), "F1": (192.8, 52.8, 0),
-    "TP11": (171.0, 55.5, 0), "TP4": (173.2, 55.5, 0), "TP5": (175.4, 55.5, 0), "TP6": (177.6, 55.5, 0),
+    "TP11": (171.0, 55.5, 0), "TP6": (177.6, 55.5, 0),
     "TP7": (179.8, 55.5, 0), "TP8": (182.0, 55.5, 0), "TP9": (184.2, 55.5, 0), "TP10": (186.4, 55.5, 0),
     "TP1": (81.6, 44.4, 0), "TP2": (83.8, 44.4, 0), "TP3": (86.0, 44.4, 0),
     "J2": (57.375, 103.0, 0), "U5": (55.4, 94.6, 0), "R11": (61.4, 94.8, 90), "R12": (59.8, 94.8, 90),
+    # Rev B RGB (REVB-1): U6 VLED switch beside U3 on VSYS (C20 VLED at OUT, C21 VSYS at IN, R14 ISET,
+    # R15 EN pull-down); U7 buffer between U1's GP22 and LED101 (C22 at VCC, R16 at Y)
+    "U6": (201.4, 51.2, 0), "C20": (198.4, 50.6, 90), "C21": (204.4, 50.6, 90),
+    "R14": (200.0, 54.0, 0), "R15": (203.0, 54.0, 0),
+    "U7": (186.8, 46.6, 0), "C22": (187.95, 43.71, 90), "R16": (189.0, 49.4, 90),
 }
 # Left-half overrides (left frame): the turned U1 puts the flash and the pair elsewhere
 PLACE_L = {
     "J1": (74.0, 34.25, 180),
     "U2": (96.0, 53.7, 180), "C5": (90.0, 55.4, 90), "R8": (89.0, 52.6, 90), "R9": (87.8, 52.6, 90),
     "R1": (80.5, 39.6, 0), "R2": (70.2, 43.4, 0),
-    "TP11": (81.0, 33.8, 0), "TP4": (83.2, 33.8, 0), "TP5": (85.4, 33.8, 0), "TP6": (81.0, 36.0, 0),
+    "TP11": (81.0, 33.8, 0), "TP6": (81.0, 36.0, 0),
     "TP7": (83.2, 36.0, 0), "TP8": (87.6, 34.0, 0), "TP9": (87.6, 36.2, 0), "TP10": (85.4, 36.2, 0),
+    # RGB: SOT-23-5 pins cannot mirror, so U6 keeps the right half's turn and its passives keep their
+    # pins (not mirrored); U7 turns 180 so its input faces U1
+    "U6": (58.6, 51.2, 0), "C20": (55.6, 50.6, 90), "C21": (61.6, 50.6, 90),
+    "R14": (57.2, 54.0, 0), "R15": (60.2, 54.0, 0),
+    # U7, C22, R16 sit west of D1, beside U6, not between J1/U4 and the main GND plane: placed south of U4 and
+    # C2 they cut the GND pour there and U4's clamp GND could not reach J1 (gnd_ties.py, deviations REVB-7)
+    "U7": (65.6, 49.0, 180), "C22": (63.51, 51.31, 0), "R16": (63.65, 46.64, 0),
 }
 
 # Left USB pair: a straight run from past R3/R4 to the J1 columns, U4 on it (route_critical.py)
@@ -141,11 +157,13 @@ U4_L_S = 8.6                     # U4 centre along the diagonal
 # cap within 4 mm of copper; route_critical.u4_cap() joins them (docs/deviations.md BOARD-5). U4 frame
 U4_PIN5 = (1.1375, 0.0)          # SOT-23-6 pad 5 (VSYS); pad 2 (GND) mirrors it
 U4_VIA_OUT = 1.15                # pin-5 / pin-2 via this far out past the pad centre
-U4_CAP_Y = -3.4                  # C2 centre: across the D+ row (pins 1 / 6 at y -0.95)
+U4_CAP_Y = -3.695                # C2 centre: across the D+ row (pins 1 / 6 at y -0.95). Rev B: C2 is 0603
+                                 # (pads at +-0.775, were +-0.48), so its centre moves 0.295 mm out and pad 1
+                                 # stays where the 0402's was, clear of the VSYS via (REVB-3)
 U4_CAP_VIA_Y = -2.0              # VSYS via between the D+ row and C2 pad 1
 
 # Silkscreen, right frame (text, x, y, rot)
-SILK = [("worxboard {S} rev A", 130.0, 45.0, 0),
+SILK = [("worxboard {S} rev B", 130.0, 45.0, 0),
         ("DO NOT HOT-PLUG TRRS", 51.6, 116.0, 90), ("HOST → LEFT", 53.4, 116.0, 90),
         ("JP1: cut = split power", 186.6, 54.2, 0)]
 
@@ -217,6 +235,26 @@ def top_positions(side: str) -> dict[str, tuple[float, float, float]]:
     return out
 
 
+def led_poses(lay: dict) -> dict[str, tuple[float, float, float]]:
+    """LED and LED-cap (x, y, rot) on B.Cu: each LED turned (key rot or key rot + 180) so its DIN -> DOUT
+    runs along the chain towards the next LED (the last one keeps the incoming direction)."""
+    out, prev = {}, None
+    for d in lay["leds"]:
+        nxt = d["next"] or prev
+        best = None
+        for r in (d["rot"], d["rot"] + 180.0):
+            u = rotate(*LED_DIR, r)
+            score = u[0] * nxt[0] + u[1] * nxt[1]
+            if best is None or score > best[0] + 1e-9:
+                best = (score, r % 360.0)
+        r = best[1]
+        out[d["ref"]] = (d["x"], d["y"], r)
+        dx, dy = rotate(*LED_CAP, r)
+        out[d["cap"]] = (d["x"] + dx, d["y"] + dy, (r + 90.0) % 360.0)
+        prev = nxt
+    return out
+
+
 def load_fp(fpid: str) -> pcbnew.FOOTPRINT:
     lib, name = fpid.split(":")
     path = LOCAL_FP if lib == "worxboard" else STOCK_FP / f"{lib}.pretty"
@@ -245,6 +283,7 @@ def add_footprints(board: pcbnew.BOARD, side: str, net_path: Path) -> None:
     keys = {k["id"]: k for k in lay["keys"]}
     holes = lay["holes"]
     top = top_positions(side)
+    rgb = led_poses(lay)
     tstamps = _tstamps(net_path)
     for ref in sorted(nl.comps, key=_ref_key):
         c = nl.comps[ref]
@@ -264,13 +303,14 @@ def add_footprints(board: pcbnew.BOARD, side: str, net_path: Path) -> None:
             if hit:
                 pad.SetNet(nets[hit[1]])
         key = c.fields.get("Key")
-        if key and ref.startswith("SK"):
+        if ref in rgb:                                  # LED<n> and its C<n> (rev B)
+            place(fp, *rgb[ref], back=True)
+        elif key and ref.startswith("SK"):
             k = keys[key]
             place(fp, k["x"], k["y"], k["rot"], back=True)
         elif key:
             k = keys[key]
-            dx, dy = rotate(*DIODE_OFFSET, k["rot"])
-            place(fp, k["x"] + dx, k["y"] + dy, k["rot"] + 180.0, back=True)
+            place(fp, *lay["diodes"][key], k["rot"] + 180.0, back=True)
         elif "Hole" in c.fields:
             place(fp, *holes[int(c.fields["Hole"])], 0.0)
         else:
@@ -427,6 +467,20 @@ def write_rules(pro: Path) -> None:
         "track_widths": [0.0, 0.15, 0.25, 0.5], "via_dimensions": [{"diameter": 0.0, "drill": 0.0}],
         "meta": {"version": 2}}}
     pro.write_text(json.dumps(data, indent=2) + "\n")
+    pro.with_suffix(".kicad_dru").write_text(DRU)
+
+
+# Custom rules (worxboard-<side>.kicad_dru). The SK6812MINI-E pads sit 0.348 mm from their own cutout
+# (gen_footprints.py), so copper may come to 0.3 mm of the LED cutouts; the outline keeps the 0.5 mm
+# copper-to-edge rule (mouse bites, case). JLC and PCBWay route to 0.3 mm (docs/deviations.md REVB-1)
+LED_EDGE_CLEARANCE = 0.3         # the routers keep this (export_dsn, complete_routes, import_ses)
+LED_EDGE_DRC_TOL = 0.01          # DRC allows 10 um under it: the cutout's arcs are polygons in the DSN and
+                                 # the grids (a VLED track once landed at 0.298 mm; REVB-7)
+DRU = f"""(version 1)
+(rule "copper to the LED cutouts"
+\t(condition "B.Layer == 'Edge.Cuts' && B.memberOfFootprint('LED*')")
+\t(constraint edge_clearance (min {LED_EDGE_CLEARANCE - LED_EDGE_DRC_TOL:g}mm)))
+"""
 
 
 def courtyard(fp: pcbnew.FOOTPRINT) -> Polygon | None:

@@ -10,7 +10,8 @@
   3V3 exits necked to 0.15 mm between the pads, then 0.5 mm.
 - USB pair U1 -> R3/R4 -> U4 (pass-through) -> J1, with the receptacle's A/B ties, and the
   J1 escape vias the pair encloses on the right half. A B.Cu track keepout runs under the pair.
-  U4's VSYS reference (pin 5) runs to C2 beside it (u4_cap).
+  U4's VSYS reference (pin 5) runs to C2 beside it (u4_cap). On the left, B.Cu GND locks
+  U4 pin 2's via to the nearest J1 shell pad (u4_gnd_left); the pour does not.
 - Key matrix: switch -> diode links, rows (F.Cu) and columns (B.Cu), vias at the thumb pads.
 - Decoupling: every supply cap (placed at an exit by place.CLUSTER) joined to that exit, and its
   GND pad to a via; XOUT -> R7 -> Y1 beside the crystal; a B.Cu track/via keepout under Y1.
@@ -64,11 +65,17 @@ FAN_STAGGER_VIA = 0.45       # beside a via end: (0.4 + 0.45) / sqrt 2 clears vi
 FAN_VIA_STEP = 0.9           # each next via end this much further along its run
 KEEPOUT_GROW = 0.6           # B.Cu keepout half-width beyond the pair
 U4_KEEPOUT_GAP = 0.3         # left half: the keepout stops this far past U4's row jogs
+U4_GND_SIDE = 1.85           # left: B.Cu clamp GND, U4 +y (opposite C2). Past the 0.95 row,
+                             # the 0.25 pair, this 0.5 track, and 0.2 clearance, with margin
 
 # Key matrix, key frame (mm from the switch centre, as seen from the top; B.Cu socket pads at
-# (-7.085, -2.54) COL and (5.842, -5.08) MX, diode at (0, 5) with the cathode west)
+# (-7.085, -2.54) COL and (5.842, -5.08) MX, diode at (0, 8.5) with the cathode west, below the
+# rev B LED in the switch window at (0, 5.08): docs/deviations.md REVB-1)
 MX_X = 7.0                   # socket pad 2 -> diode anode link (B.Cu), east of the peg hole
-ROW_Y = 6.6                  # row line (F.Cu) and row vias, below the diode
+MX_X_TRIES = (7.0, 7.4, 6.6, 7.8)   # the link's vertical run, first one clear of holes and keepouts
+ROW_VIA_DX = 1.55            # row via this far west of the cathode pad centre; the row line (F.Cu)
+                             # runs at the diode's height, below the LED cutout
+EDGE_CLEAR = 0.5             # copper to an Edge.Cuts cutout (the LED holes), the board rule
 COL_X = -8.885               # column line (B.Cu) and column vias, west of the socket
 MATRIX_W = 0.25
 CLEAR = 0.2
@@ -512,11 +519,47 @@ class Router:
                    P(s4 + 2.6, sign * row), P(s4 + 2.6 + jog, sign * hp), P(s_c, sign * hp), pad]
             self.track(net, pts, PAIR_W)
         self.j1_ties(dp, dm)
+        self.u4_gnd_left()
         # no keepout across U4: its pins 2 / 5 sit between the split rows, and the VBUS via
         # can only leave on B.Cu (docs/deviations.md WS2b-7)
         end = (b[0] - a[0]) / u[0] if abs(u[0]) > 1e-9 else n
         gap = 2.6 + jog + U4_KEEPOUT_GAP
         return [[P(0, 0), P(s4 - gap, 0)], [P(s4 + gap, 0), P(end, 0)]]
+
+    def u4_gnd_left(self) -> None:
+        """Locked B.Cu GND from U4 pin 2's via to the nearest J1 shell pad.
+
+        The via sits between the F.Cu pair, so this escape cannot leave on F.Cu. C2 and the
+        VSYS track occupy U4 -y. The B.Cu keepout covers the pair except the gap around U4,
+        and the nearest shell is a through-hole on the +y side of that gap. The right pour
+        reaches J1; DRC-clean left seeds still leave this path open, and a tie cannot cross
+        the pair (gnd_ties.py)."""
+        u4 = self.board.FindFootprintByReference("U4")
+        c, rot = self.xy(u4.GetPosition()), u4.GetOrientationDegrees()
+
+        def at(lx: float, ly: float) -> tuple[float, float]:
+            dx, dy = rotate(lx, ly, rot)
+            return c[0] + dx, c[1] + dy
+
+        def local(x: float, y: float) -> tuple[float, float]:
+            return rotate(x - c[0], y - c[1], -rot)
+
+        p = self.pad_xy("U4", "2")
+        d = math.dist(p, c)
+        via = (p[0] + (p[0] - c[0]) / d * U4_VIA_OUT, p[1] + (p[1] - c[1]) / d * U4_VIA_OUT)
+        vx, vy = local(*via)
+        if abs(vy) > 0.05:
+            raise SystemExit(f"U4 pin 2 via is not on the package axis (local y {vy:.3f})")
+        y = vy + U4_GND_SIDE
+        corner = at(vx, y)
+        sh = min(self.pad_xy_all("J1", "SH"), key=lambda q: math.dist(q, corner))
+        sx, sy = local(*sh)
+        gap = 2.6 + (0.95 - PAIR_PITCH / 2) + U4_KEEPOUT_GAP
+        if abs(vx) >= gap or abs(sx) >= gap or sy <= y:
+            raise SystemExit(
+                f"J1 shell local ({sx:.2f}, {sy:.2f}) or the pin-2 via ({vx:.2f}) "
+                f"is outside the open +y side of the USB keepout gap ({gap:.2f})")
+        self.track(self.net("U4", "2"), [via, corner, at(sx, y), sh], POWER_W, pcbnew.B_Cu)
 
     def j1_ties(self, dp, dm) -> None:
         """A6/B6 (DP) tied in front of the pad row, A7/B7 (DM) behind it."""
@@ -546,7 +589,9 @@ class Router:
         block as straight lines with 45 deg jogs; vias at the 25 deg thumb keys' row and column
         pads so Freerouting only meets round items there."""
         fps = {f.GetField("Key").GetText() + ":" + f.GetReference()[:1]: f
-               for f in self.board.GetFootprints() if f.HasField("Key")}
+               for f in self.board.GetFootprints() if f.HasField("Key") and f.GetReference()[:1] in "SD"
+               and not f.GetReference().startswith("LED")}
+        self.unlocked: list[str] = []
         self.obst = {pcbnew.F_Cu: self.obstacles(pcbnew.F_Cu), pcbnew.B_Cu: self.obstacles(pcbnew.B_Cu)}
         rows, cols = {}, {}
         for k in keys:
@@ -555,11 +600,19 @@ class Router:
             p1, p2 = (frame.local(*self.pad_xy(sk.GetReference(), n)) for n in ("1", "2"))
             dk, da = (frame.local(*self.pad_xy(d.GetReference(), n)) for n in ("1", "2"))
             mx = self.net(sk.GetReference(), "2")
-            self.track(mx, [frame.g(*q) for q in (p2, (MX_X, p2[1]), (MX_X, da[1]), da)], MATRIX_W, pcbnew.B_Cu)
+            for x in MX_X_TRIES:                       # the first vertical clear of holes, keepouts, cutouts
+                link = [frame.g(*q) for q in (p2, (x, p2[1]), (x, da[1]), da)]
+                if self.clear(link, pcbnew.B_Cu, mx):
+                    self.track(mx, link, MATRIX_W, pcbnew.B_Cu)
+                    break
+            else:                                      # next to a mounting hole: Freerouting links it
+                self.unlocked.append(sk.GetReference())
             row, col = self.net(d.GetReference(), "1"), self.net(sk.GetReference(), "1")
-            rv, cv = frame.g(dk[0], ROW_Y), frame.g(COL_X, p1[1])
+            ry = dk[1]
+            rv, cv = frame.g(dk[0] - ROW_VIA_DX, ry), frame.g(COL_X, p1[1])
             if k["rot"] != 0:                          # thumbs: first via spot clear of holes
-                rv = self.via_spot(row, [frame.g(dk[0] + dx, ROW_Y) for dx in (0, -1.0, 1.0, -2.0)])
+                rv = self.via_spot(row, [frame.g(dk[0] - ROW_VIA_DX + dx, ry + dy)
+                                         for dx, dy in ((0, 0), (-1.0, 0), (0, 1.2), (-2.0, 0), (-1.0, 1.2))])
                 cv = self.via_spot(col, [frame.g(COL_X, p1[1] + dy) for dy in (0, 1.2, -1.2, 2.4, -2.4)])
             self.track(row, [frame.g(*dk), rv], MATRIX_W, pcbnew.B_Cu)
             self.via(row, rv)
@@ -571,11 +624,26 @@ class Router:
         for members in rows.values():
             members.sort(key=lambda m: m[1][0])
             for (ka, a, net), (kb, b, _) in zip(members, members[1:]):
-                self.track(net, self.jogged(a, b, (ka["x"] + kb["x"]) / 2, 0, pcbnew.F_Cu, net), MATRIX_W, pcbnew.F_Cu)
+                pts = self.jogged(a, b, (ka["x"] + kb["x"]) / 2, 0, pcbnew.F_Cu, net)
+                if pts:
+                    self.track(net, pts, MATRIX_W, pcbnew.F_Cu)
+                else:                                  # past a mounting hole: Freerouting joins the vias
+                    self.unlocked.append(f"{ka['id']}-{kb['id']}")
         for members in cols.values():
             members.sort(key=lambda m: m[1][1])
             for (ka, a, net), (kb, b, _) in zip(members, members[1:]):
-                self.track(net, self.jogged(a, b, (ka["y"] + kb["y"]) / 2, 1, pcbnew.B_Cu, net), MATRIX_W, pcbnew.B_Cu)
+                pts = self.jogged(a, b, (ka["y"] + kb["y"]) / 2, 1, pcbnew.B_Cu, net)
+                if pts:
+                    self.track(net, pts, MATRIX_W, pcbnew.B_Cu)
+                else:
+                    self.unlocked.append(f"{ka['id']}-{kb['id']}")
+
+    def clear(self, pts, layer, net) -> bool:
+        """A MATRIX_W polyline on `layer` clear of other nets' pads, holes, keepouts and cutouts."""
+        from shapely.geometry import LineString
+        line = LineString(pts).buffer(MATRIX_W / 2)
+        code = net.GetNetCode()
+        return not any(g.intersects(line) for g, c in self.obst[layer] if c != code)
 
     def via_spot(self, net, spots: list[tuple[float, float]]) -> tuple[float, float]:
         from shapely.geometry import Point
@@ -599,6 +667,18 @@ class Router:
                     bb = pad.GetBoundingBox()
                     (x0, y0), (x1, y1) = self.xy(bb.GetOrigin()), self.xy(bb.GetEnd())
                     out.append((box(x0, y0, x1, y1).buffer(CLEAR), pad.GetNetCode()))
+        from shapely.geometry import LineString
+        edges = pcbnew.SHAPE_POLY_SET()                # the board outline, kept EDGE_CLEAR away
+        if self.board.GetBoardPolygonOutlines(edges, False) and edges.OutlineCount():
+            o = edges.Outline(0)
+            ring = [self.xy(o.CPoint(i)) for i in range(o.PointCount())]
+            out.append((LineString(ring + ring[:1]).buffer(EDGE_CLEAR), -1))
+        for fp in self.board.GetFootprints():          # rev B LED cutouts (footprint Edge.Cuts)
+            cuts = [g.GetBoundingBox() for g in fp.GraphicalItems() if g.GetLayer() == pcbnew.Edge_Cuts]
+            if cuts:
+                xs = [self.xy(b.GetOrigin())[0] for b in cuts] + [self.xy(b.GetEnd())[0] for b in cuts]
+                ys = [self.xy(b.GetOrigin())[1] for b in cuts] + [self.xy(b.GetEnd())[1] for b in cuts]
+                out.append((box(min(xs), min(ys), max(xs), max(ys)).buffer(EDGE_CLEAR), -1))
         for z in self.board.Zones():
             if z.GetIsRuleArea() and z.GetDoNotAllowTracks() and z.IsOnLayer(layer):
                 from shapely.geometry import Polygon
@@ -610,7 +690,7 @@ class Router:
     def xy(v) -> tuple[float, float]:
         return pcbnew.ToMM(v.x), pcbnew.ToMM(v.y)
 
-    def jogged(self, a, b, mid: float, axis: int, layer, net) -> list[tuple[float, float]]:
+    def jogged(self, a, b, mid: float, axis: int, layer, net) -> list[tuple[float, float]] | None:
         """a -> b along `axis` (0 = x, 1 = y) with one 45 deg jog near `mid`, clear of pads of
         other nets and of holes; the jog slides along the run until it fits."""
         from shapely.geometry import LineString
@@ -642,7 +722,7 @@ class Router:
                                P(cx + sign * (h - depth), a1 + side * depth), P(cx + sign * h, a1), b]
                         if clear(pts):
                             return pts
-        raise SystemExit(f"{net.GetNetname()}: no clear route between {a} and {b}")
+        return None                     # caller leaves this run to Freerouting
 
     def keepout(self, lines: list[list[tuple[float, float]]]) -> None:
         """B.Cu track keepout under the pair (fills still allowed)."""
@@ -728,7 +808,8 @@ def main(argv: list[str]) -> int:
     r.ep_caps()
     r.matrix(layout_side(side)["keys"])
     board.Save(str(path))
-    print(f"{side}: {r.tracks} locked track segments")
+    print(f"{side}: {r.tracks} locked track segments"
+          + (f"; switch -> diode left to Freerouting at {' '.join(r.unlocked)}" if r.unlocked else ""))
     return 0
 
 

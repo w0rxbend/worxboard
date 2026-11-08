@@ -281,6 +281,64 @@ def check_power(nl: Netlist) -> list[str]:
     return errs
 
 
+def check_rgb(nl: Netlist, side: str) -> list[str]:
+    """Rev B per-key RGB (deviations REVB-1), from the netlist alone: GP22 -> U7 -> R16 -> LED101, each
+    LED's DOUT net is the next LED's DIN and nothing else, the chain follows layout.leds' key order, VLED
+    comes only from U6 OUT (VSYS in, GP23 enable with its pull-down, 15k ISET) and feeds exactly the LEDs,
+    their caps, C20, C22 and U7."""
+    errs = []
+    chain = layout.leds(side)
+
+    def net(ref, key):
+        got = nl.comps[ref].pin_net(key) if ref in nl.comps else []
+        return got[0] if len(got) == 1 else None
+
+    gp22 = net("U1", "GPIO22")
+    u1_pin = next((num for num, (name, _) in nl.comps["U1"].pins.items() if name == "GPIO22"), None)
+    if nl.nets.get(gp22 or "", set()) != {("U1", u1_pin), ("U7", "2")}:
+        errs.append(f"GP22 net {gp22}: {sorted(nl.nets.get(gp22 or '', set()))}, want U1 GPIO22 and U7 pin 2 only")
+    if net("U7", "5") != "VLED":
+        errs.append(f"U7 VCC on {net('U7', '5')}, want VLED")
+    buf = net("U7", "4")
+    if {r for r, _ in nl.nets.get(buf or "", set())} != {"U7", "R16"}:
+        errs.append(f"U7 output net {buf} must reach only R16")
+    r16 = [n for n in (net("R16", "1"), net("R16", "2")) if n != buf]
+    prev = r16[0] if r16 else None
+    for n, d in enumerate(chain):
+        ref = d["ref"]
+        if ref not in nl.comps:
+            errs.append(f"{ref} missing")
+            continue
+        if nl.comps[ref].fields.get("Key") != d["key"]:
+            errs.append(f"{ref} Key {nl.comps[ref].fields.get('Key')}, layout chain wants {d['key']}")
+        din, dout = net(ref, "DIN"), net(ref, "DOUT")
+        want = {("R16" if n == 0 else chain[n - 1]["ref"]), ref}
+        if din != prev or {r for r, _ in nl.nets.get(din or "", set())} != want:
+            errs.append(f"{ref} DIN on {din}: want {prev} shared with {' and '.join(sorted(want))} only")
+        if net(ref, "VDD") != "VLED" or net(ref, "VSS") != "GND":
+            errs.append(f"{ref} VDD/VSS on {net(ref, 'VDD')}/{net(ref, 'VSS')}")
+        cap = nl.comps.get(d["cap"])
+        if cap is None or sorted(n_ for _, n_ in cap.pins.values()) != ["GND", "VLED"] or cap.fields.get("Key") != d["key"]:
+            errs.append(f"{d['cap']}: not a VLED/GND cap of {d['key']}")
+        prev = dout
+    if prev is not None and nl.nets.get(prev) and len(nl.nets[prev]) > 1:
+        errs.append(f"last LED DOUT {prev} is connected")
+    want_vled = {("U6", "1"), ("U7", "5"), *((d["ref"], "3") for d in chain), *((d["cap"], "1") for d in chain),
+                 ("C20", "1"), ("C22", "1")}
+    if nl.nets.get("VLED", set()) != want_vled:
+        extra = sorted(nl.nets.get("VLED", set()) - want_vled)
+        miss = sorted(want_vled - nl.nets.get("VLED", set()))
+        errs.append(f"VLED members: extra {extra[:6]}, missing {miss[:6]}")
+    if net("U6", "IN") != "VSYS" or net("U6", "OUT") != "VLED":
+        errs.append(f"U6 IN/OUT on {net('U6', 'IN')}/{net('U6', 'OUT')}, want VSYS/VLED")
+    en = net("U6", "EN")
+    if en != net("U1", "GPIO23") or not via_resistor(nl, en or "", "10k") >= {"GND"}:
+        errs.append(f"U6 EN {en}: want U1 GPIO23 with a 10k pull-down")
+    if not via_resistor(nl, net("U6", "ISET") or "", "15k") >= {"GND"}:
+        errs.append("U6 ISET: want 15k to GND (Ilim 0.45 A)")
+    return errs
+
+
 def retired(code: str) -> str:
     return f"retired {code} ({RETIRED[code]})"
 
@@ -515,6 +573,7 @@ def main(argv: list[str]) -> int:
     ck.section("CC1/CC2 5.1k to GND", check_cc(nl))
     ck.section("RP2040 supply pins decoupled", check_decoupling(nl))
     ck.section("VBUS only J1/D1/R5; ESD references U4 VSYS, U5 VLINK", check_power(nl))
+    ck.section("per-key RGB chain, VLED switch and buffer (rev B)", check_rgb(nl, side))
     ck.section("LCSC on every BOM part, none retired", check_lcsc(nl))
     ck.section("matrix nets identical left/right", check_mirror(nl, side, path))
     return report(ck, f"{side} ({len(nl.comps)} symbols, {len(nl.nets)} nets)")

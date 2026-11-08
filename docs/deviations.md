@@ -2129,3 +2129,154 @@ JLC3DP's published rules and the parts they hold. Each defect below was confirme
   remark does not change the tier.
 - **Change:** the form-settings table has an "Appearance standard: Strict (or Premium), if the form
   offers it" row, and the remark paragraph says why.
+
+## REVB: rev B, per-key RGB, display setback and review fixes (`layout/`, `pcb/`, `firmware/`, `case/`, `docs/`)
+
+Rev B is the order revision after the rev A pre-order review (2026-11-04). It adds an RGB LED under
+every switch (assembled by the fab), moves the display back from the C6R1 key well, folds in the
+review's minor points, and adds a PCBWay order package beside the JLCPCB one. Nothing of rev B has
+been built yet.
+
+### REVB-1. Per-key RGB: an SK6812MINI-E under every switch, VLED switched, data buffered (§3, §6, §7, §8, §11)
+
+- **Spec:** no LEDs; GP22 a test pad "reserved for future RGB" (§3), RGB under future work (§13).
+- **Change, layout** (`layout/leds.py`, `layout.leds()`, `layout.json` `leds` / `diodes`): the
+  switches face south, so the MX LED window is at (0, +5.08) mm in the key frame, opposite the switch
+  pins. LED<n> (n = 101 + chain index) sits there with its 100 nF C<n>; the chain is a serpentine (row 0
+  inward, row 1 outward, row 2 inward, C6R2, row 3 outward, row 4 inward, thumbs T5, T4, T3, T2, T0,
+  T1), the same key ids on both halves, every hop to a neighbour (longest about 30 mm). The matrix
+  diode moves from (0, 5.0) to (0, 8.5), below the LED.
+- **Change, circuit** (`design.py` `_rgb`, group RGB): U6 SY6280AAC (C55136) switches VSYS to VLED,
+  EN on GP23 (RGB_EN) with R15 10k to GND, ISET R14 15k (C25756): Ilim = 6800 / 15k = 0.45 A, its 0.4 A
+  minimum; C21 10 µF 0603 at IN (the datasheet "strongly recommends" 10 µF: input ringing on an output
+  short), C20 10 µF 0603 at OUT. U7 SN74LV1T34DBVR (C100024, VCC on VLED, VIH 2.0 V
+  at 5 V) buffers GP22 (RGB_DIN): the LED's own threshold is 0.65 × VDD, about 3.0 V at VSYS, which
+  3.3 V logic meets with no margin. R16 470 Ω (C25117) feeds LED101 DIN, as the datasheet's series
+  resistor. LED137's DOUT is open. VLED joins the Power netclass. TP4/TP5 (GP22/GP23) are gone.
+- **Change, footprint** (`gen_footprints.py`): KiCad's stock
+  `LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount` has a 3.4 × 3.0 mm cutout with dog-bone corners
+  (to ±1.817 × ±1.617) and leaves 0.247 mm from its pads to the cutout. The vendored copy
+  `worxboard:LED_SK6812MINI-E_ReverseMount` moves the four pads 0.1 mm out: 0.348 mm. The `.kicad_dru`
+  (`place.py` `DRU`) lets any copper come within 0.3 mm of the LED cutouts (JLC and PCBWay route to
+  that); the outline keeps 0.5 mm.
+- **Change, placement and routing:** `place.py` turns each LED (key rot or key rot + 180) so its DIN
+  -> DOUT runs along the chain, and puts its cap beside the VDD pad. `route_critical.py`'s matrix
+  links now reach the diode at 8.5 mm: the row via sits 1.55 mm west of the cathode and the F.Cu row
+  line runs at the diode's height, under the LED cutout. Each locked link is checked against pads,
+  holes, keepouts, the LED cutouts and the outline (0.5 mm); one that is not clear (next to a mounting
+  hole: one switch link and one row run per half) is left to Freerouting instead of failing.
+  KiCad exports the LED cutouts to the DSN as keepouts, and Freerouting keeps only its 0.2 mm track
+  clearance from a keepout (not its 0.5 mm copper-to-edge setting): its wires came within 0.003 mm of
+  a cutout. `export_dsn.py` grows each LED keepout by 0.11 mm, so its copper stays 0.31 mm from the
+  cutout while the LED pads (0.348 mm) stay clear of it. `complete_routes.py` and the GND stitching
+  (`import_ses.py`) keep 0.3 mm from the cutouts too.
+- **Checks:** `netcmp.py` "per-key RGB chain" (GP22 -> U7 -> R16 -> LED101, each DOUT net shared only
+  with the next DIN, the chain in `layout.leds` order, VLED from U6 OUT to exactly the LEDs, their
+  caps, C20, C22 and U7, U6 EN with its pull-down, 15k ISET; mutation-tested). `checks.py` "per-key
+  RGB" (each LED on B.Cu at its window with its cutout, turned along the chain, its cap within 8 mm
+  of VLED copper of the VDD pad). Layout tests: chain, mirror, LED and diode clear of the switch holes.
+- **JLC placement:** JLC's footprint of C100024 has pin 1 in the other corner from the SOT-23-5 row
+  of `jlc_rotations.csv` (AP2112K, SY6280): U7 carries a `JLCPCB_CORRECTION` field `0;0;180`, which
+  KiKit uses before the pattern file. The LEDs need no row. `cpl_check.py` gates the reverse-mount LED
+  at 55 % of each terminal on its pad (`LEAD_AREA_MIN_BY`): JLC's leads run x 1.55–2.94, the first
+  0.15 mm over the cutout, so no pad holds 75 %; KiCad's stock pads hold 64 %, ours 57 %, 0.79 mm of
+  the lead on the pad and 0.56 mm of pad past its toe. The lead centre must still be on the pad.
+- **Firmware** (`docs/firmware.md`): WS2812 driver on PIO0, GP22, 37 LEDs, GRB; ext-power on GP23;
+  brightness capped at 8 % with a 1 % floor (full white about 107 mA per half, 129 mA worst case, plus
+  22 mA of dark LEDs and ~30 mA of logic: ~181 mA, 72 % of F1's 250 mA hold), the USB descriptor at
+  500 mA bus powered, `reset-delay` 500 µs. The right half now keeps its own RGB
+  settings.
+
+### REVB-2. The display moves 1.0 mm back from the C6R1 key well (§4; pre-order review)
+
+- **Problem:** the module's far end lay on the old C6R0 cell boundary (y 74.625), 0.6 mm into the open
+  C6R1 key well (well clearance 0.6 mm), so the C6R1 keycap had only 0.12–0.30 mm at bottom-out.
+- **Change** (`layout/display.py` `SETBACK = 1.0`): the module, J3 header (now y 38.925), window and the
+  pocket's back end move 1.0 mm towards the back edge. A 36.0 mm module ends 0.3975 mm short of the
+  well; the nice!view is 36 mm plus 0.1–0.2 mm of V-cut, so about 0.2–0.3 mm
+  (`test_display_clears_c6r1_well`). The pocket's far end stays at y 75.125, 1.1 mm into the well: its
+  two far corners must lie a cutter radius inside the well (CASE-8), so the setback only shortens the
+  module inside the pocket. `just model` passes (pocket y 37.125–75.125, window 2.92 mm from the well).
+
+### REVB-3. Review notes: C1–C3 0603, plug-in capacitance, flash size, RP2350 stepping (§6, §7, §13)
+
+- **C1–C3** become 10 µF 0603 10 V X5R (C19702, JLC basic) from 0402 6.3 V (C15525, now in
+  `design.RETIRED`): at the ~5 V of VSYS the 0402 kept only about 2–3 µF. C2, at U4's VSYS via
+  (BOARD-5), moves 0.295 mm further out (`place.U4_CAP_Y` -3.695) so the longer 0603 pad 1 sits where the
+  0402's did: at the old spot the VSYS via landed 0.125 mm inside it (`checks.py` "no via in an SMD
+  pad"). The left half's U7, C22 and R16 moved (`PLACE_L`) to clear the larger C2.
+- **Plug-in capacitance:** about 40 µF nominal directly on VSYS across both halves, above USB's 10 µF;
+  documented, not changed (almost every host copes). The rev B VLED capacitance sits behind U6.
+- **Flash:** the firmware declares 4 MB of the 16 MB part; documented as safe.
+- **RP2350:** a future RP2350 board needs the A4 stepping (erratum E9, internal pull-downs).
+
+### REVB-4. A PCBWay order package beside the JLC one (`pcb/scripts/pcbway.py`, `mpn.py`, `mpn.json`)
+
+- **Problem:** the JLC CPL carries JLC-only corrections (`jlc_rotations.csv`, per-part
+  `JLCPCB_CORRECTION`) and JLC's bottom-side convention; uploaded to PCBWay it misplaces the sockets by
+  3.9 mm, J3 by 5.1 mm and turns U2–U5. PCBWay also wants manufacturer part numbers.
+- **Change:** stage P step P6 writes `pcb/production/<side>/pcbway/` (MPN BOM, KiCad-native centroids
+  for the panel and the bare board, README with the form values and a remark), byte-checked in CI.
+  `pcbway.py` fails unless re-applying the JLC corrections (the per-part field first, as KiKit does)
+  to its centroids reproduces the JLC CPL. `mpn.json` maps every LCSC number to its manufacturer part
+  number (LCSC, 2026-11-07); `mpn.py check` fails offline if one is missing. Guide:
+  [ordering-pcbway.md](ordering-pcbway.md).
+
+### REVB-5. JLC's footprint record for the TRRS jack C95562 is kept as verified
+
+- **Problem:** re-fetching `jlc_footprints.json` for the rev B parts returned a different record for
+  C95562 (`AUDIO-SMD_PJ-320D-4A`, dated 2021-10-18) than the one rev A's J2 correction and its CPL
+  proof were built on (`AUDIO-SMD_PJ-320D`, 2025-06-19).
+- **Change:** the committed 2025-06-19 record stays; only the six rev B parts were added and the
+  retired C15525 dropped. The placement confirmation at order time is the backstop for J2, as for every
+  part (the README's checklist names J2).
+
+### REVB-6. Independent review before ordering (2026-11-07)
+
+A fresh-context review of the whole rev B change set (circuit against the SK6812MINI-E, SY6280AAC and
+SN74LV1T34 datasheets; LED geometry from the boards' real switch-pin holes; KiKit and `cpl_check` run on
+copies of both boards; the firmware's built configs and devicetree) found no blocker. Its findings and
+what was done:
+
+- **MAJOR, fixed (firmware):** at the first cap, 12 %, full white plus the dark LEDs plus the RP2040,
+  flash and display reached ~245 mA worst case on the cable-fed right half, 98 % of F1's 250 mA hold,
+  which falls when warm. The cap is now 8 % (~181 mA, 72 %) with `BRT_MIN = 1` so the LEDs still boot
+  lit; `fw_check` enforces 8.
+- **MINOR, fixed (firmware):** the USB descriptor declared Zephyr's 100 mA, self powered; it now declares
+  500 mA, bus powered on every USB build (`fw_check` enforces it).
+- **MINOR, fixed (docs):** "raise the cap to 30 %" could hold U6 in its current limit (0.45 A ±25 %) and
+  over its 0.6 W; the docs now say 20 % at most.
+- **MINOR, fixed (board):** U6's input cap is now 10 µF 0603 (the datasheet's strong recommendation),
+  not 1 µF.
+- **MINOR, fixed (docs):** rev A leftovers; the generated pages are regenerated from the final boards.
+- **NOTE, fixed:** `reset-delay` 500 µs (the driver sleeps from the last queued word, not the last sent).
+- **NOTE, fixed (comment):** the SN74LV1T34 datasheet specifies no Ioff; driving its input with VLED off
+  is still safe (no positive input clamp, 5.5 V tolerant input, U6 discharges VLED).
+- **NOTE, fixed (docs):** the display clears the well by about 0.2–0.3 mm with the nice!view's V-cut, not
+  0.4 mm.
+- **NOTE, documented:** a weak bus-powered hub can leave the cable-fed right half's LEDs at their 3.7 V
+  minimum; the RP2350 target saves no RGB state (known).
+
+### REVB-7. Two board-check rules adjusted for the rev B boards (`checks.py`, `place.py` `DRU`)
+
+- **U1's main B.Cu GND plane.** `checks.py` asked that U1's exposed pad reach *the largest* filled B.Cu
+  GND island within 8 mm. Rev A had one 14 623 mm² B.Cu plane; rev B's B.Cu LED routing splits the pour
+  into large islands (right half, seed 1: 4 334 and 3 254 mm², U1 on the second), each stitched to the
+  F.Cu plane, so the check read "inf" on a sound board. `main_plane()` now takes every B.Cu GND island of
+  at least `MAIN_PLANE_MIN_MM2` (2 000 mm²); U1 still has to reach one within 8 mm. The other U1 ground
+  gates (cap returns, two or more separate links 24 mm out, U4 and C5 paths) are unchanged.
+- **LED-cutout DRC tolerance.** The routers keep 0.3 mm from the LED cutouts (`LED_EDGE_CLEARANCE`), but
+  the cutout arcs are polygons in the DSN and in the completion grids: a VLED track landed 0.298 mm from
+  LED133's cutout. The `.kicad_dru` rule is now 0.29 mm (`LED_EDGE_DRC_TOL` 0.01). Routing is unchanged.
+- **Left U7 cluster moved.** With U7, R16 and C22 south of U4 and C2 (where the larger 0603 C2 had pushed
+  them), the left half's GND pour there was cut: in three of five seeds `gnd_ties.py` could not join U4's
+  clamp GND (pin 2) to J1's GND (ORDER-4's gate) and stage C stopped. They now sit west of D1 beside U6
+  (`PLACE_L`: U7 (65.6, 49.0, 180), R16 (63.65, 46.64), C22 (63.51, 51.31)), leaving the J1/U4 area to the
+  pour as in rev A. The right half's cluster is not between its J1/U4 and the plane and passed (10.3 mm).
+- **Seeds.** As in rev A (WS2c-4, BOARD-2), each half's `KIID_SEED` is one whose seeded rebuild routes to
+  0 unconnected and passes every stage C gate: the right half keeps 0x1; the left half's is recorded with
+  the final boards. On 2026-11-08 the moved U7 placement was routed. Seed 0x1 (`leftB-1`) reached DRC
+  0/0/0 with U4 pin 2 to J1 GND at 13.2 mm, then failed: one U1 ground link of the two required, and no
+  copper path from C5 to U2 pin 4. Seeds 0x2–0x5 of that placement did not finish stage C (the machine
+  went down at 05:20). The left seed is still unset.
+

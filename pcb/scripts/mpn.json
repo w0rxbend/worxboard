@@ -1,0 +1,215 @@
+{
+ "_about": "LCSC number -> manufacturer, part number, description, package (LCSC product API). Written by `python3 pcb/scripts/mpn.py fetch` (just pcb-mpn); do not edit.",
+ "parts": {
+  "C1525": {
+   "manufacturer": "Samsung Electro-Mechanics",
+   "mpn": "CL05B104KO5NNNC",
+   "description": "100nF ±10% 16V Ceramic Capacitor X7R 0402",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C1557": {
+   "manufacturer": "FH",
+   "mpn": "0402CG270J500NT",
+   "description": "27pF ±5% 50V Ceramic Capacitor C0G 0402",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C2040": {
+   "manufacturer": "Raspberry Pi",
+   "mpn": "RP2040",
+   "description": "ARM Cortex-M0+ 32 Bit 133MHz LQFN-56(7x7) Microcontrollers",
+   "package": "LQFN-56(7x7)",
+   "fetched": "2026-11-07"
+  },
+  "C7519": {
+   "manufacturer": "ST",
+   "mpn": "USBLC6-2SC6",
+   "description": "17VC Clamp 5A Ipp ESD DIODE SOT-23-6L",
+   "package": "SOT-23-6L",
+   "fetched": "2026-11-07"
+  },
+  "C8598": {
+   "manufacturer": "JSCJ",
+   "mpn": "B5819W SL",
+   "description": "Diode 40V 1A Surface Mount SOD-123",
+   "package": "SOD-123",
+   "fetched": "2026-11-07"
+  },
+  "C9002": {
+   "manufacturer": "YXC Crystal Oscillators",
+   "mpn": "X322512MSB4SI",
+   "description": "Crystal 12MHz ±10ppm 20pF SMD3225-4P",
+   "package": "SMD3225-4P",
+   "fetched": "2026-11-07"
+  },
+  "C11702": {
+   "manufacturer": "UNI-ROYAL",
+   "mpn": "0402WGF1001TCE",
+   "description": "1kΩ ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C15525": {
+   "manufacturer": "Samsung Electro-Mechanics",
+   "mpn": "CL05A106MQ5NUNC",
+   "description": "10uF ±20% 6.3V Ceramic Capacitor X5R 0402",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C19702": {
+   "manufacturer": "Samsung Electro-Mechanics",
+   "mpn": "CL10A106KP8NNNC",
+   "description": "10uF ±10% 10V Ceramic Capacitor X5R 0603",
+   "package": "0603",
+   "fetched": "2026-11-07"
+  },
+  "C25117": {
+   "manufacturer": "UNI-ROYAL",
+   "mpn": "0402WGF4700TCE",
+   "description": "470Ω ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C25744": {
+   "manufacturer": "UNI-ROYAL",
+   "mpn": "0402WGF1002TCE",
+   "description": "10kΩ ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C25756": {
+   "manufacturer": "UNI-ROYAL",
+   "mpn": "0402WGF1502TCE",
+   "description": "15kΩ ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C25905": {
+   "manufacturer": "UNI-ROYAL",
+   "mpn": "0402WGF5101TCE",
+   "description": "5.1kΩ ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C51118": {
+   "manufacturer": "DIODES",
+   "mpn": "AP2112K-3.3TRG1",
+   "description": "3.3V Positive Fixed SOT-25-5 Voltage Regulators - Linear, Low Drop Out (LDO) Regulators RoHS",
+   "package": "SOT-25-5",
+   "fetched": "2026-11-07"
+  },
+  "C52923": {
+   "manufacturer": "Samsung Electro-Mechanics",
+   "mpn": "CL05A105KA5NQNC",
+   "description": "1uF ±10% 25V Ceramic Capacitor X5R 0402",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C55136": {
+   "manufacturer": "Silergy",
+   "mpn": "SY6280AAC",
+   "description": "1 2A Active High High Side Switch SOT-23-5 Power Distribution Switches, Load Drivers",
+   "package": "SOT-23-5",
+   "fetched": "2026-11-07"
+  },
+  "C70069": {
+   "manufacturer": "TECHFUSE",
+   "mpn": "nSMD025-24V",
+   "description": "Polymeric PTC Resettable Fuse 24V 250mA Surface Mount 1206",
+   "package": "1206",
+   "fetched": "2026-11-07"
+  },
+  "C81598": {
+   "manufacturer": "ST(Semtech)",
+   "mpn": "1N4148W",
+   "description": "Diode Independent 75V 150mA Surface Mount SOD-123",
+   "package": "SOD-123",
+   "fetched": "2026-11-07"
+  },
+  "C95562": {
+   "manufacturer": "Korean Hroparts Elec",
+   "mpn": "PJ-320D-4A",
+   "description": "3.5mm Headphone Jack 500mA 30V Surface Mount",
+   "package": "SMD",
+   "fetched": "2026-11-07"
+  },
+  "C97521": {
+   "manufacturer": "Winbond",
+   "mpn": "W25Q128JVSIQ",
+   "description": "128Mbit 2.7V~3.6V 133MHz SPI SOIC-8-208mil Memory RoHS",
+   "package": "SOIC-8-208mil",
+   "fetched": "2026-11-07"
+  },
+  "C100024": {
+   "manufacturer": "TI",
+   "mpn": "SN74LV1T34DBVR",
+   "description": "1.6V~5.5V 1 1 5.5ns@5V,15pF SOT-23-5 Buffers, Drivers, Receivers, Transceivers RoHS",
+   "package": "SOT-23-5",
+   "fetched": "2026-11-07"
+  },
+  "C165948": {
+   "manufacturer": "Korean Hroparts Elec",
+   "mpn": "TYPE-C-31-M-12",
+   "description": "USB-C (USB TYPE-C) Receptacle Connector 16 Position Surface Mount",
+   "package": "SMD",
+   "fetched": "2026-11-07"
+  },
+  "C455280": {
+   "manufacturer": "XUNPU",
+   "mpn": "TS-1088R-02026",
+   "description": "Tactile Switch SPST 2mm 3.9mm x 2.93mm Surface Mount",
+   "package": "SMD,4x3mm",
+   "fetched": "2026-11-07"
+  },
+  "C2909343": {
+   "manufacturer": "FOJAN",
+   "mpn": "FRC0402F27R0TS",
+   "description": "27Ω ±1% 62.5mW 0402 Thick Film Resistor",
+   "package": "0402",
+   "fetched": "2026-11-07"
+  },
+  "C5149201": {
+   "manufacturer": "OPSCO Optoelectronics",
+   "mpn": "SK6812MINI-E",
+   "description": "SMD LED Addressable, Specialty RoHS",
+   "package": "SMD",
+   "fetched": "2026-11-07"
+  },
+  "C27985230": {
+   "manufacturer": "Hong Cheng",
+   "mpn": "HC-PM254-5.0H-1x5PZ",
+   "description": "Female Header 5 Position 2.54mm Pitch Single Row Through Hole -40℃~+105℃",
+   "package": "Through Hole,P=2.54mm",
+   "fetched": "2026-11-07"
+  },
+  "C41430893": {
+   "manufacturer": "HanElectricity",
+   "mpn": "CPG151101S11-16",
+   "description": "5,000 cycles 2 12V 3000gf SMD,14.5x5.9mm Pushbutton Switches",
+   "package": "SMD,14.5x5.9mm",
+   "fetched": "2026-11-07"
+  },
+  "C46061764": {
+   "manufacturer": "hanxia",
+   "mpn": "HX PM2.54-1x5P ZC H5.7",
+   "description": "Female Header 5 Position 2.54mm Pitch Single Row Through Hole -40℃~+105℃",
+   "package": "Through Hole,P=2.54mm",
+   "fetched": "2026-11-07"
+  },
+  "C49304726": {
+   "manufacturer": "YXC Crystal Oscillators",
+   "mpn": "XL2EL89CRI-111YLC-12M",
+   "description": "±20ppm 18pF SMD3225-4P Crystals RoHS",
+   "package": "SMD3225-4P",
+   "fetched": "2026-11-07"
+  },
+  "C49352235": {
+   "manufacturer": "HanElectricity",
+   "mpn": "CPG151101S11-2",
+   "description": "5,000 cycles 2 12V 3000gf Pushbutton Switches RoHS",
+   "package": "-",
+   "fetched": "2026-11-07"
+  }
+ }
+}

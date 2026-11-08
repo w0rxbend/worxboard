@@ -48,6 +48,11 @@ HERE = Path(__file__).resolve().parent
 FOOTPRINTS = HERE / "jlc_footprints.json"
 PLACE_TOL = 0.1          # mm, placement gate
 LEAD_AREA_MIN = 0.75     # SMD terminal area on its pad
+# Reverse-mount SK6812MINI-E (rev B, deviations REVB-1): JLC's leads run x 1.55-2.94 from the part centre,
+# the first 0.15 mm over the PCB cutout (edge 1.7), so no pad can hold 75 % of them; KiCad's stock pads
+# (from 2.05) hold 64 %, ours (from 2.15, 0.3 mm from the cutout) 57 %: 0.79 mm of the 0.75 mm wide lead
+# on the pad, the pad 0.56 mm past its toe. The lead centre must still be on the pad
+LEAD_AREA_MIN_BY = {"C5149201": 0.55}
 HOLE_TOL = 0.02          # mm, a THT pin may touch its drill wall by rounding
 BODY_TOL = 0.05          # mm, a body edge may graze a clearance hole (the socket's at the switch peg: 0.02)
 # JLC pad name -> the KiCad pad names it may land on, where the libraries differ (by LCSC number)
@@ -280,7 +285,7 @@ def check_part(ref: str, lcsc: str, fp: dict, k: KFoot, pl: Placement) -> Result
                 continue
             frac = placed.intersection(kp.copper).area / placed.area
             r.lead_min_area = min(r.lead_min_area, frac)
-            if not kp.copper.contains(pc) or frac < LEAD_AREA_MIN:
+            if not kp.copper.contains(pc) or frac < LEAD_AREA_MIN_BY.get(lcsc, LEAD_AREA_MIN):
                 r.errors.append(f"terminal {owner['num']} {frac:.0%} on KiCad pad {kp.num}, centre "
                                 f"{'on' if kp.copper.contains(pc) else 'off'} the pad")
     # body: clear of every hole of the footprint the part does not plug into

@@ -1,6 +1,6 @@
 # Electrical design
 
-Rev A, from spec §2–§9, as built in the committed boards (`pcb/left/`, `pcb/right/`). Pin-level
+Rev B, from spec §2–§9 and the rev B changes in [deviations.md](deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs), as built in the committed boards (`pcb/left/`, `pcb/right/`). Pin-level
 tables are generated: [pinout.md](pinout.md) (GPIOs, TRRS, J3, part positions) and
 [matrix.md](matrix.md) (key matrix, sockets and diodes). Parts are in [bom.md](bom.md).
 
@@ -15,7 +15,9 @@ tables are generated: [pinout.md](pinout.md) (GPIOs, TRRS, J3, part positions) a
                                          Tip  (TX)  ════  Tip  (RX)
                                          Ring1(RX)  ════  Ring1(TX)
                                          Sleeve GND ════  Sleeve GND
-   37-key 6×7 diode matrix (col2row) · nice!view LCD on PIO1-SPI · BOOT + RESET · SWD pads   (same on both halves)
+   37-key 6×7 diode matrix (col2row) · nice!view LCD on PIO1-SPI · 37 SK6812MINI-E per-key RGB on PIO0
+   (GP22 → U7 buffer → LED101…LED137, VLED from VSYS through U6, enabled by GP23) · BOOT + RESET · SWD pads
+   (same on both halves)
 ```
 
 - **One RP2040 per half**, on the PCB (QFN-56), with the Corne v4.1 support circuit: W25Q128 QSPI
@@ -37,14 +39,15 @@ The same on both halves (deviations WS2a-1, WS2a-2):
 |---|---|
 | RP2040, flash, crystal | U1, U2, Y1 (load caps C6/C7, XOUT series R7) |
 | USB-C, ESD, CC and series resistors | J1, U4, R1/R2 (5.1 kΩ CC1/CC2), R3/R4 (27 Ω D+/D−) |
-| Power: Schottky, LDO, bulk caps | D1, U3, C1 (VSYS, at D1 and U3), C2 (VSYS, at U4's reference pin), C3/C4 (3V3) |
+| Power: Schottky, LDO, bulk caps | D1, U3, C1 (VSYS, at D1 and U3), C2 (VSYS, at U4's reference pin), C3/C4 (3V3); C1–C3 are 10 µF 0603 10 V (rev B) |
 | Cable power: jumper, polyfuse | JP1, F1 |
 | VBUS sense divider | R5, R6 |
 | Decoupling | C5 (flash), C8–C15 (3V3 pins), C16/C17 (DVDD), C18/C19 (VREG_VIN/VOUT) |
 | BOOT and RESET | SW1 (BOOT) with R9 1 kΩ and R8 10k QSPI_SS pull-up; SW2 (RESET) with R10 10k RUN pull-up |
 | TRRS jack, ESD, series resistors, RX pull-up | J2, U5, R11/R12 (1 kΩ), R13 (10k) |
 | Display socket | J3 (1×5 2.54 mm, 5.0 mm THT socket C27985230, fitted by JLC) |
-| Test pads | TP1–TP3 display DC/RST/BL, TP4–TP7 GP22–GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET |
+| Per-key RGB (rev B) | U6 SY6280AAC VLED switch (R14 15k ISET, R15 10k EN pull-down, C21 10 µF in, C20 10 µF out), U7 SN74LV1T34 data buffer (C22 100 nF, R16 470 Ω out), LED101–LED137 SK6812MINI-E with C101–C137 100 nF |
+| Test pads | TP1–TP3 display DC/RST/BL, TP6/TP7 GP24/GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET (rev A's TP4/TP5 on GP22/GP23 became the RGB lines) |
 | Key matrix | SK101–SK137 sockets, D101–D137 diodes ([matrix.md](matrix.md#sockets-and-diodes)) |
 | Mounting holes, stabiliser holes | H1–H8, STAB_T4/STAB_T5 |
 
@@ -60,6 +63,8 @@ VSYS ── U4 USBLC6-2SC6 VBUS pin (USB ESD clamp reference) ── C2 10 µF �
 VSYS ── U3 AP2112K-3.3 (EN tied to VIN) ──► 3V3 (RP2040, flash, display)   C3 10 µF + C4 1 µF out
 VSYS ── JP1 SolderJumper_2_Bridged ── F1 PTC 1206, 250 mA hold ──► VLINK ── TRRS Ring2
 VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
+VSYS ── C21 10 µF ── U6 SY6280AAC (EN = GP23, R15 10k to GND; ISET R14 15k: 0.45 A) ──► VLED   C20 10 µF
+VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100 nF, C101–C137)
 ```
 
 - **Two hosts at once are safe.** Each VBUS reaches VSYS only through its own D1. The cable joins
@@ -90,6 +95,23 @@ VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
   (BOARD-5, `checks.py`). The trade-off: U4's TVS no longer clamps the VBUS line itself. A positive
   surge goes through D1 into VSYS, where U4 and the bulk caps clamp it, and a negative one is
   blocked by D1.
+
+### Review notes kept (rev B, deviations REVB-3)
+
+- **C1–C3 are 10 µF 0603 10 V X5R** (CL10A106KP8NNNC, JLC basic C19702). Rev A's 0402 6.3 V part kept
+  only about 2–3 µF at the ~5 V of VSYS (DC bias, an estimate): still above the AP2112K's 1 µF
+  minimum, but with little margin. The 0603 10 V part keeps more.
+- **Plug-in capacitance is above USB's nominal 10 µF.** Each half has 20 µF directly on VSYS (C1, C2),
+  and the cable joins both halves' VSYS, so the host sees about 40 µF nominal (less after DC bias),
+  plus what U3 charges behind it on each half. Almost every host tolerates this, and many split
+  keyboards do the same. The rev B LEDs add nothing here: their 37 × 100 nF and C20 sit behind U6,
+  which is off until the firmware enables it, and U6 limits that inrush to 0.45 A.
+- **The firmware uses 4 MB of the 16 MB flash.** `worxboard.dtsi` declares 4 MB with the settings
+  partition at 3.5 MB (an RP2040 board with 4 MB or more can run the same image); the other 12 MB go
+  unused. That is safe.
+- **RP2350 erratum E9.** The experimental RP2350A firmware target reads the matrix rows with internal
+  pull-downs, which early RP2350 steppings get wrong (E9). A future RP2350 board must use the A4
+  stepping, which fixes it; keep that requirement.
 
 ## TRRS link
 
@@ -187,12 +209,48 @@ Cloned from the Corne v4.1 production BOM, with these values:
   select GP5, **active high**. The RP2040's PL022 hardware SPI cannot send LSB-first, which the
   memory LCD needs. The ZMK driver is `sharp,ls0xx` at 1 MHz with serial VCOM inversion.
 - GP4, GP6 and GP7 go to test pads TP1–TP3 (DC, RST, BL) for a future TFT.
+- Rev B moves the module, J3 and the case window 1.0 mm back (`layout/display.py` `SETBACK`): its far
+  end is now about 0.2–0.3 mm short of the open C6R1 key well (0.4 mm for a bare 36.0 mm module, less its V-cut) instead of 0.6–0.8 mm into it, so the C6R1 keycap
+  cannot reach it at bottom-out (pre-order review, deviations REVB-2).
+
+## Per-key RGB (rev B)
+
+One SK6812MINI-E under every switch, 37 per half, in one chain per half (deviations REVB-1).
+
+- **Where:** the switches face south, so the MX LED window is 5.08 mm below the switch centre
+  (`layout/leds.py`). The LED is a reverse-mount part on B.Cu: its body sits in a 3.4 × 3.0 mm
+  cutout (dog-bone corners to 3.63 × 3.23) and its lens looks up into the switch. The footprint is
+  KiCad's stock one with the pads moved 0.1 mm out, 0.35 mm from the cutout (`gen_footprints.py`);
+  the `.kicad_dru` lets copper come within 0.3 mm of the LED cutouts, the outline keeps 0.5 mm. The
+  matrix diode moved from 5.0 to 8.5 mm below the switch centre, under the LED.
+- **Chain:** GP22 → U7 SN74LV1T34 (VCC on VLED; VIH 2.0 V at 5 V, so 3.3 V logic switches it cleanly,
+  where the LED's own threshold of 0.65 × VDD ≈ 3.0 V would not) → R16 470 Ω → LED101 DIN → … →
+  LED137 DOUT (open). The order is a serpentine: row 0 inward, row 1 outward, row 2 inward, C6R2,
+  row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1 (`layout/leds.py` `CHAIN`), the
+  same key ids on both halves. Each LED is turned so DIN → DOUT runs towards the next one.
+- **Supply:** VLED is VSYS (about 4.6 V on USB, 4.4 V over the cable; the LEDs run from 3.7 V)
+  through U6 SY6280AAC: active-high EN on GP23 with R15 pulling it low, so the LEDs stay dark (and
+  draw nothing: 0.6 mA each when dark) until the firmware enables them (ZMK `ext-power`). R14 15k
+  sets the current limit to 6800 / 15k = 0.45 A (±25 %), the part's 0.4 A minimum: it is a short
+  and inrush guard, not the budget. U6 also keeps the 37 × 100 nF + 10 µF of VLED off VBUS when a
+  cable is plugged in.
+- **Budget:** one LED draws 12 mA per colour, 36 mA at full white. The binding limit is a right half
+  fed over the cable: its 250 mA F1 hold, and the left USB port's 500 mA for both halves. The
+  firmware caps brightness at 8 % (`CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=8`): full white is about 107 mA
+  per half (129 mA at the datasheet's 14.5 mA per colour) plus 22 mA for the dark LEDs and ~30 mA for the
+  RP2040, flash and display, at most ~181 mA: about 72 % of F1's 250 mA hold (a PTC's hold falls when
+  warm; both F1s carry it), and ~360 mA from the left port for both halves. The USB descriptor declares
+  500 mA, bus powered. On a weak bus-powered hub (4.4 V) the cable-fed right half sees ~3.6–3.8 V at its
+  LEDs, at their 3.7 V minimum: use a 5 V port or split-power mode. Raise it only with both halves on their own USB-C
+  and JP1 cut on both (split-power mode); see [firmware.md](firmware.md).
+- **Checks:** `netcmp.py` (the chain, U6/U7 wiring, VLED's members) and `checks.py` (each LED in its
+  switch window with its cutout, turned along the chain, its 100 nF within 8 mm of VLED copper).
 
 ## Key matrix
 
 - 6 rows × 7 columns, `col2row`: columns are driven, rows are read with internal pull-downs.
-- One 1N4148W diode per key on the bottom side next to its socket: anode on the switch net
-  (`MX_<key>`), cathode on the row.
+- One 1N4148W diode per key on the bottom side, 8.5 mm below the switch centre (under the LED,
+  rev B): anode on the switch net (`MX_<key>`), cathode on the row.
 - 37 keys per half. The unused slots are (R0, C6) for the display and (R2, C6), (R4, C5), (R4, C6),
   (R5, C0).
 - Both PCBs share one matrix netlist. The right `.dts` reverses `col-gpios` (GP20…GP14) and sets
@@ -204,8 +262,9 @@ Cloned from the Corne v4.1 production BOM, with these values:
 | GPIO | Use |
 |---|---|
 | GP21 | TP11 `TRRS_DET` (future `detect-gpios`) |
-| GP22 | TP4, reserved for future RGB |
-| GP23–GP25 | TP5–TP7, spare |
+| GP22 | per-key RGB data (rev B, U7) |
+| GP23 | VLED enable (rev B, U6 EN) |
+| GP24, GP25 | TP6, TP7, spare |
 | GP27–GP29 | not connected |
 
 ## PCB rules

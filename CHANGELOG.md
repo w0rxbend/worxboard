@@ -1,12 +1,40 @@
 # Changelog
 
-This project uses [Semantic Versioning](https://semver.org/). Hardware releases are tagged
-`v<version>-revA` and publish gerbers, BOM/CPL, UF2 firmware and case files.
+This project uses [Semantic Versioning](https://semver.org/). Hardware releases are tagged with the
+board revision, `v<version>-rev<X>` (rev B is the current design), and publish gerbers, BOM/CPL, UF2
+firmware and case files.
 
 ## [Unreleased]
 
+Rev B is the order revision after the rev A pre-order review of 2026-11-04
+([deviations REVB-1 to REVB-5](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)). It is designed and checked, not built; its gate results are
+recorded in `docs/verification.md` once the boards are regenerated. Entries not marked rev B are
+rev A's.
+
 ### Added
 
+- **Rev B, per-key RGB** ([REVB-1](docs/deviations.md#revb-1-per-key-rgb-an-sk6812mini-e-under-every-switch-vled-switched-data-buffered-3-6-7-8-11)):
+  - an SK6812MINI-E (C5149201) under every switch, 37 per half, reverse-mounted on the bottom in a
+    3.4 × 3.0 mm cutout, its lens in the switch's south-facing LED window, each with its own 100 nF
+    (C101–C137); one serpentine chain per half (`layout/leds.py`, `layout.json` `leds`);
+  - U6 SY6280AAC (C55136) switches VSYS to VLED, enabled by GP23 with a 10k pull-down and a 0.45 A
+    limit; U7 SN74LV1T34DBVR (C100024) buffers GP22 to the VLED level, with R16 470 Ω into LED101;
+  - the footprint `worxboard:LED_SK6812MINI-E_ReverseMount` (KiCad's, pads 0.1 mm out) and a
+    `.kicad_dru` that lets copper come within 0.3 mm of the LED cutouts;
+  - checks: `netcmp.py` "per-key RGB chain" (the chain order, U6/U7 wiring, VLED's members),
+    `checks.py` "per-key RGB" (each LED at its window with its cutout, turned along the chain, its
+    cap near VDD), layout tests, and `cpl_check.py` gating the reverse-mount LED at 55 % of each
+    terminal on its pad;
+  - firmware: the chain as ZMK underglow on PIO0 / GP22 with ext-power on GP23, the RGB controls on
+    the layer-1 thumbs, brightness capped at 8 % for the one-cable case (`just fw-check` fails a
+    higher cap), auto-off after 30 s idle, and RGB settings kept on both halves
+    ([firmware.md](docs/firmware.md#rgb)).
+- **PCBWay order package** ([REVB-4](docs/deviations.md#revb-4-a-pcbway-order-package-beside-the-jlc-one-pcbscriptspcbwaypy-mpnpy-mpnjson)): stage P step P6 (`pcb/scripts/pcbway.py`) writes
+  `pcb/production/<side>/pcbway/` (BOM with manufacturer part numbers, KiCad-native centroids for the
+  panel and the bare board, README with the form values and a remark), byte-checked in CI.
+  `pcbway.py` fails unless re-applying JLC's corrections to its centroids gives the JLC CPL.
+  `mpn.json` and `mpn.py` (`just pcb-mpn`, `pcb-mpn-check`), `just pcb-pcbway`, and the guide
+  `docs/ordering-pcbway.md`.
 - `layout/`, the single source of truth for both halves:
   - 37 keys per half from the original ErgoDox PCB, with the 25° thumb cluster
   - the nice!view display in the old C6R0 slot
@@ -67,6 +95,25 @@ This project uses [Semantic Versioning](https://semver.org/). Hardware releases 
 
 ### Changed
 
+- Rev B board and case changes ([deviations REVB](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)):
+  - the nice!view module, J3 (now y 38.925) and the case window move 1.0 mm back: the module ends
+    about 0.2–0.3 mm short of the C6R1 key well instead of 0.6–0.8 mm into it, where the C6R1 keycap had only
+    0.12–0.30 mm at bottom-out. The pocket's far end stays at y 75.125; `just model` passes
+    ([REVB-2](docs/deviations.md#revb-2-the-display-moves-10-mm-back-from-the-c6r1-key-well-4-pre-order-review));
+  - the matrix diodes move from 5.0 to 8.5 mm below the switch centre, under the LEDs (REVB-1);
+  - GP22 and GP23 become RGB data and VLED enable; rev A's test pads TP4/TP5 are gone (REVB-1);
+  - C1–C3 become 10 µF 0603 10 V X5R (C19702), and the 0402 6.3 V C15525 is retired
+    ([REVB-3](docs/deviations.md#revb-3-review-notes-c1c3-0603-plug-in-capacitance-flash-size-rp2350-stepping-6-7-13));
+  - 201 assembled parts per half (53 top, 148 bottom), up from 119; the board label reads
+    `worxboard L rev B` / `worxboard R rev B`;
+  - JLC CPL: U7 (C100024) carries a per-part `JLCPCB_CORRECTION` of 0;0;180, because JLC's footprint
+    has pin 1 in the other corner from the SOT-23-5 row; the LEDs need no correction (REVB-1);
+  - `jlc_footprints.json` gains the rev B parts and keeps the 2025-06-19 record of the TRRS jack
+    C95562 that rev A's J2 correction was proven on ([REVB-5](docs/deviations.md#revb-5-jlcs-footprint-record-for-the-trrs-jack-c95562-is-kept-as-verified));
+  - documented, not changed: about 40 µF on VSYS at plug-in, the firmware's 4 MB of the 16 MB
+    flash, and the A4 stepping a future RP2350 board needs (REVB-3).
+- Docs for rev B: README, microsite, both ordering guides, shopping list (switches with an LED
+  window, shine-through caps), build guide, electrical, firmware, case and verification pages.
 - `.gitignore` no longer ignores `/zephyr/` (the ZMK module lives at `zephyr/module.yml`). It now
   ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags. The
   two order packages are force-added on `main` (PKG-4).
@@ -161,6 +208,13 @@ Order review of the turnkey packages (deviations ORDER-1 to ORDER-9):
 - Not built or tested on hardware: the displays (including their orientation), the wired split,
   the forwarded lock indicators and the crystal start-up
   ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)).
-- JLC does not document its bottom-side CPL convention; check the sockets and diodes in its
-  placement preview. The hot-swap socket C41430893 has no field report of JLC assembling it.
+- Rev B, untested on hardware: the LED chain and its timing through U7, VLED switching and U6's
+  limit, the current at the 8 % cap, the relayed RGB commands and the display setback's fit. The
+  right half's settings writes lock interrupts; their effect on the split UART is unmeasured
+  ([firmware.md](docs/firmware.md#known-issues)). ZMK drives the LEDs as underglow: no per-key
+  colours.
+- The USB-C cable still needs a plug with at least 8 mm of bare shell (ORDER-7).
+- JLC does not document its bottom-side CPL convention; check the sockets, diodes and LEDs in its
+  placement preview. Never upload the JLC CPL to PCBWay. The hot-swap socket C41430893 has no field
+  report of JLC assembling it.
 - `release.yml` still packs KiKit's raw fab files instead of `pcb/production/` (PKG-4).

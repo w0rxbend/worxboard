@@ -8,8 +8,12 @@
 #   just pcb-drc left        stages 11-12 only, on the committed board (DRC gate, checks)
 #   just pcb-fab left        stages 13-14: JLCPCB gerbers/BOM/CPL, renders, Edge DXF, STEP
 #   just pcb-render-check left   after pcb-fab: the committed renders are current (pixel compare)
-#   just pcb-production left     stage P: JLC order package (panel, gerbers/BOM/CPL) -> pcb/production/left
+#   just pcb-production left     stage P: JLC order package (panel, gerbers/BOM/CPL) and its pcbway/ files
+#                                -> pcb/production/left
 #   just pcb-production-check left   stage P, then the committed package must be byte-identical
+#   just pcb-pcbway left         stage P, then refresh only pcb/production/left/pcbway/ (PCBWay BOM/centroids)
+#   just pcb-mpn [C...]          pcb/scripts/mpn.json: manufacturer part numbers from LCSC (network)
+#   just pcb-mpn-check           every LCSC number in design.py has an mpn.json entry (offline)
 #   just pcb-cpl-images          docs/images/cpl-*.svg: JLC footprints from the CPL over the KiCad pads
 #   just pcb-stock left [5]      live JLC stock for the committed package (network)
 #   just pcb left | pcb-all  everything for one / both sides
@@ -70,19 +74,37 @@ pcb-render-check side: pcb-deps
     {{_pcb_docker}} python3 pcb/scripts/render_check.py {{side}}
 
 # Stage P: the JLC turnkey order package (KiKit panel + DRC, panel and bare-board gerbers/BOM/CPL,
-# cpl_check, jlc_check) from the committed board -> build/<side>/production
+# cpl_check, jlc_check) and the PCBWay files next to it (pcbway/: KiCad centroids of the panel and the
+# bare board, MPN BOM, README; mpn.py check, pcbway.py's cross-check against the JLC CPL) from the
+# committed board -> build/<side>/production
 pcb-package side: pcb-deps
     {{_pcb_docker}} bash pcb/scripts/stage_p.sh {{side}}
 
-# Stage P, then make it the committed order package pcb/production/<side>/
+# Stage P, then make it the committed order package pcb/production/<side>/ (pcbway/ included)
 pcb-production side: (pcb-package side)
     rm -rf pcb/production/{{side}}
     mkdir -p pcb/production
     cp -r build/{{side}}/production pcb/production/{{side}}
 
-# Stage P, then require the committed order package to equal the rebuilt one byte for byte
+# Stage P, then require the committed order package (pcbway/ included) to equal the rebuilt one byte for byte
 pcb-production-check side: (pcb-package side)
     diff -r build/{{side}}/production pcb/production/{{side}}
+
+# Stage P, then refresh only the committed PCBWay files pcb/production/<side>/pcbway/. The whole stage
+# runs: the panel gives the centroids' frame and the JLC CPL their cross-check
+pcb-pcbway side: (pcb-package side)
+    rm -rf pcb/production/{{side}}/pcbway
+    mkdir -p pcb/production/{{side}}
+    cp -r build/{{side}}/production/pcbway pcb/production/{{side}}/pcbway
+
+# Manufacturer part numbers for the PCBWay BOM: pcb/scripts/mpn.json from LCSC's product API (network,
+# curl). Fetches every LCSC number design.py names, those already in the file and any given here
+pcb-mpn *codes:
+    python3 pcb/scripts/mpn.py fetch {{codes}}
+
+# Offline: every LCSC number in design.py (both halves, its documented fallbacks) has an mpn.json entry
+pcb-mpn-check: pcb-deps
+    {{_pcb_docker}} python3 pcb/scripts/mpn.py check
 
 # CPL overlay drawings docs/images/cpl-*.svg: JLC's footprints placed from the committed bare-board
 # CPLs of both halves over the KiCad pads (cpl_check.py --svg)

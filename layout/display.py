@@ -6,14 +6,18 @@ from .keys import C6R0_CENTRE, PITCH
 
 MODULE = (14.0, 36.0)                     # assumed module footprint w x h (gate G1)
 MODULE_CX = C6R0_CENTRE[0]                # 72.39
-MODULE_Y1 = C6R0_CENTRE[1] + PITCH / 2    # bottom edge on the old C6R0 cell boundary
+# Rev B: the module's far end sat on the old C6R0 cell boundary, 0.6 mm into the open C6R1 key well
+# (well clearance 0.6 mm), leaving the C6R1 keycap 0.12-0.30 mm at bottom-out (pre-order review
+# 2026-11-04). The module, header, pocket and window move 1.0 mm back: 0.4 mm clear of the well for a 36.0 mm module (0.2-0.3 mm with the nice!view's V-cut)
+SETBACK = 1.0
+MODULE_Y1 = C6R0_CENTRE[1] + PITCH / 2 - SETBACK   # bottom edge 1.0 mm behind the old C6R0 boundary
 MODULE_RECT = (MODULE_CX - MODULE[0] / 2, MODULE_Y1 - MODULE[1],
                MODULE_CX + MODULE[0] / 2, MODULE_Y1)   # x0, y0, x1, y1
 
 # nice!view drawing (gate G1): the header row is 1.3 mm in from the module's header-end edge and the
 # pins are centred across its 14 mm width. The module's header end is its back (low-y) edge
 VIEW_EDGE = 1.3                           # header row -> module header-end edge
-HEADER = (MODULE_CX, round(MODULE_RECT[1] + VIEW_EDGE, 3))   # J3 1x5 socket centre (72.39, 39.925)
+HEADER = (MODULE_CX, round(MODULE_RECT[1] + VIEW_EDGE, 3))   # J3 1x5 socket centre (72.39, 38.925)
 HEADER_PINS = 5
 HEADER_PITCH = 2.54
 HEADER_PIN_ORDER = ("MOSI", "SCK", "VCC", "GND", "CS")   # pin 1..5 (gate G1)
@@ -25,7 +29,7 @@ HEADER_COURTYARD = 3.3                    # socket courtyard across / beyond the
 VIEW_START = 4.6                          # module header-end edge -> viewing area
 VIEW_LEN = 25.28                          # viewing area along the module
 WINDOW = (12.0, 26.0)                     # viewing window w x h (the spec's 26 x 12, long axis y)
-WINDOW_CENTRE = (72.39, round(HEADER[1] - VIEW_EDGE + VIEW_START + VIEW_LEN / 2, 3))   # y 55.865
+WINDOW_CENTRE = (72.39, round(HEADER[1] - VIEW_EDGE + VIEW_START + VIEW_LEN / 2, 3))   # y 54.865
 WINDOW_R = 1.0
 WINDOW_CHAMFER = 0.5
 
@@ -39,7 +43,11 @@ def _rect(cx: float, cy: float, w: float, h: float) -> tuple[float, float, float
 
 
 WINDOW_RECT = _rect(*WINDOW_CENTRE, *WINDOW)
+# The pocket's far end keeps its rev A place, 1.1 mm into the C6R1 key well: its two far corners must lie
+# a cutter radius inside the well (open above the plate, case CASE-8), so the setback only shortens the
+# module inside the pocket (rev B)
 POCKET_RECT = tuple(v + s * POCKET_GROW for v, s in zip(MODULE_RECT, (-1, -1, 1, 1)))
+POCKET_RECT = (*POCKET_RECT[:3], POCKET_RECT[3] + SETBACK)
 
 
 def header_pins() -> list[tuple[float, float]]:

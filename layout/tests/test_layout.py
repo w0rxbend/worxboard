@@ -160,9 +160,9 @@ def test_window_clear_of_key_well():
 
 def test_display_geometry_right():
     d = L.display("right")
-    assert d["module"] == pytest.approx((65.39, 38.625, 79.39, 74.625), abs=1e-3)
-    assert d["pocket"] == pytest.approx((64.89, 38.125, 79.89, 75.125), abs=1e-3)
-    assert d["header"] == pytest.approx((72.39, 39.925))      # module edge + 1.3 (gate G1)
+    assert d["module"] == pytest.approx((65.39, 37.625, 79.39, 73.625), abs=1e-3)   # rev B: 1.0 mm back
+    assert d["pocket"] == pytest.approx((64.89, 37.125, 79.89, 75.125), abs=1e-3)   # far end kept
+    assert d["header"] == pytest.approx((72.39, 38.925))      # module edge + 1.3 (gate G1)
     assert len(d["header_pins"]) == len(HEADER_PIN_ORDER) == 5
 
 
@@ -172,8 +172,8 @@ def test_header_pin1_not_mirrored():
     for s in L.SIDES:
         xs = [p[0] for p in L.display(s)["header_pins"]]
         assert xs == sorted(xs, reverse=True)
-    assert L.display("right")["header_pins"][0] == pytest.approx((77.47, 39.925))
-    assert L.display("left")["header_pins"][0] == pytest.approx((192.69, 39.925))
+    assert L.display("right")["header_pins"][0] == pytest.approx((77.47, 38.925))
+    assert L.display("left")["header_pins"][0] == pytest.approx((192.69, 38.925))
 
 
 def test_holes_equal_spec():
@@ -271,3 +271,49 @@ def test_left_outline_runs_in_reverse():
 def test_bad_side_rejected():
     with pytest.raises(ValueError):
         L.keys("middle")
+
+
+# ---------------------------------------------------------------- rev B: per-key RGB, display setback
+def test_display_clears_c6r1_well():
+    """The module's far end stays ~0.4 mm (0.3975) out of the open C6R1 key well (rev B setback)."""
+    from layout.zones import CELL_GROW
+    for s in L.SIDES:
+        k = next(k for k in L.keys(s) if k.id == "C6R1")
+        well_top = k.y - k.h * L.PITCH / 2 - CELL_GROW
+        assert well_top - L.display(s)["module"][3] >= 0.39
+
+
+@pytest.mark.parametrize("side", L.SIDES)
+def test_led_chain(side):
+    leds = L.leds(side)
+    keys = {k.id: k for k in L.keys(side)}
+    assert [d["ref"] for d in leds] == [f"LED{101 + i}" for i in range(L.KEYS_PER_HALF)]
+    assert sorted(d["key"] for d in leds) == sorted(keys)
+    for d in leds:
+        k = keys[d["key"]]
+        assert L.cell(k).contains(Point(d["x"], d["y"]))            # under its own key
+        assert math.dist((d["x"], d["y"]), (k.x, k.y)) == pytest.approx(5.08)
+    hops = [math.dist((a["x"], a["y"]), (b["x"], b["y"])) for a, b in zip(leds, leds[1:])]
+    assert max(hops) < 31.0                                         # neighbours only
+    assert leds[-1]["next"] is None and all(d["next"] for d in leds[:-1])
+
+
+def test_led_chain_mirrors():
+    r, l = L.leds("right"), L.leds("left")
+    assert [d["key"] for d in r] == [d["key"] for d in l]
+    for a, b in zip(r, l):
+        assert b["x"] == pytest.approx(L.MIRROR_X - a["x"]) and b["y"] == pytest.approx(a["y"])
+
+
+@pytest.mark.parametrize("side", L.SIDES)
+def test_led_and_diode_clear_of_switch_holes(side):
+    """LED body cutout (3.4 x 3.0) and the diode stay clear of the MX centre post and pin holes."""
+    from layout.leds import key_point
+    for k in L.keys(side):
+        led = key_point(k, (0.0, 5.08))
+        for hole, r in (((0.0, 0.0), 2.0), ((-3.81, -2.54), 1.5), ((2.54, -5.08), 1.5),
+                        ((-5.08, 0.0), 0.875), ((5.08, 0.0), 0.875)):
+            c = key_point(k, hole)
+            assert math.dist(c, led) - r > 1.9                       # past the cutout half-diagonal
+        d = L.diode_point(side, k.id)
+        assert math.dist(d, led) == pytest.approx(8.5 - 5.08)

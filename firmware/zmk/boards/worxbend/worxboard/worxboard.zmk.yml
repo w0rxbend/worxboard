@@ -9,6 +9,7 @@ outputs:
 features:
   - keys
   - display
+  - underglow
   - studio
 siblings:
   - worxboard_left

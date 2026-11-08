@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>worxboard · ErgoDox-style split keyboard</title>
-<meta name="description" content="worxboard: an ErgoDox-style split keyboard with an on-board RP2040, ZMK wired split, a memory LCD on each half and USB-C on both halves. Interactive 3D preview generated from the layout source.">
+<meta name="description" content="worxboard: an ErgoDox-style split keyboard with an on-board RP2040, ZMK wired split, a memory LCD on each half, an RGB LED under every switch and USB-C on both halves. Interactive 3D preview generated from the layout source.">
 <meta name="theme-color" content="#0d0f12">
 <meta property="og:type" content="website">
 <meta property="og:title" content="worxboard">
-<meta property="og:description" content="Open-source ErgoDox-style split keyboard: RP2040, ZMK, nice!view LCD, KiCad PCB and build123d case. Spin it in your browser.">
+<meta property="og:description" content="Open-source ErgoDox-style split keyboard: RP2040, ZMK, nice!view LCD, per-key RGB, KiCad PCB and build123d case. Spin it in your browser.">
 <meta property="og:url" content="https://w0rxbend.github.io/worxboard/">
 <meta property="og:image" content="https://w0rxbend.github.io/worxboard/images/site-viewer.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -48,17 +48,19 @@
 
 <section class="hero">
   <div class="hero-copy">
-    <p class="eyebrow mono">rev A · RP2040 · ZMK wired split · <span id="version">v—</span></p>
+    <p class="eyebrow mono">rev B · RP2040 · per-key RGB · ZMK wired split · <span id="version">v—</span></p>
     <h1>An <em>ErgoDox</em>-style split keyboard, generated from one layout package.</h1>
     <p class="lede">The exact ErgoDox key positions and 25° thumb cluster, an on-board RP2040 per half, ZMK
-      over a TRRS cable, a memory LCD where the inner top key used to be, and USB-C on both halves. The KiCad
+      over a TRRS cable, a memory LCD where the inner top key used to be, an RGB LED under every switch, and USB-C
+      on both halves. The KiCad
       PCB, the build123d case, the ZMK physical layout and this page all come from the same
       <a href="https://github.com/w0rxbend/worxboard/tree/main/layout">layout package</a>.</p>
     <ul class="chips" aria-label="Highlights">
       <li>🧠 on-board RP2040</li>
       <li>📟 memory LCD per half</li>
+      <li>🌈 per-key RGB</li>
       <li>🔌 USB-C on both halves</li>
-      <li>🔥 hot-swap, JLC-assembled</li>
+      <li>🔥 hot-swap, fab-assembled</li>
       <li>🧱 CNC 6061-T6 case</li>
     </ul>
     <div class="cta">
@@ -77,13 +79,15 @@
       <li><span class="ok">✓</span><span>jlc_check</span><b>11/11 · 10/10</b></li>
       <li><span class="ok">✓</span><span>case fit check</span><b>0 mm³</b></li>
       <li><span class="ok">✓</span><span>gates G1–G3</span><b>pass</b></li>
+      <li><span class="todo">◷</span><span>rev B results</span><b class="todo">after regen</b></li>
       <li><span class="todo">◷</span><span>hardware</span><b class="todo">not built yet</b></li>
     </ul>
-    <p>Per half. Recorded in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/verification.md">verification.md</a>.</p>
+    <p>Per half, rev A. Recorded in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/verification.md">verification.md</a>, where the rev B results go once its boards are regenerated.</p>
   </aside>
-  <p class="warn hero-warn"><b>Status:</b> rev A is designed, checked and orderable. Gates G1–G3 pass, and the JLCPCB turnkey and case
-    order packages are committed. No board has been made or tested on hardware yet, so order 2 assembled boards per side
-    and test them before you machine the case.</p>
+  <p class="warn hero-warn"><b>Status:</b> rev B is designed and checked: an RGB LED under every switch, the display set 1.0&nbsp;mm back
+    from the C6R1 key well, and a PCBWay order package beside the JLCPCB one. Rev A's gates G1–G3 are recorded as passed; rev B's
+    results follow once its boards are regenerated. No board has been made or tested on hardware yet, so order 2 assembled
+    boards per side and test them before you machine the case.</p>
 </section>
 
 <section id="viewer" class="viewer-wrap" aria-label="3D viewer">
@@ -153,7 +157,7 @@
   <div class="stat"><span class="num mono" id="keyStat">74</span><span class="lbl">keys, 37 per half, ErgoDox stagger</span></div>
   <div class="stat"><span class="num mono" id="sizeStat">—</span><span class="lbl">mm PCB per half</span></div>
   <div class="stat"><span class="num mono">160 × 68</span><span class="lbl">memory LCD on each half</span></div>
-  <div class="stat"><span class="num mono">119</span><span class="lbl">JLC-assembled parts per half, both sides</span></div>
+  <div class="stat"><span class="num mono">201</span><span class="lbl">fab-assembled parts per half, both sides, 37 RGB LEDs among them</span></div>
   <div class="stat"><span class="num mono" id="massStat">≈ 349 g</span><span class="lbl">of 6061-T6 per half (top shell + tray)</span></div>
   <div class="stat"><span class="num mono">115 200</span><span class="lbl">baud ZMK wired split over TRRS</span></div>
 </section>
@@ -164,10 +168,11 @@
   <div class="grid">
     <article><span class="ico">📐</span><h3>Exact ErgoDox layout</h3><p>The switch centres, the column stagger and the 25° thumb cluster come from the original ErgoDox PCB. The thumb keys match it within 0.002&nbsp;mm, the main keys match the spec table within 0.0001&nbsp;mm.</p></article>
     <article><span class="ico">📟</span><h3>A display on each half</h3><p>A Sharp LS011B7DH03 memory LCD (160 × 68) on a nice!view-class module sits where the inner top key was, behind a raised bezel. Left: the ZMK status screen. Right: a custom lock-indicator screen.</p></article>
-    <article><span class="ico">🧠</span><h3>On-board RP2040</h3><p>No controller daughterboard. The support circuit is derived from the Corne v4.1: 16&nbsp;MB QSPI flash, a 12&nbsp;MHz crystal, an LDO and ESD arrays. JLCPCB fits all 119 parts per half.</p></article>
+    <article><span class="ico">🧠</span><h3>On-board RP2040</h3><p>No controller daughterboard. The support circuit is derived from the Corne v4.1: 16&nbsp;MB QSPI flash, a 12&nbsp;MHz crystal, an LDO and ESD arrays. JLCPCB or PCBWay fits all 201 parts per half.</p></article>
     <article><span class="ico">🔌</span><h3>USB-C on both halves</h3><p>Plug the host into the <b>left</b> half. The right USB-C gives power and UF2 flashing. Schottky diodes let you plug in both at once without back-feeding either host.</p></article>
     <article><span class="ico">🔗</span><h3>A careful wired split</h3><p>ZMK's wired split on UART0 at 115&nbsp;200 baud over a straight TRRS cable. The tip carries only 1&nbsp;kΩ-limited data, power sits on Ring2 behind a 250&nbsp;mA polyfuse, and jumper JP1 turns cable power off.</p></article>
-    <article><span class="ico">🔥</span><h3>Hot-swap, no PCB soldering</h3><p>MX hot-swap sockets on the bottom, 2u plate-mount stabilisers on two thumb keys per half. JLC fits every PCB part, the display socket included; you solder only the displays' header pins.</p></article>
+    <article><span class="ico">🔥</span><h3>Hot-swap, no PCB soldering</h3><p>MX hot-swap sockets on the bottom, 2u plate-mount stabilisers on two thumb keys per half. The fab fits every PCB part, the display socket and the LEDs included; you solder only the displays' header pins.</p></article>
+    <article><span class="ico">🌈</span><h3>Per-key RGB</h3><p>Rev B puts an SK6812MINI-E under every switch, reverse-mounted in a cutout so it shines up through the switch's south-facing LED window. ZMK runs each half's chain as underglow: whole-board effects, hue and brightness from the layer-1 thumbs, relayed to the right half. No per-key colours; brightness capped at 8&nbsp;% for one-cable power. Not yet tested on hardware.</p></article>
     <article><span class="ico">🧱</span><h3>CNC aluminium case</h3><p>Each half: a 6061-T6 top shell with the 1.5&nbsp;mm plate milled into it, a 6061-T6 tray and a printed 3&nbsp;mm spacer. Bead blast plus anodize, a raised bezel over the display.</p></article>
     <article><span class="ico">🦵</span><h3>Tent legs like the EZ</h3><p>Three mounts per half at the stock ErgoDox EZ positions. Each takes a custom aluminium leg with a TPU foot cap, clamped by an M3 × 12 collarless thumbscrew and a friction washer.</p></article>
     <article><span class="ico">🤖</span><h3>Generated, not drawn</h3><p>Schematic, placement, routing, DRC, fab files, case, physical layout and docs tables are all scripts, run headless in version-pinned containers and seeded, so a rebuild gives byte-identical boards.</p></article>
@@ -183,10 +188,11 @@
         <tbody>
           <tr><th>Keys</th><td>74 (37 per half). Each half has a 6 × 7 <span class="mono">col2row</span> matrix; ZMK sees one 6 × 14 transform</td></tr>
           <tr><th>Controller</th><td>RP2040 (QFN-56) per half, W25Q128JVSIQ 16&nbsp;MB QSPI flash, 12&nbsp;MHz crystal</td></tr>
-          <tr><th>Display</th><td>Sharp LS011B7DH03, 160 × 68 memory LCD on a nice!view-class module, PIO1 SPI at 1&nbsp;MHz</td></tr>
+          <tr><th>Display</th><td>Sharp LS011B7DH03, 160 × 68 memory LCD on a nice!view-class module, PIO1 SPI at 1&nbsp;MHz; set 1.0&nbsp;mm back from the C6R1 key well (rev B)</td></tr>
+          <tr><th>RGB</th><td>37 SK6812MINI-E per half, reverse-mounted under each switch, facing south; one chain on GP22 (PIO0) through a buffer, VLED switched on GP23 with a 0.45&nbsp;A limit; ZMK underglow, brightness capped at 8&nbsp;%</td></tr>
           <tr><th>Split link</th><td>3.5&nbsp;mm TRRS, ZMK wired split on UART0 at 115&nbsp;200 baud, full duplex</td></tr>
           <tr><th>USB</th><td>USB-C 2.0 full speed on both halves (HRO TYPE-C-31-M-12); the host goes on the left</td></tr>
-          <tr><th>PCB</th><td>2 layers, 1.6&nbsp;mm FR4, 1&nbsp;oz, ENIG, 182.84 × 158.75&nbsp;mm per half; 119 parts per half placed by JLC, 45 on top and 74 on the bottom</td></tr>
+          <tr><th>PCB</th><td>2 layers, 1.6&nbsp;mm FR4, 1&nbsp;oz, ENIG, 182.84 × 158.75&nbsp;mm per half; 201 parts per half placed by the fab, 53 on top and 148 on the bottom (sockets, diodes, LEDs and their caps)</td></tr>
           <tr><th>Switches</th><td>74 MX-compatible plate-mount switches, 3- or 5-pin, in hot-swap sockets; 4 × 2u plate-mount stabilisers</td></tr>
           <tr><th>Firmware</th><td>ZMK, HWMv2 board <span class="mono">worxbend/worxboard</span>, pinned at <span class="mono">4dd95d78</span>; ZMK Studio on the left central</td></tr>
           <tr><th>Case</th><td>3 parts per half (CNC top and tray, printed spacer); 192.4 × 165.6 × 17.6&nbsp;mm, 19.6&nbsp;mm at the display bezel</td></tr>
@@ -203,7 +209,10 @@
         <div class="flow mono branch">
           <span class="hot">VSYS</span><i>→</i><span>JP1 bridged</span><i>→</i><span>F1 PTC 250 mA</span><i>→</i><span class="hot">VLINK · Ring2</span>
         </div>
-        <p>One cable is enough: the far half runs from VLINK at about 4.4&nbsp;V. Each VBUS reaches VSYS only through its own D1, so two hosts never back-feed each other.</p>
+        <div class="flow mono branch" aria-label="VSYS through U6, enabled by GP23, to VLED for the LEDs">
+          <span class="hot">VSYS</span><i>→</i><span>U6 SY6280AAC · GP23</span><i>→</i><span class="hot">VLED · 37 LEDs</span>
+        </div>
+        <p>One cable is enough: the far half runs from VLINK at about 4.4&nbsp;V. Each VBUS reaches VSYS only through its own D1, so two hosts never back-feed each other. VLED stays off until the firmware enables it.</p>
       </div>
       <div class="card">
         <h3>🔗 TRRS contacts</h3>
@@ -225,17 +234,19 @@
 <section id="layout" class="layout-sec">
   <p class="kicker mono">03 · layout</p>
   <h2>Layout and matrix</h2>
-  <p class="lede">On each half, the inner top key C6R0 is replaced by a vertical 14 × 36&nbsp;mm display module. Its bottom edge lies on the
-    old cell boundary, so no other key moves. Both PCBs share one matrix netlist; the right half reverses its columns in the device tree.</p>
+  <p class="lede">On each half, the inner top key C6R0 is replaced by a vertical 14 × 36&nbsp;mm display module. Rev B sets its bottom edge
+    1.0&nbsp;mm behind the old cell boundary, 0.4&nbsp;mm short of the C6R1 key well, so no other key moves. Both PCBs share one matrix netlist;
+    the right half reverses its columns in the device tree.</p>
   <figure class="plan">
     <a href="images/layout.svg" target="_blank" rel="noopener"><img src="images/layout.svg" alt="Generated plan view of both worxboard halves: keys, thumbs, display, jacks, holes and zones" loading="lazy"></a>
-    <figcaption>The generated rev A layout (<span class="mono">layout/export.py</span>): ErgoDox stagger, 25° thumbs, the display in the C6R0 slot, the jacks, the holes and the component zones.</figcaption>
+    <figcaption>The generated layout (<span class="mono">layout/export.py</span>): ErgoDox stagger, 25° thumbs, the display in the C6R0 slot at its rev B position, the jacks, the holes and the component zones.</figcaption>
   </figure>
   <div class="split even">
     <div class="card">
       <h3>What changed from an ErgoDox EZ</h3>
       <ul class="ticks">
         <li><b>Inner top key</b> replaced by the display, so each half has 37 keys</li>
+        <li><b>Lighting:</b> an SK6812MINI-E under every switch, run by ZMK as underglow (whole-board effects, not per-key colours)</li>
         <li><b>Outline:</b> jack tabs removed, back edge straightened, a TRRS bump on the inner edge</li>
         <li><b>Mounting hole #7</b> moved from under the display to (88.0, 37.135)</li>
         <li><b>Connectors:</b> USB-C on both halves at the back edge, TRRS on the inner edge</li>
@@ -245,7 +256,8 @@
     </div>
     <div class="card accent">
       <h3>🎹 What goes on top</h3>
-      <p>74 MX-compatible plate-mount switches, 3- or 5-pin (Choc and Alps do not fit).</p>
+      <p>74 MX-compatible plate-mount switches, 3- or 5-pin (Choc and Alps do not fit). For the LEDs, pick switches with an LED window or a
+        clear housing; shine-through keycaps let the light through the legends.</p>
       <p>Keycaps: 58 × 1u, 12 × 1.5u (8 horizontal in the outer columns, 4 vertical in the inner columns) and 4 × 2u vertical thumbs.
         <b>A standard 76-key ErgoDox keycap set covers it, with 2 × 1u spare.</b></p>
       <p>Add 4 Cherry-style clip-in 2u plate-mount stabilisers for a 1.5&nbsp;mm plate; screw-in PCB-mount stabilisers do not fit.</p>
@@ -256,13 +268,14 @@
 <section id="journey" class="journey">
   <p class="kicker mono">04 · build</p>
   <h2>From zero to typing</h2>
-  <p class="lede">Follow the steps in this order. Rev A has not been built, so one assembled PCB is flashed and tested before any aluminium is machined.</p>
+  <p class="lede">Follow the steps in this order. Rev B has not been built, so one assembled PCB is flashed and tested before any aluminium is machined.</p>
   <ol class="steps">
-    <li><span class="n mono">01</span><h3>🟩 Order the PCBs</h3><p>Two designs at JLCPCB: 5 PCBs each, 2 assembled, both sides.</p>
-      <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/ordering-jlcpcb.md">ordering-jlcpcb.md →</a></li>
+    <li><span class="n mono">01</span><h3>🟩 Order the PCBs</h3><p>Two designs at JLCPCB or PCBWay: 5 PCBs each, 2 assembled, both sides.</p>
+      <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/ordering-jlcpcb.md">ordering-jlcpcb.md →</a>
+      <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/ordering-pcbway.md">ordering-pcbway.md →</a></li>
     <li><span class="n mono">02</span><h3>🛍️ Buy the parts</h3><p>74 MX switches, keycaps, 4 stabilisers, 2 nice!view, cables, case hardware.</p>
       <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/shopping-list.md">shopping-list.md →</a></li>
-    <li><span class="n mono">03</span><h3>⚡ Flash and test</h3><p>Flash both UF2s, test every socket with tweezers, set JP1, fit the displays.</p>
+    <li><span class="n mono">03</span><h3>⚡ Flash and test</h3><p>Flash both UF2s, test every socket with tweezers, check that all 37 LEDs per half light, set JP1, fit the displays.</p>
       <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/buildguide_en.md#1-check-the-assembled-pcbs">build guide §1–4 →</a></li>
     <li><span class="n mono">04</span><h3>🧱 Order the case</h3><p>Print a test top first, then order from JLCCNC and JLC3DP.</p>
       <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/case.md#before-machining">before machining →</a></li>
@@ -292,8 +305,14 @@
     <a class="order-card" href="https://github.com/w0rxbend/worxboard/blob/main/docs/ordering-jlcpcb.md">
       <span class="where mono">JLCPCB · Standard PCBA, both sides</span>
       <h3>🟩 Left and right PCBs, fully assembled</h3>
-      <p>2 designs: 5 PCBs each, 2 of them assembled. JLC fits every part, the display socket J3 included.</p>
+      <p>2 designs: 5 PCBs each, 2 of them assembled. JLC fits every part, the display socket J3 and the 37 LEDs per half included.</p>
       <span class="files mono">pcb/production/{left,right}/ · gerbers.zip · bom.csv · cpl.csv</span>
+    </a>
+    <a class="order-card" href="https://github.com/w0rxbend/worxboard/blob/main/docs/ordering-pcbway.md">
+      <span class="where mono">PCBWay · turnkey, both sides</span>
+      <h3>🟩 Or the same PCBs at PCBWay</h3>
+      <p>The same Gerbers with PCBWay's own BOM (manufacturer part numbers) and KiCad's centroids. Never upload the JLC CPL there: its corrections misplace parts at PCBWay.</p>
+      <span class="files mono">pcb/production/{left,right}/pcbway/ · bom.csv · centroid-panel.csv</span>
     </a>
     <a class="order-card" href="https://github.com/w0rxbend/worxboard/blob/main/case/production/jlccnc/ORDER_NOTES.md">
       <span class="where mono">JLCCNC · 6061-T6</span>
@@ -315,9 +334,10 @@
     </a>
   </div>
   <div class="split even">
-    <div class="callout"><b>💰 About $307–425</b> for the JLCPCB order of both halves with 2 assembled each, shipping included, before import duty and VAT
-      (estimated on 2026-11-04; the PCBA subtotal is $246.72, the fabrication and shipping lines are ranges, not quotes). JLCCNC and JLC3DP quote
-      the case when you upload the files. <b>Stock moves daily:</b> run <span class="mono">just pcb-stock left 5</span> on the day you order.</div>
+    <div class="callout"><b>💰 Cost.</b> Rev A's JLCPCB order of both halves with 2 assembled each was estimated at <b>about $307–425</b> on 2026-11-04,
+      shipping included, before import duty and VAT. Rev B adds 82 parts and five part numbers per half and has not been re-estimated; the cart
+      shows the real figure. PCBWay quotes after review, JLCCNC and JLC3DP when you upload the files. <b>Stock moves daily:</b> run
+      <span class="mono">just pcb-stock left 5</span> on the day you order.</div>
     <div class="callout danger"><b>🔌 The cables are the main gotcha.</b> USB-C: a USB 2.0 data cable whose bare metal plug shell sticks out of the
       overmould by <b>at least 8&nbsp;mm</b> ("extended tip"); a common 6.5–6.6&nbsp;mm shell stops about 1.2&nbsp;mm short and does not latch, so measure it. TRRS: 3.5&nbsp;mm,
       <b>4-pole</b>, wired straight 1:1, plug head at most Ø6.3&nbsp;mm for its first 3.7&nbsp;mm.</div>
@@ -338,7 +358,7 @@
           <tr><td class="mono">worxboard_right_peripheral</td><td>peripheral; its USB gives power and flashing only</td><td><span class="pill done">core</span></td></tr>
           <tr><td class="mono">worxboard_right_central<wbr>_EXPERIMENTAL</td><td>the right half as the central (host on the right)</td><td><span class="pill wip">untested</span></td></tr>
           <tr><td class="mono">worxboard_left_peripheral<wbr>_EXPERIMENTAL</td><td>the left half as the peripheral, paired with the row above</td><td><span class="pill wip">untested</span></td></tr>
-          <tr><td class="mono">worxboard2_{left,right}<wbr>_EXPERIMENTAL</td><td>RP2350A target for a future rev B</td><td><span class="pill wip">no hardware</span></td></tr>
+          <tr><td class="mono">worxboard2_{left,right}<wbr>_EXPERIMENTAL</td><td>RP2350A target for a later board revision</td><td><span class="pill wip">no hardware</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -351,6 +371,9 @@
       </ol>
       <p>Unlock ZMK Studio with <span class="mono">&amp;studio_unlock</span> on layer 2 and edit the keymap live in the
         <a href="https://zmk.studio">Studio web app</a>. If both screens read upside down, set <span class="mono">CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y</span>.</p>
+      <p>The LEDs are one ZMK underglow strip per half. They start dim, red and solid; the layer-1 thumbs step the effect (solid, breathe,
+        spectrum, swirl), toggle them and set hue and brightness, and a press on the left also sets the right. Brightness is capped at 8&nbsp;%;
+        raise it only with both halves on their own USB-C and JP1 cut (<a href="https://github.com/w0rxbend/worxboard/blob/main/docs/firmware.md#rgb">firmware.md</a>).</p>
     </div>
   </div>
 </section>
@@ -422,32 +445,36 @@
 <section id="status" class="status-wrap">
   <p class="kicker mono">09 · status</p>
   <h2>Status</h2>
-  <p class="lede">Rev A was built by parallel work-streams to a <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/design.md">frozen spec</a>;
-    every change from it is recorded in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/deviations.md">deviations.md</a>.</p>
+  <p class="lede">Rev A was built by parallel work-streams to a <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/design.md">frozen spec</a>,
+    and rev B followed its pre-order review; every change from the spec is recorded in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/deviations.md">deviations.md</a>.</p>
   <div class="table-wrap">
   <table class="status">
     <thead><tr><th>Part</th><th>State</th><th>What exists</th></tr></thead>
     <tbody>
-      <tr><td>Layout</td><td><span class="pill done">done</span></td><td>Keys, thumbs, display, jacks, holes, outline, zones and GPIO map; <span class="mono">layout.json</span> drives everything here.</td></tr>
-      <tr><td>PCB</td><td><span class="pill done">orderable</span></td><td>Both halves generated by script in KiCad 10: ERC clean, DRC with schematic parity 0 violations and 0 unconnected; the USB pair, crystal, decoupling, U1 ground-return and via-in-pad checks pass. A seeded rebuild reproduces the committed boards. The JLCPCB turnkey package (panel, BOM, CPL proven against JLC's own footprints) is committed and rebuilt in CI.</td></tr>
-      <tr><td>Firmware</td><td><span class="pill done">builds</span></td><td>ZMK module: left central, right peripheral, role-swap and RP2350A rows, all six UF2s built in CI. 3-layer keymap, generated physical layout, both screens laid out portrait for the upright display. Untested on hardware.</td></tr>
+      <tr><td>Layout</td><td><span class="pill done">done</span></td><td>Keys, thumbs, display, LED positions and chain, jacks, holes, outline, zones and GPIO map; <span class="mono">layout.json</span> drives everything here.</td></tr>
+      <tr><td>PCB</td><td><span class="pill done">rev B designed</span></td><td>Both halves generated by script in KiCad 10, now with the per-key RGB chain, the VLED switch and the data buffer. The pipeline stops on an ERC error, a netlist mismatch, a DRC or parity violation, an unconnected item or a failed scripted check (the RGB chain and each LED's placement included), and a seeded rebuild in CI must reproduce the committed boards. The JLCPCB package (panel, BOM, CPL proven against JLC's own footprints) and the PCBWay package are generated into <span class="mono">pcb/production/</span> and rebuilt in CI.</td></tr>
+      <tr><td>Firmware</td><td><span class="pill done">builds</span></td><td>ZMK module: left central, right peripheral, role-swap and RP2350A rows, all six UF2s built in CI. 3-layer keymap, generated physical layout, both screens laid out portrait for the upright display, the LED chains as underglow capped at 8&nbsp;%. Untested on hardware.</td></tr>
       <tr><td>Case</td><td><span class="pill done">orderable</span></td><td>build123d case with a raised display bezel, USB-C on both halves and the TRRS bump; every case check and JLCCNC's corner rule pass, and the fit check against the PCB STEPs reports 0&nbsp;mm³. The JLCCNC and JLC3DP order package (revision A3) is committed.</td></tr>
-      <tr><td>Docs and site</td><td><span class="pill done">done</span></td><td>Turnkey ordering guide and shopping list, build guide, generated BOM, pinout and matrix, electrical, case, legs and firmware pages; this viewer.</td></tr>
-      <tr><td>Gates G1–G3, release</td><td><span class="pill done">pass</span></td><td>Recorded in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/verification.md">verification.md</a>: display pin order and stack, the TRRS jack body in the case, and every part in stock with its placement proven. No release has been tagged.</td></tr>
+      <tr><td>Docs and site</td><td><span class="pill done">done</span></td><td>Turnkey ordering guides for JLCPCB and PCBWay, shopping list, build guide, generated BOM, pinout and matrix, electrical, case, legs and firmware pages; this viewer.</td></tr>
+      <tr><td>Gates G1–G3, release</td><td><span class="pill wip">rev B pending</span></td><td>Rev A's are recorded as passed in <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/verification.md">verification.md</a>: display pin order and stack, the TRRS jack body in the case, and every part in stock with its placement proven. Rev B's results are recorded there once its boards are regenerated. No release has been tagged.</td></tr>
       <tr><td>Hardware</td><td><span class="pill wip">not built</span></td><td>What only a real board can confirm is <a href="https://github.com/w0rxbend/worxboard/blob/main/docs/verification.md#not-verified-until-a-board-is-built">listed in verification.md</a>.</td></tr>
     </tbody>
   </table>
   </div>
   <h3 class="sub">Known open issues</h3>
   <ul class="issues">
-    <li><b>Not built yet.</b> The displays, the wired split, the forwarding of the lock indicators, the role-swap firmware and the XOSC start-up with the new crystal are untested on hardware. The case fit (USB-C and TRRS plug seating, the BOOT/RESET pin holes, C6R1 keycap clearance) also waits for a real board; check it on a 3D-printed test top.</li>
+    <li><b>Not built yet.</b> The displays, the wired split, the forwarding of the lock indicators, the role-swap firmware and the XOSC start-up with the new crystal are untested on hardware. The case fit (USB-C and TRRS plug seating, the BOOT/RESET pin holes, C6R1 keycap clearance with the display set back) also waits for a real board; check it on a 3D-printed test top.</li>
+    <li><b>LEDs untested.</b> The chain's timing through the U7 buffer, VLED switching and U6's current limit, the real current at the brightness cap and the RGB commands relayed to the right half have only been checked in the design files and the ZMK source. ZMK drives the chain as underglow: no per-key colours.</li>
+    <li><b>Brightness cap.</b> 8&nbsp;% so one cable can feed both halves (the right half's LEDs run through the 250&nbsp;mA polyfuse). Raise it, to 20&nbsp;% at most, only in split-power mode with JP1 cut on both halves; that is a local build.</li>
+    <li><b>Right-half settings writes.</b> The right half now saves its own RGB state; flash writes lock interrupts, and whether that can drop a frame on the split UART is unmeasured.</li>
+    <li><b>USB-C plug.</b> The cable needs a plug with at least 8&nbsp;mm of bare metal shell to latch in the case; a common plug stops about 1.2&nbsp;mm short.</li>
     <li><b>Display orientation</b> rests on ZMK's code and the vendor's images, not a datasheet. If the screens read upside down, one Kconfig line flips them.</li>
-    <li><b>JLC placement.</b> Every CPL placement is proven against JLC's own footprints, but JLC does not document its bottom-side convention: check the sockets and diodes in JLC's placement preview. The socket C41430893 is a second-source part with no assembly report yet.</li>
+    <li><b>Fab placement.</b> Every JLC CPL placement is proven against JLC's own footprints, but JLC does not document its bottom-side convention: check the sockets, diodes and LEDs in the placement preview. The socket C41430893 is a second-source part with no assembly report yet. At PCBWay, use only its own files, never the JLC CPL.</li>
     <li><b>Stock</b> moves daily: re-check it on the day you order. J3 (C27985230) has no drop-in alternate that fits the case.</li>
     <li><b>3D models.</b> KiCad has no model for the USB-C, the TRRS jack or the hot-swap socket, so the board STEP lacks those bodies; the case fit check adds their envelopes.</li>
     <li><b>Release packaging.</b> <span class="mono">release.yml</span> still packs KiKit's raw fab files, not <span class="mono">pcb/production/</span>.</li>
     <li><b>Firmware image and heap.</b> The build runs in the floating <span class="mono">zmk-build-arm:stable</span> image; LVGL heap use has not been measured on hardware.</li>
-    <li><b>RP2350A target:</b> settings do not persist, because the flash map and NVS are forced off.</li>
+    <li><b>RP2350A target:</b> settings, the RGB state included, do not persist, because the flash map and NVS are forced off.</li>
     <li><b>Licence split</b> (GPL-3.0 code, CERN-OHL-S-2.0 hardware) still needs the maintainer's confirmation.</li>
   </ul>
 </section>
@@ -455,7 +482,8 @@
 <section id="gallery" class="gallery">
   <p class="kicker mono">10 · gallery</p>
   <h2>Images</h2>
-  <p class="lede">Renders, CAD drawings and placement proofs. No photos exist yet, because rev A has not been built. Click an image to enlarge it.</p>
+  <p class="lede">Renders, CAD drawings and placement proofs. No photos exist yet, because no board has been built. The images show rev A (no LEDs, the
+    display before its 1.0&nbsp;mm setback) and will be refreshed from the rev B boards. Click an image to enlarge it.</p>
   <div class="filters" id="filters" role="group" aria-label="Filter images"></div>
   <div class="shots" id="shots"></div>
 </section>
@@ -466,7 +494,7 @@
   <p class="lede">The order packages are committed, so you can open them straight from the repository. Every push to
     <span class="mono">main</span> also rebuilds everything in CI; download the artifacts of a green run.</p>
   <div class="docs">
-    <a href="https://github.com/w0rxbend/worxboard/tree/main/pcb/production">pcb/production<span>the JLCPCB turnkey order per half: panel gerbers, BOM, CPL (committed)</span></a>
+    <a href="https://github.com/w0rxbend/worxboard/tree/main/pcb/production">pcb/production<span>the JLCPCB and PCBWay turnkey orders per half: panel gerbers, BOMs, CPL and centroids (committed)</span></a>
     <a href="https://github.com/w0rxbend/worxboard/tree/main/case/production">case/production<span>the JLCCNC and JLC3DP case order, drawings, hardware list (committed)</span></a>
     <a href="https://github.com/w0rxbend/worxboard/tree/main/pcb/left">pcb/left · pcb/right<span>the KiCad 10 projects: schematic and board (committed)</span></a>
     <a href="https://github.com/w0rxbend/worxboard/actions/workflows/firmware.yml">worxboard-firmware<span>six UF2 files: left central, right peripheral, experimental rows</span></a>
@@ -508,7 +536,7 @@
   <div class="foot-grid">
     <div>
       <a class="brand" href="#top"><span class="brand-mark"></span>worx<span class="dim">/</span>board</a>
-      <p>rev A · designed, checked and orderable, not yet built.</p>
+      <p>rev B · per-key RGB · designed and checked, not yet built.</p>
     </div>
     <div>
       <p>Code GPL-3.0-or-later; hardware CERN-OHL-S-2.0. Key and hole coordinates come from the original ErgoDox PCB by Fredrik Atmer and contributors.

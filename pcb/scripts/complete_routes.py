@@ -76,6 +76,19 @@ def poly(sps) -> object:
     return unary_union(out)
 
 
+def led_cutouts(board: pcbnew.BOARD) -> list:
+    """The rev B LED cutouts (holes in the board outline), grown by the 0.3 mm LED-cutout rule."""
+    from place import LED_EDGE_CLEARANCE
+    edges = pcbnew.SHAPE_POLY_SET()
+    if not board.GetBoardPolygonOutlines(edges, False) or not edges.OutlineCount():
+        return []
+    out = []
+    for i in range(edges.HoleCount(0)):
+        h = edges.Hole(0, i)
+        out.append(Polygon([xy(h.CPoint(j)) for j in range(h.PointCount())]).buffer(LED_EDGE_CLEARANCE))
+    return out
+
+
 def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
     items, keepouts = [], []
     for t in board.GetTracks():
@@ -104,6 +117,7 @@ def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
     for z in board.Zones():
         if z.GetIsRuleArea() and z.GetDoNotAllowTracks():
             keepouts.append(([l for l in LAYERS if z.IsOnLayer(l)], poly(z.Outline()), z.GetDoNotAllowVias()))
+    keepouts += [(LAYERS, c, True) for c in led_cutouts(board)]
     STUB_ENDS[:] = stub_ends(items)
     return items, keepouts
 

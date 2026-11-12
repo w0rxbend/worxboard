@@ -48,6 +48,15 @@ LEG_QTY = 6          # 3 per half; one part fits every position
 
 TOP_MATERIAL = "Aluminium 6061-T6 (7075-T6 acceptable)"
 FINISH = "Fine bead blast + anodize Type II, colour per order"
+EXIT_CHAMFER = f"Ø{E.M25_D + 2 * E.TAP_EXIT_CHAMFER:.1f} x 90°"   # where a through thread leaves the plate
+POSITION_TOL = 0.1   # hole to hole, in the T1-T8 and C1-C8 patterns (Ø2.9 holes on M2.5, Ø2.7 in the PCB)
+AFTER_FINISH = ("Dimensions and tolerances apply AFTER finishing. Anodizing rack / contact marks on inside "
+                "(non-cosmetic) faces only.")
+
+
+def overall(shape) -> str:
+    bb = shape.bounding_box()
+    return f"Overall size {bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} (reference)."
 
 
 # --------------------------------------------------------------------------
@@ -58,20 +67,21 @@ def _side(right: bool) -> str:
 
 
 def top_threads(right: bool) -> list[dict]:
-    """Every tapped hole of a top part. depth = full-diameter drill depth (the 118° point is extra),
-    full = minimum full-thread depth, both from the hole's start face; JLCCNC's guideline keeps at least
-    D/2 of each blind hole unthreaded (deviation CASE-3). screw / reach: the screw meant for the hole
-    and the deepest its tip may reach."""
+    """Every tapped hole of a top part. depth = full-diameter drill depth (the 118° point is extra; "thru"
+    for the holes under the key well, CASE-10), full = minimum full-thread depth, both from the hole's
+    start face; at least D/2 of each blind hole stays unthreaded (deviation CASE-3). screw / reach: the
+    screw meant for the hole and the deepest its tip may reach."""
     side = _side(right)
     rows = []
     for i, (sx, sy) in enumerate(E.SCREWS(side)):
         x, y = E.P(sx, sy)
         h = E.tap_hole(side, sx, sy)
         rows.append(dict(
-            id=f"T{i + 1}", thread="M2.5x0.45", hand="RH", cls="6H", drill=E.TAP_D, depth=h["drill"],
+            id=f"T{i + 1}", thread="M2.5x0.45", hand="RH", cls="6H", drill=E.TAP_D,
+            depth="thru" if h["through"] else h["drill"], through=h["through"],
             full=h["thread"], screw=f"M2.5x{h['screw']} CSK", reach=h["reach"], x=x, y=y, z=E.Z_PCB_TOP,
             direction="+Z (from PCB face)",
-            note=(f"BLIND under key well, {h['skin']:.2f} skin: no break-through" if h["kind"] == "plate"
+            note=(f"THRU to key-well floor, exit {EXIT_CHAMFER}, note 5" if h["through"]
                   else "blind")))
     for j, ((px, py), (nx, ny)) in enumerate(E.leg_mounts(side)):
         depth = round(E.leg_hole_depth(side, px, py, nx, ny), 1)
@@ -79,6 +89,7 @@ def top_threads(right: bool) -> list[dict]:
         fx, fy = px + nx * E.LEG_BOSS_H, py + ny * E.LEG_BOSS_H
         rows.append(dict(
             id=f"L{j + 1}", thread="M3x0.5", hand="RH", cls="6H", drill=E.LEG_TAP_D, depth=depth,
+            through=False,
             full=full, screw="M3 leg thumbscrew", reach=round(full - E.LEG_REACH_CLEAR, 1), x=fx, y=fy, z=E.LEG_Z,
             direction=f"normal to wall, into part ({-nx:+.3f}, {-ny:+.3f}, 0)",
             note=f"blind, in the {'toothed detent' if E.DETENT_TEETH else 'flat'} leg boss, see sheet 2"))
@@ -105,10 +116,13 @@ def top_features(right: bool) -> list[list[str]]:
                f"({E.Z_BEZEL_TOP - E.Z_TOP:.1f} above the top face), top edges {E.BEZEL_CHAMFER} x 45°, "
                f"R{E.BEZEL_R} free corners; flush with the key-well walls on its well sides",
          *map("{:.2f}".format, E.P((bx0 + bx1) / 2, (by0 + by1) / 2))],
-        ["J1", f"USB-C notch {E.USB_NOTCH[0]} x {E.USB_NOTCH[1]} R{E.USB_NOTCH_R} thru back wall at Z {usb['z']:.1f}; "
-               f"outside recess {E.USB_RECESS[0]:.0f} x {E.USB_RECESS[1]:.0f} x {E.USB_RECESS_DEPTH} deep",
+        ["J1", f"USB-C slot {E.USB_SLOT[0]:.1f} +0.2/0 wide THRU the back wall, open to the parting face, top at "
+               f"Z {E.usb_slot_top():.1f} (it continues {E.USB_SLOT[1] - (E.usb_slot_top() - E.Z_SPLIT):.1f} into "
+               "the bottom part)",
          *map("{:.2f}".format, E.P(usb["x"], usb["y"]))],
-        ["J2", f"TRRS hole Ø{E.TRRS_NOTCH_D} thru inner bump wall, axis Z {trrs['z']:.1f}",
+        ["J2", f"TRRS slot {E.TRRS_SLOT_W} +0.2/0 wide THRU the inner bump wall, open to the parting face, top at "
+               f"Z {E.trrs_slot_top():.1f}; {E.TRRS_SLOT_REACH - E.WALL:.1f} past the wall as a step in the pocket "
+               f"ceiling, R{E.corner_r(E.trrs_slot_top() - E.Z_SPLIT)} end corners",
          *map("{:.2f}".format, E.P(trrs["x"], trrs["y"]))],
     ]
     for ref, (x, y) in zip(E.PIN_HOLES, E.pin_holes(side)):
@@ -168,7 +182,8 @@ def title_block(ax, part: str, dwg_no: str, sheet: str, scale: str, version: str
     text(ax, x0 + 112, y0 + 21.5, f"Scale {scale}", size=6)
     text(ax, x0 + 112, y0 + 17.5, "Units: mm", size=6)
     text(ax, x0 + 2, y0 + 12.5, f"Revision {version}   Date {E.CASE_REVISION_DATE}", size=6)
-    text(ax, x0 + 2, y0 + 8, "General tolerance ISO 2768-mK. Threads ISO metric, RIGHT-HAND, 6H.", size=6)
+    text(ax, x0 + 2, y0 + 8, "General tolerance ISO 2768-mK unless noted. Threads ISO metric, RIGHT-HAND, 6H.",
+         size=6)
     text(ax, x0 + 2, y0 + 4, "The STEP file governs geometry; this drawing governs threads, tolerances, finish.",
          size=5.5)
     text(ax, x0 + 112, y0 + 12.5, "Do not scale drawing", size=6)
@@ -270,30 +285,36 @@ def top_sheet1(pdf, shape, right, part, dwg, version):
                for r in rows], size=5.0)
     text(ax, 222, y - 1.5, "X/Y/Z = hole start point in STEP coordinates. T holes: drilled +Z from the PCB "
          "face of the boss. L holes: drilled into the part, normal to the wall, from the boss face.", size=5.2)
-    text(ax, 222, y - 4.5, "Drill depth = full-diameter depth; the 118° drill point is extra (modelled). Every "
-         "hole is BLIND and keeps at least D/2 unthreaded at its bottom (JLCCNC threaded-hole guideline).", size=5.2)
+    thru = " and ".join(r["id"] for r in rows if r["through"])
+    text(ax, 222, y - 4.5, "Drill depth = full-diameter depth; the 118° drill point is extra (modelled). Blind "
+         f"holes keep at least D/2 unthreaded at their bottom. {thru}: drilled and tapped through.", size=5.2)
     y = table(ax, 222, y - 8, [("ID", 9), ("Feature (no thread)", 152), ("X", 13.5), ("Y", 13.5)],
               top_features(right), size=5.0)
     tq = sum(1 for r in rows if r["id"].startswith("T"))
     lq = len(rows) - tq
     notes(ax, 222, y - 8, "GENERAL NOTES", [
-        f"Geometry per {part}.step. Dimensions not shown are taken from the STEP model.",
+        f"Geometry per {part}.step. Dimensions not shown are taken from the STEP model. {overall(shape)}",
         f"Material: {TOP_MATERIAL}.",
         f"THREADS: {tq}x M2.5x0.45-6H and {lq}x M3x0.5-6H, ISO metric coarse, ALL RIGHT-HAND (clockwise to "
-        "tighten), all blind. Holes are modelled at tap-drill diameter in the STEP; tap them per the table to at "
-        "least the minimum full-thread depth. The screw column names the screw each hole takes; its tip stops "
-        f"at least {E.SCREW_TIP_CLEAR} short of the end of the full thread.",
+        f"tighten), blind except {thru} (through). Holes are modelled at tap-drill diameter in the STEP; tap them "
+        "per the table to at least the minimum full-thread depth. The screw column names the screw each hole "
+        f"takes; its tip stops at least {E.SCREW_TIP_CLEAR} short of the end of the full thread.",
         ("This is a LEFT-hand part: a mirror image of the right-hand part. Threads stay RIGHT-HAND; do not "
          "mirror the thread direction." if not right else
          "The left-hand part is a mirror image of this part. Its threads are also RIGHT-HAND."),
-        f"Holes marked BLIND under key well: drill {E.TAP_HOLE['plate'][0]} deep (full diameter); "
-        f"{min(E.tap_hole(_side(right), *p)['skin'] for p in E.SCREWS(_side(right)) if E.screw_under_plate(_side(right), *p)):.2f} "
-        "mm of material remains between the drill point and the cosmetic key-well floor. Must not break "
-        "through or leave witness marks on the top surface.",
+        f"{thru} are under the key well: drilled and tapped THROUGH the boss and the plate ({E.TAP_THRU} mm) and "
+        f"they exit in the cosmetic key-well floor, between two keycaps. Exit chamfer {EXIT_CHAMFER} as modelled, "
+        "no burr, no break-out round the hole.",
         f"Switch cutouts ({len(E.KEYS(_side(right)))}x): 14.00 +0.05/-0 square, corner R0.5 max, plus "
         f"{2 * len(E.stab_keys(_side(right)))} stabiliser cutouts. Plate thickness 1.50 ±0.05. "
-        "Plate flatness 0.2 over the part.",
-        f"Internal corners are modelled at JLCCNC's minimum radius for their depth (R = depth/10 + 0.5; past "
+        "Plate flatness 0.2 over the part in the restrained state (screwed to the bottom part).",
+        f"FIT-CRITICAL, tighter than the general tolerance: T1-T8 positions ±{POSITION_TOL} hole to hole (they "
+        "match C1-C8 of the bottom part and the PCB's holes). Cavity wall (inside of the perimeter wall, parting "
+        f"face to plate): +0.2/0 from the T1-T8 pattern, never inwards (the PCB clears it by {E.CAVITY_MIN_CLEAR}). "
+        f"Boss faces (Z {E.Z_PCB_TOP}) to plate top (Z {E.Z_PLATE_TOP}): {E.TAP_THRU:.2f} ±0.10. Parting face "
+        f"(Z {E.Z_SPLIT}) to boss faces: {E.PCB_T:.2f} +0.10/0.",
+        AFTER_FINISH,
+        f"Internal corners are modelled at the minimum radius for their depth (R = depth/10 + 0.5; past "
         f"10 mm the Min R of the tool that reaches): key well R{E.corner_r(E.WELL_DEPTH)} "
         f"({E.WELL_DEPTH:.1f} deep), relief pockets and wall fillets R{E.relief_r()} "
         f"(to {E.Z_POCKET_CEIL - E.Z_SPLIT:.1f} deep "
@@ -302,7 +323,8 @@ def top_sheet1(pdf, shape, right, part, dwg, version):
         "the 1.5 plate at the bottom of the open key well).",
         f"Display bezel B1 stands {E.Z_BEZEL_TOP - E.Z_TOP:.1f} mm above the top face (part height "
         f"{E.Z_BEZEL_TOP - E.Z_SPLIT:.1f}). Pocket D1 runs from the parting side up to {E.BEZEL_SKIN} mm under "
-        "the bezel top; window W1 opens it. USB-C notch J1 and TRRS hole J2 are side operations (see table).",
+        "the bezel top; window W1 opens it. Slots J1 (USB-C) and J2 (TRRS) are open to the parting face and "
+        "cut from that side through the whole wall (see table): no side operation.",
         (f"Detent bosses L1-L3 carry {E.LEG_TEETH} radial teeth: see sheet 2. Tooth count is critical."
          if E.DETENT_TEETH else
          "Leg bosses L1-L3: plain Ø10 bosses with a FLAT face (no teeth), see sheet 2."),
@@ -543,10 +565,16 @@ def bottom_sheet(pdf, shape, right, part, dwg, version):
         f"Material: {TOP_MATERIAL}.",
         "NO THREADS in this part. C1-C8: clearance holes with 90° countersink for M2.5 ISO 10642 / DIN 7991 "
         f"style countersunk screws; heads must sit flush or up to {E.SCREW_HEAD_SINK} below the underside.",
-        "The USB-C plug recess of the top part continues 0.8 mm into the back wall of this part (see STEP). "
+        f"The USB-C slot of the top part continues {E.USB_SLOT[1] - (E.usb_slot_top() - E.Z_SPLIT):.1f} mm into "
+        f"the back wall of this part, through the wall, {E.USB_SLOT[0]:.1f} +0.2/0 wide (see STEP). "
         "M1: engraved side mark, cosmetic.",
+        f"FIT-CRITICAL, tighter than the general tolerance: C1-C8 positions ±{POSITION_TOL} hole to hole (they "
+        "match T1-T8 of the top part and the PCB's holes). The tops of the 8 posts round C1-C8 and the parting "
+        "face (top of the wall) lie in one plane within 0.05: the PCB rests on the posts, the top part on the "
+        f"wall. {overall(shape)}",
+        AFTER_FINISH,
         f"Internal corners: boss-web fillets R{E.corner_r(E.Z_SPLIT - E.FLOOR_T)} "
-        f"({E.Z_SPLIT - E.FLOOR_T:.1f} deep, JLCCNC R = depth/10 + 0.5); tray corners R2 and larger.",
+        f"({E.Z_SPLIT - E.FLOOR_T:.1f} deep, R = depth/10 + 0.5); tray corners R2 and larger.",
         ("This is a LEFT-hand part: a mirror image of the right-hand part." if not right else
          "The left-hand part is a mirror image of this part."),
         "Cosmetic surfaces: underside and outer walls: no tool marks, scratches or clamp marks. Inside "
@@ -687,8 +715,8 @@ def leg_sheet(pdf, shape, part, dwg, version):
         *(["Toothed face: no burrs; tooth count and 90° form are critical (the leg must click in every 10° step).",
            "Break sharp edges 0.1-0.2 mm, except the tooth crests (0.1 max)."] if teeth else
           ["Bearing face: flat, no burrs, no raised tool marks.", "Break sharp edges 0.1-0.2 mm."]),
-        f"Finish: {FINISH}; same colour as the case.",
-        "Foot caps are not machined: worxboard_leg_cap_tree (8 TPU 95A caps on one runner, JLC3DP), snipped "
+        f"Finish: {FINISH}; same colour as the case. {AFTER_FINISH}",
+        "Foot caps are not machined: worxboard_leg_cap_tree (8 TPU 95A caps on one runner, 3D-printed), snipped "
         "off and pushed onto the spigot.",
     ], width=118)
     title_block(ax, part, dwg, "1 of 1", "2.5:1, 6:1, 20:1" if teeth else "2.5:1, 6:1", version, TOP_MATERIAL)
@@ -707,14 +735,17 @@ def hardware_rows() -> list[list]:
     rows = []
     for length in sorted({E.tap_hole("right", *p)["screw"] for p in E.SCREWS("right")}, reverse=True):
         ids = [f"T{i + 1}" for i, p in enumerate(E.SCREWS("right")) if E.tap_hole("right", *p)["screw"] == length]
-        h = E.tap_hole("right", *E.SCREWS("right")[int(ids[0][1:]) - 1])
+        holes = {i: E.tap_hole("right", *E.SCREWS("right")[int(i[1:]) - 1]) for i in ids}
+        blind = sorted({h["thread"] for h in holes.values() if not h["through"]})
+        thru = [i for i, h in holes.items() if h["through"]]
+        limit = ([f"reach past the {' / '.join(map(str, blind))} mm thread of the blind holes"] if blind else []) + (
+            [f"stand out of the key-well floor at {' and '.join(thru)} (tapped through)"] if thru else [])
         rows.append([f"M2.5x{length} countersunk screw", 2 * len(ids),
                      f"M2.5x0.45, length {length} incl. head, 90° head <= Ø{E.SCREW_CSK_D}, hex socket "
                      "(ISO 10642 / DIN 7991 style), steel or A2",
                      f"{', '.join(ids)} per half (C{', C'.join(i[1:] for i in ids)} in the tray)",
-                     f"engages {h['engage']:.1f} mm; do NOT use a longer screw: its tip would reach past the "
-                     f"{h['thread']} mm thread of the blind hole" + (" under the key well; snug only"
-                                                                     if h["kind"] == "plate" else "")])
+                     f"engages {min(h['engage'] for h in holes.values()):.1f} mm; do NOT use a longer screw: its "
+                     f"tip would {' or '.join(limit)}"])
     rows.append(["Rubber foot", 2 * len(E.FEET), f"self-adhesive, Ø{E.FOOT_D - 0.5:.0f} (max Ø{E.FOOT_D - 0.2:.1f}), "
                  "2-3 mm tall", "F1-F4 recesses in each tray", f"recess Ø{E.FOOT_D} x {E.FOOT_DEPTH}"])
     reach = {name: E.leg_thread(round(E.leg_hole_depth("right", *m[0], *m[1]), 1)) - E.LEG_REACH_CLEAR

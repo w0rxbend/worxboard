@@ -7,7 +7,7 @@ or a chord vertex of a polygonised arc), finds the face the cutter reaches it fr
 down from the cavity beside it, and fails unless its radius is at least worxboard_case.corner_r() of that
 depth. Exempt, and listed: the switch and stabiliser cut-outs (R0.5, a 1 mm end mill, through the
 1.5 mm plate at the bottom of the open key well; ORDER_NOTES), the engraved side mark, and side
-operations (corners closed above and below: the USB-C recess).
+operations (corners closed above and below: none since the jack openings became U-slots, CASE-10).
 
     python case/corner_check.py case/exports
 """

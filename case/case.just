@@ -40,13 +40,15 @@ renders:
     {{case_tools}} case/overlay.py {{case_renders}}/overlay.png right
 
 # Order package in case/exports/order (needs model): jlccnc/ (STEP + PDF drawings, hole table, notes),
-# jlc3dp/ (printed parts, notes), hardware.csv; plus the stand-alone plate DXFs
+# pcbway/ (notes for ordering the same files at PCBWay), jlc3dp/ (printed parts, notes), hardware.csv;
+# plus the stand-alone plate DXFs
 order:
     rm -rf {{case_exports}}/order
     {{case_tools}} case/drawings.py {{case_exports}} {{case_exports}}/order
     cp case/production/README.md {{case_exports}}/order/README.md
     cp case/production/jlccnc/ORDER_NOTES.md {{case_exports}}/order/jlccnc/ORDER_NOTES.md
     cp case/production/jlc3dp/ORDER_NOTES.md {{case_exports}}/order/jlc3dp/ORDER_NOTES.md
+    mkdir -p {{case_exports}}/order/pcbway && cp case/production/pcbway/ORDER_NOTES.md {{case_exports}}/order/pcbway/ORDER_NOTES.md
     mkdir -p {{case_exports}}/order/plates && cp plates/*.dxf {{case_exports}}/order/plates/
 
 # Copy the generated order files into the committed case/production (needs model + order)

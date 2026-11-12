@@ -50,8 +50,8 @@ SIDES = L.SIDES
 # --------------------------------------------------------------------------
 # Case design revision, printed on the drawings and in the STEP headers of the order package
 # (case/production). Bump it with any change to the ordered geometry.
-CASE_REVISION = "A4"
-CASE_REVISION_DATE = "2026-11-07"
+CASE_REVISION = "A5"
+CASE_REVISION_DATE = "2026-11-12"
 
 # Vertical stack, Z = 0 at the bottom face of the case
 FLOOR_T = 3.0            # bottom tray floor thickness
@@ -88,8 +88,11 @@ SWITCH_CUT = 14.0        # MX plate cutout
 SWITCH_CUT_R = 0.5       # corner radius (use a 1 mm tool, or switch DOGBONES on)
 DOGBONES = False
 WELL_CLEAR = 0.6         # well clearance around each key cell
-WELL_MIN_WALL = 2.0      # the well is clipped to keep this much wall (T0/T3 overhang, WS0-3)
+WELL_MIN_WALL = 1.75     # the well is clipped to keep this much wall (T0/T3 overhang, WS0-3; CASE-10)
 KEYCAP_INSET = 0.45      # keycap edge inside its 19.05 cell (18.15 cap)
+KEYCAP_WELL_CLEAR_MIN = 0.7   # least plan gap from a keycap to the (clipped) key-well wall (CASE-10)
+WELL_LAND_MIN = 0.2      # flat left on the crest of the well wall, inside the top-edge fillet
+assert WELL_MIN_WALL >= TOP_EDGE_FILLET + WELL_LAND_MIN
 STABILIZERS = True       # plate-mount Cherry stab cutouts on the two 2u thumb keys (spec §5)
 # Cherry plate cut-out per stab, across the key (u, + = housing side, layout.stab_dir) and along it
 STAB_CUT_U = (-5.53, 6.77)        # main opening, 6.65 wide along the key
@@ -113,10 +116,13 @@ BACK_Y = 60.0            # convex corners above this y are "back" corners
 CONCAVE_FRONT_Y = 130.0  # concave corners below this y use R_CONCAVE_FRONT
 BUMP_X, BUMP_Y = 62.2, (80.0, 130.0)           # TRRS bump region (right frame)
 
-# Fasteners: M2.5 countersunk screws from below, through the tray and the PCB into blind tapped holes
-# in the top's bosses (deviation CASE-3). JLCCNC threaded-hole guideline: a blind hole keeps at least
-# half its diameter unthreaded at the bottom, and the effective thread is at most 3 D. Drill depth is
-# the full-diameter depth from the boss face (Z_PCB_TOP); the 118 deg drill point is modelled beyond it.
+# Fasteners: M2.5 countersunk screws from below, through the tray and the PCB into tapped holes in the
+# top's bosses (deviation CASE-3). JLCCNC threaded-hole guideline: a blind hole keeps at least half its
+# diameter unthreaded at the bottom, and the effective thread is at most 3 D. Drill depth is the
+# full-diameter depth from the boss face (Z_PCB_TOP); the 118 deg drill point is modelled beyond it.
+# The two bosses under the key well have only the 5.0 mm from the boss face to the key-well floor: a
+# blind hole there held 1.4 mm of screw, so they are tapped through, into the gap between two keycaps,
+# and take the same screw as the edge bosses (CASE-10).
 SCREW_CLEAR_D = 2.9      # M2.5 clearance
 SCREW_CSK_D = 5.2        # M2.5 countersunk head (90 deg)
 M25_D = 2.5
@@ -124,15 +130,16 @@ TAP_D = 2.05             # M2.5 tap drill
 DRILL_POINT_DEG = 118.0
 TAP_UNTHREADED_MIN = M25_D / 2    # JLCCNC: >= D/2 of a blind hole unthreaded
 TAP_THREAD_MAX = 3 * M25_D        # JLCCNC: effective thread <= 3 D
-# kind -> (drill depth, min full thread, screw length): bosses in the bezel / edge area, and the two
-# under the key well, where the plate leaves 5.0 mm of material above the boss face
-TAP_HOLE = {"edge": (6.0, 4.5, 12), "plate": (3.6, 2.3, 10)}
+TAP_THRU = round(Z_PLATE_TOP - Z_PCB_TOP, 3)   # 5.0: boss face to the key-well floor
+# kind -> (drill depth, min full thread, screw length): blind in the bosses of the bezel / edge area,
+# through (drilled and tapped all the way) in the two under the key well
+TAP_HOLE = {"edge": (6.0, 4.5, 12), "plate": (TAP_THRU, TAP_THRU, 12)}
+TAP_EXIT_CHAMFER = 0.2   # 90 deg chamfer past the thread's major diameter where a through hole exits
 SCREW_HEAD_SINK = 0.2    # the countersunk head sits flush to 0.2 below the underside (bottom drawing)
 SCREW_TIP_CLEAR = 0.3    # screw tip (head at its deepest) to the end of the full thread
-SCREW_MIN_ENGAGE = 1.4   # shortest thread engagement, head flush (the bosses under the key well)
-TAP_SKIN_MIN = 0.75      # drill point to the cosmetic face above it (key-well floor or top face)
+SCREW_MIN_ENGAGE = 3.0   # shortest thread engagement, head flush (1.2 D)
+TAP_SKIN_MIN = 0.75      # drill point of a blind hole to the cosmetic face above it
 BOSS_D = 6.5
-POST_D = 6.5
 # A boss or post closer to the wall than this is joined to it by a web as wide as the boss, so
 # no narrow, deep slot is left between them. Top: the gap is up to 6 mm deep, bottom: 4 mm.
 WEB_GAP_TOP = 5.0
@@ -221,14 +228,23 @@ BEZEL_OVERLAP = 0.05         # the bezel runs this far into the key well, which 
 DISPLAY_LEG_CLEAR = 1.2  # leg pads stay this far from the pocket
 DISPLAY_BOSS_CLEAR = 1.0  # bosses / webs stay this far from the pocket
 
-# USB-C on both halves (spec §10.5): back-wall notch + outside recess for the plug overmould
-USB_NOTCH = (9.4, 3.6)   # w x h
-USB_NOTCH_R = 1.6
-USB_RECESS = (13.0, 8.0)
-USB_RECESS_DEPTH = 1.8   # leaves 1.2 mm of wall locally
-USB_RECESS_R = 1.5
-# TRRS (spec §10.6): round hole through the inner bump wall
-TRRS_NOTCH_D = 6.5
+# Jack openings (spec §10.5-6; deviation CASE-10): U-slots through the whole wall, open to the parting
+# face, so a plug's overmould passes the wall and the plug seats fully, and the slots are cut in the
+# underside setup, not as side operations.
+# USB-C on both halves, back wall: the slot's lowest 0.8 mm is a notch in the tray wall.
+USB_SLOT = (13.0, 8.0)   # w x h about the jack axis: Z 6.2-14.2
+# A mated USB-C plug's overmould stands this far off the receptacle mouth (6.65 shell less 6.20 mating
+# depth, figures from memory of the Type-C spec): the case must not stop it earlier.
+USB_MATE_GAP_MAX = 0.45
+# TRRS, inner bump wall: as wide as twice the jack axis height over the parting plane, so a plug body
+# of the slot's width would just rest on the tray wall; it runs on past the wall as a step in the
+# relief pocket's ceiling, which is lower than the slot's top.
+TRRS_SLOT_W = 8.2
+TRRS_SLOT_REACH = WALL + 1.5   # from the outer face: the ceiling step ends in two cutter-radius corners
+TRRS_PLUG_D = 8.0        # widest plug body that must reach the jack
+TRRS_BARREL_SETBACK = 0.15     # PJ-320D barrel front behind the PCB edge (F.Fab of the placed boards)
+SLOT_PROBE_CLEAR = 0.05  # the plug envelopes are probed this much inside the slot faces
+SLOT_FLAT_MIN = 0.5      # flat wall kept between a slot's top and the top-edge fillet
 NOTCH_TOL = 0.2          # notch centres must equal the layout anchors within this
 # Reset / boot pin-holes through the top skin (spec §10.7)
 PIN_HOLE_D = 3.0
@@ -469,18 +485,25 @@ def _filleted_polygon_face(coords, radius: float) -> Face:
     n = len(coords)
     area2 = sum(coords[i][0] * coords[(i + 1) % n][1] - coords[(i + 1) % n][0] * coords[i][1]
                 for i in range(n))
-    convex = []
+    turns = []
     for i in range(n):
         a, b, c = coords[i - 1], coords[i], coords[(i + 1) % n]
         u, v = (b[0] - a[0], b[1] - a[1]), (c[0] - b[0], c[1] - b[1])
         cross = u[0] * v[1] - u[1] * v[0]
         turn = math.degrees(math.atan2(abs(cross), u[0] * v[0] + u[1] * v[1]))
-        short = min(math.hypot(*u), math.hypot(*v))
-        # the fillet takes radius * tan(turn / 2) of each edge; an edge shared with another fillet
-        # has room for it if that is under half the edge (CASE-8: a clipped well corner was left sharp)
-        if cross * area2 > 0 and turn > FILLET_MIN_TURN and (
-                short > radius or radius * math.tan(math.radians(turn) / 2) < short / 2 - 1e-3):
-            convex.append(b)
+        turns.append(turn if cross * area2 > 0 and turn > FILLET_MIN_TURN else None)   # None: no fillet here
+    convex = []
+    for i, turn in enumerate(turns):
+        if turn is None:
+            continue
+        before, after = math.dist(coords[i - 1], coords[i]), math.dist(coords[i], coords[(i + 1) % n])
+        # the fillet takes radius * tan(turn / 2) of each edge: all of an edge whose other end gets no
+        # fillet (CASE-10: the well clipped on the outline's corner arc ends in a short chord), half of
+        # one shared with another fillet (CASE-8: a clipped well corner was left sharp)
+        room = min(before if turns[i - 1] is None else before / 2,
+                   after if turns[(i + 1) % n] is None else after / 2)
+        if min(before, after) > radius or radius * math.tan(math.radians(turn) / 2) < room - 1e-3:
+            convex.append(coords[i])
     if not convex:
         return face
     verts = [min(face.vertices(), key=lambda v: (v.X - p[0]) ** 2 + (v.Y - p[1]) ** 2) for p in convex]
@@ -653,24 +676,32 @@ def drill_point(d: float) -> float:
 
 def tap_hole(side: str, sx: float, sy: float) -> dict:
     """M2.5 tapped hole of the boss at (sx, sy): drill and thread depth from the boss face, the screw,
-    its engagement and deepest reach, and the skin left between the drill point and the face above."""
-    kind = "plate" if screw_under_plate(side, sx, sy) else "edge"
+    its engagement and deepest reach, and the skin left between the drill point and the face above
+    (none where the hole is through, under the key well)."""
+    through = screw_under_plate(side, sx, sy)
+    kind = "plate" if through else "edge"
     drill, thread, screw = TAP_HOLE[kind]
-    face = Z_PLATE_TOP if kind == "plate" else Z_TOP
-    tip = Z_PCB_TOP + drill + drill_point(TAP_D)
-    return dict(kind=kind, drill=drill, thread=thread, screw=screw, unthreaded=round(drill - thread, 3),
+    face = Z_PLATE_TOP if through else Z_TOP
+    tip = Z_PCB_TOP + drill + (0.0 if through else drill_point(TAP_D))
+    return dict(kind=kind, through=through, drill=drill, thread=thread, screw=screw,
+                unthreaded=round(drill - thread, 3),
                 engage=round(screw - Z_PCB_TOP, 3), reach=round(screw + SCREW_HEAD_SINK - Z_PCB_TOP, 3),
                 tip=tip, face=face, skin=round(face - tip, 3))
 
 
 def tap_cut(side: str, sx: float, sy: float) -> Solid:
-    """Tap-drill hole as drilled: Ø TAP_D to the drill depth, then the 118 deg point."""
+    """Tap-drill hole as drilled: Ø TAP_D to the drill depth, then the 118 deg point; a through hole
+    ends in its exit chamfer instead."""
     h = tap_hole(side, sx, sy)
     cx, cy = P(sx, sy)
-    hole = Pos(cx, cy, Z_PCB_TOP - 0.01) * Cylinder(TAP_D / 2, h["drill"] + 0.01,
+    hole = Pos(cx, cy, Z_PCB_TOP - 0.01) * Cylinder(TAP_D / 2, h["drill"] + 0.02,
                                                      align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return hole + Pos(cx, cy, 0) * Solid.make_cone(TAP_D / 2, 0, drill_point(TAP_D),
-                                                   Plane.XY.offset(Z_PCB_TOP + h["drill"]))
+    if not h["through"]:
+        return hole + Pos(cx, cy, 0) * Solid.make_cone(TAP_D / 2, 0, drill_point(TAP_D),
+                                                       Plane.XY.offset(Z_PCB_TOP + h["drill"]))
+    r_exit = M25_D / 2 + TAP_EXIT_CHAMFER
+    return hole + Pos(cx, cy, 0) * Solid.make_cone(TAP_D / 2, r_exit + 0.01, r_exit - TAP_D / 2 + 0.01,
+                                                   Plane.XY.offset(h["face"] - (r_exit - TAP_D / 2)))
 
 
 def leg_thread(depth: float) -> float:
@@ -1063,36 +1094,53 @@ def web_check(side: str):
             print(f"  {side:5s} {part:6s} web: screw ({sx:6.1f},{sy:6.1f}) joined to the wall, {web.area:.0f} mm2")
 
 
+def tap_probe(name: str, h: dict, top: Solid, cx: float, cy: float):
+    """On the built part: the hole is open to its drill depth; a blind one is solid from the drill
+    point to the face above, a through one is open at the key-well floor with JLCCNC_WALL_MIN of plate
+    all round its thread."""
+    for z in (Z_PCB_TOP + 0.2, Z_PCB_TOP + h["drill"] - 0.1):
+        if top.is_inside(Vector(cx, cy, z)):
+            sys.exit(f"{name}: the tap drill is not open at Z {z:.2f}")
+    if not h["through"]:
+        for z in (h["tip"] + 0.05, (h["tip"] + h["face"]) / 2, h["face"] - 0.05):
+            if not top.is_inside(Vector(cx, cy, z)):
+                sys.exit(f"{name}: no material above the drill point at Z {z:.2f}")
+        return
+    r = M25_D / 2 + JLCCNC_WALL_MIN
+    for k in range(16):
+        a = k * math.pi / 8
+        if not top.is_inside(Vector(cx + r * math.cos(a), cy + r * math.sin(a), (Z_PLATE_BOT + Z_PLATE_TOP) / 2)):
+            sys.exit(f"{name}: less than {JLCCNC_WALL_MIN} mm of plate round the through thread "
+                     f"at {math.degrees(a):.0f} deg")
+
+
 def tap_check(side: str, top: Solid | None = None):
-    """Every M2.5 hole follows the JLCCNC threaded-hole guideline, its screw seats before it reaches
-    the end of the full thread, and the drill point leaves skin under the face above (CASE-3). On the
-    built part, the hole is open to its drill depth and solid from the drill point to the face."""
+    """Every blind M2.5 hole follows the JLCCNC threaded-hole guideline and its drill point leaves skin
+    under the face above (CASE-3); every screw engages SCREW_MIN_ENGAGE and stops SCREW_TIP_CLEAR short
+    of the end of the thread, which for a through hole is the key-well floor (CASE-10). On the built
+    part: tap_probe."""
     for i, (sx, sy) in enumerate(SCREWS(side)):
         h = tap_hole(side, sx, sy)
         name = f"{side} T{i + 1} ({sx:.1f},{sy:.1f})"
-        if h["unthreaded"] < TAP_UNTHREADED_MIN - 1e-9:
+        if not h["through"] and h["unthreaded"] < TAP_UNTHREADED_MIN - 1e-9:
             sys.exit(f"{name}: {h['unthreaded']} mm unthreaded at the bottom, JLCCNC needs {TAP_UNTHREADED_MIN}")
         if h["thread"] > TAP_THREAD_MAX + 1e-9:
             sys.exit(f"{name}: {h['thread']} mm of thread is more than 3 D")
         if h["reach"] > h["thread"] - SCREW_TIP_CLEAR + 1e-9:
             sys.exit(f"{name}: an M2.5x{h['screw']} reaches {h['reach']:.2f} mm, past the {h['thread']} mm "
-                     f"thread less {SCREW_TIP_CLEAR}: it would bottom before its head seats")
+                     f"thread less {SCREW_TIP_CLEAR}: it would "
+                     + ("stand out of the key-well floor" if h["through"] else "bottom before its head seats"))
         if h["engage"] < SCREW_MIN_ENGAGE - 1e-9:
             sys.exit(f"{name}: an M2.5x{h['screw']} engages only {h['engage']:.2f} mm of thread")
-        if h["skin"] < TAP_SKIN_MIN - 1e-9:
+        if not h["through"] and h["skin"] < TAP_SKIN_MIN - 1e-9:
             sys.exit(f"{name}: the drill point leaves {h['skin']:.2f} mm under Z {h['face']}")
         if top is not None:
-            cx, cy = P(sx, sy)
-            for z in (Z_PCB_TOP + 0.2, Z_PCB_TOP + h["drill"] - 0.1):
-                if top.is_inside(Vector(cx, cy, z)):
-                    sys.exit(f"{name}: the tap drill is not open at Z {z:.2f}")
-            for z in (h["tip"] + 0.05, (h["tip"] + h["face"]) / 2, h["face"] - 0.05):
-                if not top.is_inside(Vector(cx, cy, z)):
-                    sys.exit(f"{name}: no material above the drill point at Z {z:.2f}")
-        print(f"  {side:5s} T{i + 1} ({sx:6.1f},{sy:6.1f}) {h['kind']:5s}: drill {h['drill']} + point, thread "
-              f"{h['thread']} ({h['unthreaded']} unthreaded), M2.5x{h['screw']} engages {h['engage']:.1f} "
-              f"(reach <= {h['reach']:.1f}), skin {h['skin']:.2f} to Z {h['face']}"
-              + ("; probed" if top is not None else ""))
+            tap_probe(name, h, top, *P(sx, sy))
+        depth = (f"THRU {h['drill']} to Z {h['face']}, thread {h['thread']}" if h["through"] else
+                 f"drill {h['drill']} + point, thread {h['thread']} ({h['unthreaded']} unthreaded), "
+                 f"skin {h['skin']:.2f} to Z {h['face']}")
+        print(f"  {side:5s} T{i + 1} ({sx:6.1f},{sy:6.1f}) {h['kind']:5s}: {depth}, M2.5x{h['screw']} engages "
+              f"{h['engage']:.1f} (reach <= {h['reach']:.1f})" + ("; probed" if top is not None else ""))
 
 
 def leg_check(side: str):
@@ -1128,7 +1176,8 @@ def leg_check(side: str):
 
 
 def pcb_check(side: str):
-    """The cavity holds the PCB with CAVITY_MIN_CLEAR, and the well keeps WELL_MIN_WALL."""
+    """The cavity holds the PCB with CAVITY_MIN_CLEAR, the well keeps WELL_MIN_WALL, and every keycap
+    lies in the well, KEYCAP_WELL_CLEAR_MIN from its wall (CASE-10)."""
     pcb = L.outline(side)
     cav = cavity_poly(side)
     clear = cav.exterior.distance(pcb) if cav.contains(pcb) else -1.0
@@ -1139,9 +1188,13 @@ def pcb_check(side: str):
     outside = caps.difference(well_poly(side)).area
     if outside > 1e-3:
         sys.exit(f"{side} keycaps reach past the clipped key well ({outside:.3f} mm2)")
+    cap_clear = well_poly(side).boundary.distance(caps)
+    if cap_clear < KEYCAP_WELL_CLEAR_MIN:
+        sys.exit(f"{side} keycap is {cap_clear:.3f} mm from the key-well wall (KEYCAP_WELL_CLEAR_MIN "
+                 f"{KEYCAP_WELL_CLEAR_MIN})")
     radii = sorted({r for _, _, r in case_vertices(side)})
     print(f"  {side:5s} outline: {len(case_vertices(side))} corners, radii {radii}; cavity to PCB "
-          f"{clear:.2f} mm min; key well to outer face {wall:.2f} mm min")
+          f"{clear:.2f} mm min; key well to outer face {wall:.2f} mm min, to the keycaps {cap_clear:.2f} mm min")
 
 
 def display_check(side: str, top: Solid | None = None):
@@ -1251,24 +1304,45 @@ def _wall_place(notch: dict, shape):
     return _leg_frame(px, py, notch["n"][0], -notch["n"][1], shape)
 
 
-def usb_cuts(side: str) -> list[Solid]:
-    """Notch through the back wall + outside recess for the plug overmould (wall-local frame)."""
+def usb_slot_top() -> float:
+    return Z_PCB_TOP + JACK("right", "J1").axis_z + USB_SLOT[1] / 2
+
+
+def trrs_slot_top() -> float:
+    return Z_PCB_TOP + JACK("right", "J2").axis_z + TRRS_SLOT_W / 2
+
+
+def usb_cut(side: str) -> Solid:
+    """USB-C slot (wall-local frame): USB_SLOT about the jack axis, through the whole back wall. Cut
+    from the top part it is a U-slot open to the parting face, from the tray a notch in its wall."""
     n = usb_notch(side)
-    w, h = USB_NOTCH
-    notch = Pos(-1, 0, n["z"]) * Box(WALL + 2, w, h, align=(Align.MIN, Align.CENTER, Align.CENTER))
-    notch = fillet(notch.edges().filter_by(Axis.X), USB_NOTCH_R)
-    rw, rh = USB_RECESS
-    recess = Pos(-1, 0, n["z"]) * Box(USB_RECESS_DEPTH + 1, rw, rh, align=(Align.MIN, Align.CENTER, Align.CENTER))
-    recess = fillet(recess.edges().filter_by(Axis.X), USB_RECESS_R)
-    return [_wall_place(n, notch), _wall_place(n, recess)]
+    w, h = USB_SLOT
+    return _wall_place(n, Pos(-1, 0, n["z"]) * Box(WALL + 1.05, w, h, align=(Align.MIN, Align.CENTER, Align.CENTER)))
 
 
 def trrs_cut(side: str) -> Solid:
-    """Round hole through the inner bump wall (side_notch of spec §10.6)."""
+    """TRRS U-slot through the inner bump wall, from below the parting face up to trrs_slot_top(), on
+    to TRRS_SLOT_REACH: past the wall it only cuts the step in the relief pocket's ceiling, whose two
+    end corners get the cutter radius for the slot's depth."""
     n = trrs_notch(side)
-    hole = Pos(-1, 0, n["z"]) * Rot(0, 90, 0) * Cylinder(TRRS_NOTCH_D / 2, WALL + 2,
-                                                         align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return _wall_place(n, hole)
+    top = trrs_slot_top()
+    slot = Pos(-1, 0, Z_SPLIT - 1) * Box(TRRS_SLOT_REACH + 1, TRRS_SLOT_W, top - Z_SPLIT + 1,
+                                         align=(Align.MIN, Align.CENTER, Align.MIN))
+    slot = fillet(slot.edges().filter_by(Axis.Z).group_by(Axis.X)[-1], corner_r(top - Z_SPLIT))
+    return _wall_place(n, slot)
+
+
+def plug_probes(side: str) -> dict[str, Solid]:
+    """The room a plug's body needs to seat, per jack (case frame): the USB-C overmould envelope (the
+    slot less SLOT_PROBE_CLEAR) from outside the wall to USB_MATE_GAP_MAX short of the J1 mouth, and a
+    Ø TRRS_PLUG_D plug body from outside the wall to the J2 barrel front."""
+    u, t = usb_notch(side), trrs_notch(side)
+    w, h = (d - 2 * SLOT_PROBE_CLEAR for d in USB_SLOT)
+    usb = Pos(-1, 0, u["z"]) * Box(CASE_OFFSET - USB_MATE_GAP_MAX + 1, w, h,
+                                   align=(Align.MIN, Align.CENTER, Align.CENTER))
+    trrs = Pos(-1, 0, t["z"]) * Rot(0, 90, 0) * Cylinder(
+        TRRS_PLUG_D / 2, CASE_OFFSET + TRRS_BARREL_SETBACK + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return {"J1": _wall_place(u, usb), "J2": _wall_place(t, trrs)}
 
 
 def jack_body(side: str, ref: str) -> Solid:
@@ -1295,23 +1369,25 @@ def jack_clearances(side: str, ref: str) -> dict[str, float]:
 
 
 def jack_check(side: str, top: Solid | None = None, bottom: Solid | None = None):
-    """USB / TRRS notch centres equal the layout anchors within NOTCH_TOL, they fit the part they
-    cut, the jack bodies sit under the relief pocket at least JACK_MIN_CLEAR from every edge round
-    them, and (on the built part) the holes are open and the top stays JACK_MIN_CLEAR off the bodies."""
+    """USB / TRRS slot centres equal the layout anchors within NOTCH_TOL, the slots are open to the
+    parting face, reach as far above the jack axis as they are wide and stop under the top-edge fillet,
+    the jack bodies sit under the relief pocket at least JACK_MIN_CLEAR from every edge round them, and
+    (on the built parts) the slots are open, no wider than modelled, the top stays JACK_MIN_CLEAR off
+    the bodies, and neither part stands in a plug body's way to its jack (plug_probes, CASE-10)."""
     relief = relief_poly(side)
-    for ref, notch, cut, size in (("J1", usb_notch(side), usb_cuts(side)[0], USB_NOTCH),
-                                  ("J2", trrs_notch(side), trrs_cut(side), (TRRS_NOTCH_D, TRRS_NOTCH_D))):
+    for ref, notch, cut, width in (("J1", usb_notch(side), usb_cut(side), USB_SLOT[0]),
+                                   ("J2", trrs_notch(side), trrs_cut(side), TRRS_SLOT_W)):
         j = JACK(side, ref)
         bb = cut.bounding_box()
         c = bb.center()
         kx, ky = K(c.X, c.Y)
-        # the notch axis must pass through the jack mouth, at the jack axis height
+        # the slot's mid-plane must pass through the jack mouth, and the slot rise over the jack axis
         along = (kx - j.x) * j.facing[1] - (ky - j.y) * j.facing[0]
-        dz = c.Z - (Z_PCB_TOP + j.axis_z)
+        dz = bb.max.Z - {"J1": usb_slot_top(), "J2": trrs_slot_top()}[ref]
         if abs(along) > NOTCH_TOL or abs(dz) > NOTCH_TOL:
-            sys.exit(f"{side} {ref} notch is {along:+.2f} along the wall / {dz:+.2f} in Z from the layout jack")
-        if c.Z - size[1] / 2 < Z_SPLIT + 0.3 or c.Z + size[1] / 2 > Z_POCKET_CEIL:
-            sys.exit(f"{side} {ref} notch leaves no material at the parting plane or under the top skin")
+            sys.exit(f"{side} {ref} slot is {along:+.2f} along the wall / {dz:+.2f} in Z from the layout jack")
+        if bb.min.Z > Z_SPLIT or bb.max.Z > Z_TOP - TOP_EDGE_FILLET - SLOT_FLAT_MIN + 1e-9:
+            sys.exit(f"{side} {ref} slot is not open to the parting face or runs into the top-edge fillet")
         body = box(*j.body)
         if not relief.buffer(1e-6).contains(body):
             sys.exit(f"{side} {ref} body is not under the relief pocket")
@@ -1330,22 +1406,41 @@ def jack_check(side: str, top: Solid | None = None, bottom: Solid | None = None)
             clear_txt += f", built top {d3:.3f}"
             px, py = P(notch["x"], notch["y"])
             nx, ny = notch["n"][0], -notch["n"][1]
-            deep = WALL - 0.4                 # past the USB plug recess
+            deep = WALL - 0.4
             mid = Vector(px - nx * deep, py - ny * deep, notch["z"])
-            if top.is_inside(mid):
-                sys.exit(f"{side} {ref} notch is not open in the top part")
+            if top.is_inside(mid) or top.is_inside(Vector(mid.X, mid.Y, Z_SPLIT + 0.1)):
+                sys.exit(f"{side} {ref} slot is not open in the top part, down to the parting face")
             tx, ty = -ny, nx
-            if not top.is_inside(mid + Vector(tx, ty, 0) * (size[0] / 2 + 0.4)):
-                sys.exit(f"{side} {ref} notch is wider than modelled")
-        print(f"  {side:5s} {ref} notch: centre ({kx:.2f},{ky:.2f}) Z {c.Z:.2f}, {along:+.3f} / {dz:+.3f} mm "
-              f"from layout; body {j.height} tall, {Z_POCKET_CEIL - Z_PCB_TOP - j.height:.1f} mm headroom, "
-              f"clear (mm): {clear_txt}" + ("; probed open" if top is not None else ""))
-    if bottom is not None:
-        n = usb_notch(side)
-        px, py = P(n["x"], n["y"])
-        q = Vector(px - n["n"][0] * 0.9, py + n["n"][1] * 0.9, Z_SPLIT - 0.4)
-        if bottom.is_inside(q):
-            sys.exit(f"{side} USB recess is not cut in the bottom part")
+            if not top.is_inside(mid + Vector(tx, ty, 0) * (width / 2 + 0.4)):
+                sys.exit(f"{side} {ref} slot is wider than modelled")
+            if not top.is_inside(Vector(mid.X, mid.Y, bb.max.Z + 0.4)):
+                sys.exit(f"{side} {ref} slot is taller than modelled")
+        print(f"  {side:5s} {ref} slot: {width} wide, top part Z {Z_SPLIT}-{bb.max.Z:.1f}, at ({notch['x']:.2f},"
+              f"{notch['y']:.2f}), {along:+.3f} / {dz:+.3f} mm from layout; body {j.height} tall, "
+              f"{Z_POCKET_CEIL - Z_PCB_TOP - j.height:.1f} mm headroom, clear (mm): {clear_txt}"
+              + ("; probed open" if top is not None else ""))
+    if top is not None and bottom is not None:
+        plug_check(side, top, bottom)
+
+
+def plug_check(side: str, top: Solid, bottom: Solid):
+    """A standard plug seats (CASE-10; no gate held this before, ORDER-7): the tray's part of the USB
+    slot runs through its wall, and neither built part touches a plug body's way to its jack."""
+    n = usb_notch(side)
+    px, py = P(n["x"], n["y"])
+    for depth in (0.9, WALL - 0.4):
+        if bottom.is_inside(Vector(px - n["n"][0] * depth, py + n["n"][1] * depth, Z_SPLIT - 0.4)):
+            sys.exit(f"{side} USB slot is not cut through the bottom part's wall")
+    reach = {"J1": f"a {USB_SLOT[0] - 2 * SLOT_PROBE_CLEAR:.1f} x {USB_SLOT[1] - 2 * SLOT_PROBE_CLEAR:.1f} "
+                   f"overmould runs free to {USB_MATE_GAP_MAX} mm from the J1 mouth",
+             "J2": f"a Ø{TRRS_PLUG_D} body runs free to the J2 barrel, "
+                   f"{CASE_OFFSET + TRRS_BARREL_SETBACK:.2f} mm inside the outer face"}
+    for ref, probe in plug_probes(side).items():
+        gaps = {"top": top.distance_to(probe), "bottom": bottom.distance_to(probe)}
+        for part, gap in gaps.items():
+            if gap < 1e-6:
+                sys.exit(f"{side} {part} part stands in the way of the {ref} plug body: it would not seat")
+        print(f"  {side:5s} {ref} plug: {reach[ref]} (top {gaps['top']:.2f}, bottom {gaps['bottom']:.2f} mm clear)")
 
 
 def feet_check(side: str):
@@ -1508,9 +1603,8 @@ def build_top(side: str) -> Solid:
     body -= pocket_cut(side)
     body -= window_cut(side)
 
-    # USB-C notch + plug recess, TRRS hole
-    for cut in usb_cuts(side):
-        body -= cut
+    # USB-C and TRRS slots, open to the parting face
+    body -= usb_cut(side)
     body -= trrs_cut(side)
 
     # reset / boot pin-holes through the top skin
@@ -1556,8 +1650,8 @@ def build_bottom(side: str, engrave: bool = True) -> Solid:
         cx, cy = P(fx, fy)
         body -= Pos(cx, cy, -0.01) * Cylinder(FOOT_D / 2, FOOT_DEPTH + 0.01,
                                              align=(Align.CENTER, Align.CENTER, Align.MIN))
-    # the USB plug recess reaches below the parting plane
-    body -= usb_cuts(side)[1]
+    # the USB slot reaches below the parting plane
+    body -= usb_cut(side)
     if engrave:
         body -= side_mark(side)
     return body
@@ -1727,8 +1821,7 @@ def export_fitcheck_dxf(side: str, path: str):
     x0, y0, x1, y1 = d["window"]
     dxf.add_shape(_wire_of(Pos(*P(*d["window_centre"])) * RectangleRounded(x1 - x0, y1 - y0, LD.WINDOW_R)),
                   layer="DISPLAY")
-    for notch, w in ((usb_notch(side), USB_NOTCH[0]), (usb_notch(side), USB_RECESS[0]),
-                     (trrs_notch(side), TRRS_NOTCH_D)):
+    for notch, w in ((usb_notch(side), USB_SLOT[0]), (trrs_notch(side), TRRS_SLOT_W)):
         px, py = P(notch["x"], notch["y"])
         nx, ny = notch["n"][0], -notch["n"][1]
         dxf.add_shape(_wire_of(_leg_frame(px, py, nx, ny, Pos(WALL / 2, 0) * Rectangle(WALL, w))), layer="JACKS")

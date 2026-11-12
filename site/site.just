@@ -18,7 +18,8 @@ docs-links *args:
     docker run --rm -u $(id -u):$(id -g) -v "$PWD":/w -w /w {{lychee}} \
         --no-progress --include-fragments --root-dir /w {{args}} {{docs_md}}
 
-# Build the GitHub Pages microsite into _site/ (adds case STLs and renders when they exist)
+# Build the GitHub Pages microsite into _site/ (adds the case STLs and renders, and the copper layer
+# drawings of `just pcb-layers left`, when they exist)
 site:
     uv run --group site python site/build_site.py {{site_out}} {{quote(version)}}
 

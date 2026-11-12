@@ -1,6 +1,7 @@
 /* worxboard microsite. Two surfaces: the black stage the 3D model lives on, and the paper the facts are
    printed on. One typeface, Archivo, at two widths: expanded for display, normal for text. The only colour
-   is --glow, which viewer.js keeps equal to the light the keyboard is showing. */
+   is --glow, which viewer.js keeps equal to the light the keyboard is showing; the layer view alone adds
+   KiCad's four copper colours, because its drawings come from KiCad in them. */
 :root {
   --ink: #000;
   --ink-raised: #101113;
@@ -14,6 +15,9 @@
   --text-soft: #50565f;
   --glow: hsl(18 95% 62%);
   --danger: #b3261e;
+  /* KiCad's default layer colours, the ones `just pcb-layers` plots the drawings in */
+  --f-cu: #c83434; --in1-cu: #7fc87f; --in2-cu: #ce7d2c; --b-cu: #4d7fc4;
+  --fr4: #cdd3c1; --via: #a8792f;
   --gutter: max(20px, calc((100vw - 1240px) / 2));
   --font: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -54,7 +58,7 @@ code, pre { font-family: var(--code); font-size: 0.86em; }
 .nav nav a:hover, .nav nav a.on, .nav-link:hover { color: var(--snow); }
 .pill { background: var(--snow); color: var(--text); padding: 5px 14px; border-radius: 999px; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .pill:hover { background: #fff; }
-@media (max-width: 860px) {
+@media (max-width: 940px) {   /* the eight section links need about 900 px beside the brand and the buttons */
   .nav nav { display: none; }
   .nav-link { margin-left: auto; }
 }
@@ -251,6 +255,65 @@ code, pre { font-family: var(--code); font-size: 0.86em; }
 .plan { background: var(--card); border-radius: var(--radius); padding: var(--space-3); border: 1px solid var(--paper-line); }
 .plan img { width: 100%; }
 .plan figcaption { margin-top: var(--space-2); color: var(--text-soft); font-size: 0.875rem; }
+
+/* ---------- the copper layers: KiCad's plot of each layer, as a stack or one at a time ---------- */
+.copper > * + * { margin-top: var(--space-2); }
+.copper-stage { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; background: var(--ink); border-radius: var(--radius); overflow: hidden; }
+.copper-scene { position: absolute; inset: 0; display: grid; place-items: center; perspective: 170cqw; }
+.copper-stack { position: relative; width: 64cqw; aspect-ratio: 182.83 / 158.75; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.plate { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s; }
+/* "All four" tilts the stack and pulls the sheets apart; any other choice lays that one sheet flat */
+.copper:has([value="all"]:checked) .copper-stack { transform: rotateX(58deg) rotateZ(-28deg) scale(0.85); }
+.copper:has([value="all"]:checked) .plate { transform: translateZ(calc(var(--level) * 10cqw)); }
+.copper:not(:has([value="all"]:checked)) .plate { opacity: 0; }
+.copper:has([value="f"]:checked) .plate-f,
+.copper:has([value="in1"]:checked) .plate-in1,
+.copper:has([value="in2"]:checked) .plate-in2,
+.copper:has([value="b"]:checked) .plate-b { opacity: 1; }
+/* pointing at a layer's button picks its sheet out of the stack */
+.copper:has([value="all"]:checked):has(.copper-row-f:hover) .plate:not(.plate-f),
+.copper:has([value="all"]:checked):has(.copper-row-in1:hover) .plate:not(.plate-in1),
+.copper:has([value="all"]:checked):has(.copper-row-in2:hover) .plate:not(.plate-in2),
+.copper:has([value="all"]:checked):has(.copper-row-b:hover) .plate:not(.plate-b) { opacity: 0.12; }
+.copper-missing { display: none; position: absolute; inset: 0; margin: auto; height: max-content; padding: 0 var(--space-3); text-align: center; color: var(--mist); }
+.copper[data-drawn="no"] .copper-missing { display: block; }
+.copper[data-drawn="no"] .copper-stack { display: none; }
+
+.copper-pick { border: 0; padding: 0; margin-inline: 0; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 6px; }
+.copper-pick legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.copper-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-content: center; padding: 10px 12px; border: 1px solid var(--paper-line); border-radius: 12px; line-height: 1.3; cursor: pointer; }
+.copper-row:hover { border-color: var(--text-soft); }
+.copper-row:has(:checked) { background: var(--card); border-color: var(--text); }
+.copper-row:has(:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+.copper-row input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.copper-row i { grid-row: span 2; width: 10px; border-radius: 3px; background: var(--chip); }
+.copper-row span { color: var(--text-soft); font-size: 0.875rem; }
+.copper-row-all { --chip: linear-gradient(var(--f-cu) 0 25%, var(--in1-cu) 25% 50%, var(--in2-cu) 50% 75%, var(--b-cu) 75%); }
+.copper-row-f { --chip: var(--f-cu); }
+.copper-row-in1 { --chip: var(--in1-cu); }
+.copper-row-in2 { --chip: var(--in2-cu); }
+.copper-row-b { --chip: var(--b-cu); }
+
+.copper-notes { min-height: 5em; }
+.copper-note { display: none; color: var(--text-soft); }
+.copper:has([value="all"]:checked) .copper-note-all,
+.copper:has([value="f"]:checked) .copper-note-f,
+.copper:has([value="in1"]:checked) .copper-note-in1,
+.copper:has([value="in2"]:checked) .copper-note-in2,
+.copper:has([value="b"]:checked) .copper-note-b { display: block; }
+.copper-fine, .cut figcaption { color: var(--text-soft); font-size: 0.875rem; }
+
+.cut { display: grid; gap: var(--space-3); }
+.cut-scroll { overflow-x: auto; }
+.cut svg { display: block; width: 100%; max-width: 40rem; min-width: 460px; height: auto; }
+.cut text { font-family: var(--font); font-size: 13px; fill: var(--text-soft); }
+.cut .n { font-weight: 650; fill: var(--text); }
+.cut figcaption { margin-top: var(--space-1); }
+.cut-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
+.cut-compare p { color: var(--text-soft); }
+.cut-compare b { color: var(--text); }
+@media (max-width: 760px) { .cut-compare { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .copper-stack, .plate { transition: none; } }
 
 .steps { list-style: none; padding: 0; counter-reset: step; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4) var(--space-3); }
 .steps li { counter-increment: step; border-top: 2px solid var(--text); padding-top: var(--space-2); }

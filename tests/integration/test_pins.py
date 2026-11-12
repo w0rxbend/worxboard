@@ -32,7 +32,7 @@ CORE = "worxboard"
 ROW = re.compile(r"^ROW\d$")
 COL = re.compile(r"^COL\d$")
 DIODE_K, DIODE_A = "1", "2"                    # Diode:1N4148W / D_SOD-123 pad numbers
-JACK_RES = "1k"                                # series resistors between the jack and UART0 (§6.2)
+JACK_RES = "470"                               # series resistors between the jack and UART0 (§6.2)
 UNCONNECTED = "unconnected-"
 
 

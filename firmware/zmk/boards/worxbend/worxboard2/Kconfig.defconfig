@@ -79,9 +79,9 @@ config USB_SELF_POWERED
 
 if ZMK_RGB_UNDERGLOW
 
-# Dark LEDs still draw 0.6 mA each: going idle switches the strip and VLED off
-config ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE
-    default y
+# ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE stays at ZMK's default (n): idle-off saves "off", so the board would
+# boot dark after any idle spell (docs/firmware.md#split-behaviour). The LED load is inside the budget
+# at the BRT_MAX cap; RGB_TOG switches the strip and VLED off.
 
 # Only Studio (left) and BLE enable settings in ZMK. Without them the wired right half would forget
 # its RGB state and boot lit at BRT_START whatever the left restored.

@@ -280,7 +280,7 @@ function displayGroup(side) {
 function pcbGroup(side) {
   const g = new THREE.Group();
   const s = lay.sides[side];
-  const board = mesh(pcbGeometry(side), M.pcb, `worxboard-${side} PCB\n2-layer, 1.6 mm, ENIG\n${s.keys.length} keys`);
+  const board = mesh(pcbGeometry(side), M.pcb, `worxboard-${side} PCB\n4-layer, 1.6 mm, ENIG\n${s.keys.length} keys`);
   g.add(withEdges(board, 20));
   g.add(rectBox(manifest.bodies[side].J3, Z.pcbTop, Z.pcbTop + J3_H, M.chip, "J3  display socket, 5.0 mm (fitted by JLC)"));
   // assembled parts at their footprint pose: box = [cx, cy, w, l, h] in the footprint frame

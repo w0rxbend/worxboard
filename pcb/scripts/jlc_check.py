@@ -7,7 +7,7 @@
 `check` (stdlib + design.py; pcbnew only with --panel) fails on:
   - files: gerbers.zip, bom.csv, cpl.csv, README.md and worxboard-<side>-jlc-order.zip (holding exactly
     those four, byte-identical), and bare-board/ with its own gerbers.zip, bom.csv, cpl.csv, README.md
-  - gerbers.zip: exactly the 9 Gerber layers and the PTH / NPTH drill files, no KiCad creation date
+  - gerbers.zip: exactly the 11 Gerber layers (4 copper) and the PTH / NPTH drill files, no KiCad creation date
   - bom.csv: header exactly Comment,Designator,Footprint,LCSC Part #; an LCSC number (C + digits) on every
     line; no designator twice; at most 200 designators per line (JLC's limit)
   - cpl.csv: header exactly Designator,Mid X,Mid Y,Layer,Rotation; Layer Top or Bottom; numbers in mm;
@@ -41,7 +41,7 @@ sys.path.insert(0, str(ROOT))
 
 BOM_HEADER = ["Comment", "Designator", "Footprint", "LCSC Part #"]
 CPL_HEADER = ["Designator", "Mid X", "Mid Y", "Layer", "Rotation"]
-GERBER_SUFFIXES = ["-CuTop.gtl", "-CuBottom.gbl", "-MaskTop.gts", "-MaskBottom.gbs", "-SilkTop.gto",
+GERBER_SUFFIXES = ["-CuTop.gtl", "-inner1.g1", "-inner2.g2", "-CuBottom.gbl", "-MaskTop.gts", "-MaskBottom.gbs", "-SilkTop.gto",
                    "-SilkBottom.gbo", "-PasteTop.gtp", "-PasteBottom.gbp", "-EdgeCuts.gm1", "-PTH.drl",
                    "-NPTH.drl"]
 PANEL_LIMIT = (70.0, 250.0)          # JLC Standard PCBA panel, mm (capabilities page)
@@ -354,7 +354,7 @@ def cmd_check(argv: list[str]) -> int:
     for label, d, panel in (("panel", pkg, True), ("bare board", pkg / "bare-board", False)):
         gerr, bbox = check_gerbers((d / "gerbers.zip").read_bytes(), panel)
         size = f"{bbox[2] - bbox[0]:.2f} x {bbox[3] - bbox[1]:.2f} mm" if bbox else "?"
-        ck.section(f"{label} gerbers.zip: 9 layers + PTH/NPTH drills, no dates, {size} within JLC limits", gerr)
+        ck.section(f"{label} gerbers.zip: 11 layers + PTH/NPTH drills, no dates, {size} within JLC limits", gerr)
         berr, bom = check_bom(read_csv_bytes((d / "bom.csv").read_bytes()))
         ck.section(f"{label} bom.csv: {','.join(BOM_HEADER)}; {len(set(bom.values()))} LCSC numbers", berr)
         cerr, cpl = check_cpl(read_csv_bytes((d / "cpl.csv").read_bytes()), bbox)

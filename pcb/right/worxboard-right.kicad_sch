@@ -8723,7 +8723,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "250mA"
+		(property "Value" "500mA"
 			(at 454.66 111.76 90)
 			(effects
 				(font
@@ -8741,7 +8741,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C70069"
+		(property "LCSC" "C70076"
 			(at 454.66 116.8399 0)
 			(effects
 				(font
@@ -9004,7 +9004,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "470"
 			(at 668.02 48.26 90)
 			(effects
 				(font
@@ -9022,7 +9022,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C11702"
+		(property "LCSC" "C25117"
 			(at 670.56 53.3399 0)
 			(effects
 				(font
@@ -9065,7 +9065,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "470"
 			(at 683.26 48.26 90)
 			(effects
 				(font
@@ -9083,7 +9083,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C11702"
+		(property "LCSC" "C25117"
 			(at 685.8 53.3399 0)
 			(effects
 				(font

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Container C (spec §9.2 stages 10-12): session import + stitching + fill, DRC gate, U1 GND ties,
+# Container C (spec §9.2 stages 10-12): maze routing + stitching + fill, DRC gate, U1 GND ties,
 # dangling-copper clean-up, pin-in-paste, DRC gate again, checks.
 #   bash pcb/scripts/stage_c.sh <side>      (inside kicad/kicad:10.0.7, cwd = repo root)
 set -euo pipefail
@@ -17,10 +17,10 @@ drc() {
 }
 
 bash tools/kicad_env.sh
-python3 pcb/scripts/import_ses.py "$SIDE"
+python3 pcb/scripts/route.py "$SIDE"
 for _ in $(seq "$CONTINUE_ROUNDS"); do             # more completion while items stay unconnected
     drc && break
-    python3 pcb/scripts/import_ses.py "$SIDE" --continue
+    python3 pcb/scripts/route.py "$SIDE" --continue
 done
 drc || { python3 pcb/scripts/checks.py "$SIDE" || true; exit 1; }
 python3 pcb/scripts/gnd_ties.py "$SIDE"            # U1 GND ties where routing left a neck (deviations ORDER-4)

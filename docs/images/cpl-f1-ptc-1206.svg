@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1020" height="346" viewBox="0 0 1020 346" font-family="DejaVu Sans, Arial, sans-serif" fill="#1a1a1a">
 <rect width="1020" height="346" fill="#ffffff"/>
-<text x="8" y="18" font-size="14" font-weight="bold">F1 PTC fuse, 1206 · JLC footprint F1206 (C70069) · 2 placed, 2 pass</text>
+<text x="8" y="18" font-size="14" font-weight="bold">F1 PTC fuse, 1206 · JLC footprint F1206 (C70076) · 2 placed, 2 pass</text>
 <text x="8" y="36" font-size="11"><tspan fill="#4d4d4d">grey: KiCad copper</tspan>, white: KiCad holes, <tspan fill="#d62728">red: JLC pads</tspan>, <tspan fill="#1f77b4">blue: part terminals / pegs</tspan>, <tspan fill="#2ca02c">green: part body</tspan>, <tspan fill="#b8860b">gold: board edge</tspan>; red ring = JLC pin 1, cross = KiCad pad 1</text>
 <rect x="2" y="48" width="336" height="296" fill="none" stroke="#dddddd"/>
 <path d="M294.257 217.351 L293.089 223.221 L289.764 228.198 L284.787 231.523 L278.916 232.691 L232.895 232.691 L227.025 231.523 L222.048 228.198 L218.723 223.221 L217.555 217.351 L217.555 140.649 L218.723 134.779 L222.048 129.802 L227.025 126.477 L232.895 125.309 L278.916 125.309 L284.787 126.477 L289.764 129.802 L293.089 134.779 L294.257 140.649 L294.257 217.351 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>
@@ -10,7 +10,7 @@
 <path d="M102.503 129.911 L71.822 129.911 L71.822 129.911 L71.822 228.089 L71.822 228.089 L102.503 228.089 L102.503 129.911 Z" fill="#1f77b4" fill-opacity="0.65" stroke="none"/>
 <path d="M295.183 232.016 L222.157 232.016 L222.157 125.984 L295.183 125.984 L295.183 232.016 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
 <path d="M117.843 232.016 L44.817 232.016 L44.817 125.984 L117.843 125.984 L117.843 232.016 Z" fill="none" stroke="#d62728" stroke-width="1.8"/>
-<path d="M240.566 179 L271.246 179 M255.906 163.66 L255.906 194.34" stroke="#1a1a1a" stroke-width="1.5"/>
+<path d="M240.565 179 L271.246 179 M255.906 163.66 L255.906 194.34" stroke="#1a1a1a" stroke-width="1.5"/>
 <circle cx="258.667" cy="179" r="15.34" fill="none" stroke="#d62728" stroke-width="2"/>
 <text x="8" y="316" font-size="12" font-weight="bold">LEFT F1 · F.Cu · CPL 180°</text>
 <text x="8" y="331" font-size="11">place 0.000 mm · terminals 100% on pad</text>

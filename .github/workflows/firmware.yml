@@ -17,6 +17,8 @@ permissions:
 
 env:
   ZMK_SHA: 4dd95d7840eb3d5a3f59bb29fbf1ab054715ef85   # keep equal to firmware/zmk/config/west.yml
+  # zmkfirmware/zmk-build-arm:stable by digest; keep equal to tools/images.lock and to `container.image` below
+  FW_IMAGE: zmkfirmware/zmk-build-arm@sha256:edb1c953438c6f720ddb79c3762f3972013b7fbbaf4fff3592fc869983e7afc5
 
 jobs:
   checks:
@@ -27,6 +29,10 @@ jobs:
       - name: west.yml pins the same ZMK SHA
         run: |
           grep -qx "      revision: ${ZMK_SHA}" firmware/zmk/config/west.yml
+      - name: The build image is the one in tools/images.lock
+        run: |
+          grep -q " ${FW_IMAGE}\$" tools/images.lock
+          grep -q "image: ${FW_IMAGE}\$" .github/workflows/firmware.yml
       - name: worxboard-layouts.dtsi regenerates with no diff
         run: |
           python3 firmware/zmk/scripts/gen_layouts.py
@@ -55,7 +61,7 @@ jobs:
     needs: [checks, matrix]
     runs-on: ubuntu-24.04
     container:
-      image: zmkfirmware/zmk-build-arm:stable
+      image: zmkfirmware/zmk-build-arm@sha256:edb1c953438c6f720ddb79c3762f3972013b7fbbaf4fff3592fc869983e7afc5
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.build_matrix) }}

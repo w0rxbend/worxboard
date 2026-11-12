@@ -19,11 +19,14 @@ import release
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/release.yml"
-VERSION = "v9.9.9-revA"
+VERSION = "v9.9.9-revB"
 UF2_MAGIC = b"UF2\n"                    # first word of every UF2 block (0x0A324655)
 STEP_MAGIC = b"ISO-10303-21;"
 JLC_POS_HEADER = ["Designator", "Mid X", "Mid Y", "Layer", "Rotation"]
 COPIED = ("build.yaml", "CHANGELOG.md", "LICENSE-HARDWARE")
+PCB_ORDER = ("gerbers.zip", "bom.csv", "cpl.csv", "README.md", "bare-board/bom.csv", "pcbway/bom.csv")
+CASE_ORDER = ("README.md", "hardware.csv", "jlccnc/worxboard_leg.step", "pcbway/ORDER_NOTES.md")
+ORDER_FILES = {"pcb/production/left": PCB_ORDER, "pcb/production/right": PCB_ORDER, "case/production": CASE_ORDER}
 
 
 def fake_tree(root: Path) -> None:
@@ -47,6 +50,11 @@ def fake_tree(root: Path) -> None:
               "worxboard_leg.step", "worxboard_leg.stl"):
         (exports / f).write_text(f)
     (plates / "worxboard-plate-left.dxf").write_text("plate")
+    for folder, names in ORDER_FILES.items():
+        for name in names:
+            f = root / folder / name
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(f"{folder} {name}\n")
 
 
 def members(path: Path) -> set[str]:
@@ -61,8 +69,12 @@ def test_assets_from_a_fake_tree(tmp_path):
     uf2s = {f"{a}.uf2" for a in release.artifacts(tmp_path)}
     assert len(uf2s) == 6 and {"worxboard_left_central.uf2", "worxboard_right_peripheral.uf2"} <= uf2s
     assert written == {f"worxboard-{VERSION}-pcb-left.zip", f"worxboard-{VERSION}-pcb-right.zip",
+                       f"worxboard-{VERSION}-order-left.zip", f"worxboard-{VERSION}-order-right.zip",
+                       f"worxboard-{VERSION}-case-order.zip",
                        f"worxboard-{VERSION}-case-step.zip", f"worxboard-{VERSION}-case-stl.zip",
                        release.SUMS, *uf2s}
+    for asset, names in ((f"worxboard-{VERSION}-order-left", PCB_ORDER), (f"worxboard-{VERSION}-case-order", CASE_ORDER)):
+        assert members(out / f"{asset}.zip") == {f"{asset}/{n}" for n in (*names, "LICENSE-HARDWARE")}
     top = f"worxboard-{VERSION}-pcb-left/"
     assert members(out / f"worxboard-{VERSION}-pcb-left.zip") == {
         top + f for f in (*release.JLC_FILES, "worxboard-left.step", "edge.dxf", "LICENSE-HARDWARE")}
@@ -75,6 +87,7 @@ def test_assets_from_a_fake_tree(tmp_path):
     assert set(sums) == written - {release.SUMS}
     notes = (out / release.NOTES).read_text()
     assert "pre-release" in notes and all(f"`{a}`" in notes for a in written)
+    assert "Rev B has not been built" in notes and "Rev A" not in notes
 
 
 def test_assembly_is_reproducible(tmp_path):
@@ -94,6 +107,13 @@ def test_missing_input_fails(tmp_path, gone):
         release.assemble(tmp_path, tmp_path / "dist", VERSION)
 
 
+def test_order_package_without_pcbway_fails(tmp_path):
+    fake_tree(tmp_path)
+    shutil.rmtree(tmp_path / "pcb/production/right/pcbway")
+    with pytest.raises(SystemExit, match=re.escape("order-right.zip: no pcbway/ files")):
+        release.assemble(tmp_path, tmp_path / "dist", VERSION)
+
+
 def test_no_case_exports_fails(tmp_path):
     fake_tree(tmp_path)
     shutil.rmtree(tmp_path / "case/exports")
@@ -104,7 +124,7 @@ def test_no_case_exports_fails(tmp_path):
 def test_notes_take_the_changelog_section(tmp_path):
     fake_tree(tmp_path)
     (tmp_path / "CHANGELOG.md").write_text(
-        "# Changelog\n\n## [Unreleased]\n\nnext\n\n## [9.9.9-revA] - 2030-01-01\n\nthis one\n")
+        "# Changelog\n\n## [Unreleased]\n\nnext\n\n## [9.9.9-revB] - 2030-01-01\n\nthis one\n")
     assert release.changelog_section(tmp_path, VERSION) == "this one"
     assert release.changelog_section(tmp_path, "v1.0.0") == "next"
 

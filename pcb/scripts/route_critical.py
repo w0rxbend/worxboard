@@ -3,8 +3,8 @@
 
     python3 pcb/scripts/route_critical.py <side>     (edits pcb/<side>/worxboard-<side>.kicad_pcb)
 
-- QFN-56: Freerouting fans the U1 signal pins out itself at FAN_W (export_dsn.py puts those
-  nets in a 0.15 mm class). Here: the joins inside the pad ring (MOAT, between the pad inner
+- QFN-56: a 45 deg corner fan-out of the U1 signal pins at FAN_W, which the maze router
+  (complete_routes.py) continues at that width. Also here: the joins inside the pad ring (MOAT, between the pad inner
   ends and the exposed pad): 3V3 pins 42/43/44/33/22 and 1/10, 1V1 pins 45/50, TESTEN onto the
   GND pad; 48/49 and 43/44 bridged at the pads; a 3 x 3 via array in the exposed pad; three
   3V3 exits necked to 0.15 mm between the pads, then 0.5 mm.
@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import pcbnew  # noqa: E402
+from shapely.geometry import LineString, Point  # noqa: E402
 
 from design import POWER_NETS  # noqa: E402
 from place import (EDGE_CLEARANCE, U1_ROT, U4_CAP_VIA_Y, U4_L_S, U4_PIN5, U4_VIA_OUT, USB_NETS,  # noqa: E402
@@ -75,7 +76,8 @@ MX_X = 7.0                   # socket pad 2 -> diode anode link (B.Cu), east of 
 MX_X_TRIES = (7.0, 7.4, 6.6, 7.8)   # the link's vertical run, first one clear of holes and keepouts
 ROW_VIA_DX = 1.55            # row via this far west of the cathode pad centre; the row line (F.Cu)
                              # runs at the diode's height, below the LED cutout
-EDGE_CLEAR = 0.5             # copper to an Edge.Cuts cutout (the LED holes), the board rule
+EDGE_CLEAR = 0.5             # copper to the board outline, the board rule
+LED_EDGE_CLEAR = 0.35        # copper to an LED cutout: place.LED_EDGE_CLEARANCE and a margin for the arcs
 COL_X = -8.885               # column line (B.Cu) and column vias, west of the socket
 MATRIX_W = 0.25
 CLEAR = 0.2
@@ -83,6 +85,16 @@ HOLE_CLEAR = 0.25            # copper to a drilled hole
 DETOUR_DEPTHS = [0.5 * i for i in range(2, 13)]   # sideways step around a hole keepout
 DETOUR_HALF = 3.6            # half-length of the straight part beside the hole
 JOG_TRIES = [0.0] + [s * 0.5 * i for i in range(1, 15) for s in (1, -1)]
+# Per-key RGB cell on four layers (docs/deviations.md REVB-8), LED frame: origin at the LED centre, u from
+# VSS (pad 1) to DOUT (pad 4), v from VSS to DIN (pad 2). Each tuple lists via spots, first clear one wins
+LED_W = 0.4                  # VSS / VDD / cap spurs (the 0402 cap pad is 0.56 wide)
+LED_GND_VIA = ((-4.125, -0.75), (-4.125, -1.6))
+LED_DIN_VIA = ((-4.125, 0.75), (-4.125, 1.6), (-2.825, 1.9))
+LED_DOUT_VIA = ((2.825, -1.88), (1.9, -2.1), (3.6, -1.88))
+CAP_GND_VIA = ((5.75, -0.68), (4.6, -1.5), (5.75, -1.4))
+CAP_VLED_VIA = ((5.75, 0.82), (4.6, 1.6), (5.75, 1.6))
+PLANE_VIA_R = (1.0, 1.3, 1.7)  # via this far from a top-side plane-net pad centre, first clear spot
+LANE_MIN_RUN = 1.0           # a jogged F.Cu data lane needs this much straight run beside its 45 deg jog
 
 TESTEN = "19"
 
@@ -171,6 +183,13 @@ class Router:
             t.SetLocked(True)
             self.board.Add(t)
             self.tracks += 1
+            self.note(LineString([a, b]).buffer(width / 2 + CLEAR), (layer,), net)
+
+    def note(self, geom, layers, net) -> None:
+        """Copper laid once the matrix has its obstacle lists is an obstacle for what follows."""
+        for layer in layers:
+            if layer in getattr(self, "obst", {}):
+                self.obst[layer].append((geom, net.GetNetCode()))
 
     def ltrack(self, net, lpts, width: float, layer=pcbnew.F_Cu) -> None:
         self.track(net, [self.g(*p) for p in lpts], width, layer)
@@ -183,6 +202,7 @@ class Router:
         v.SetNet(net)
         v.SetLocked(True)
         self.board.Add(v)
+        self.note(Point(xy).buffer(VIA_R + CLEAR), (pcbnew.F_Cu, pcbnew.B_Cu), net)
 
     # --- QFN ------------------------------------------------------------------------------
     def u1_pads(self) -> dict[str, tuple[float, float]]:
@@ -409,7 +429,7 @@ class Router:
 
     @staticmethod
     def fanout_nets(board: pcbnew.BOARD) -> list[str]:
-        """U1 signal nets: Freerouting routes them at FAN_W (export_dsn.py)."""
+        """U1 signal nets: the maze router routes them at FAN_W (complete_routes.width_class)."""
         u1 = board.FindFootprintByReference("U1")
         skip = set(POWER_NETS) | set(USB_NETS)
         return sorted({p.GetNetname() for p in u1.Pads()
@@ -587,7 +607,7 @@ class Router:
     def matrix(self, keys: list[dict]) -> None:
         """Switch -> diode links for every key; rows (F.Cu) and columns (B.Cu) of the main
         block as straight lines with 45 deg jogs; vias at the 25 deg thumb keys' row and column
-        pads so Freerouting only meets round items there."""
+        pads so the maze router only meets round items there."""
         fps = {f.GetField("Key").GetText() + ":" + f.GetReference()[:1]: f
                for f in self.board.GetFootprints() if f.HasField("Key") and f.GetReference()[:1] in "SD"
                and not f.GetReference().startswith("LED")}
@@ -605,7 +625,7 @@ class Router:
                 if self.clear(link, pcbnew.B_Cu, mx):
                     self.track(mx, link, MATRIX_W, pcbnew.B_Cu)
                     break
-            else:                                      # next to a mounting hole: Freerouting links it
+            else:                                      # next to a mounting hole: the maze router links it
                 self.unlocked.append(sk.GetReference())
             row, col = self.net(d.GetReference(), "1"), self.net(sk.GetReference(), "1")
             ry = dk[1]
@@ -627,7 +647,7 @@ class Router:
                 pts = self.jogged(a, b, (ka["x"] + kb["x"]) / 2, 0, pcbnew.F_Cu, net)
                 if pts:
                     self.track(net, pts, MATRIX_W, pcbnew.F_Cu)
-                else:                                  # past a mounting hole: Freerouting joins the vias
+                else:                                  # past a mounting hole: the maze router joins the vias
                     self.unlocked.append(f"{ka['id']}-{kb['id']}")
         for members in cols.values():
             members.sort(key=lambda m: m[1][1])
@@ -638,10 +658,70 @@ class Router:
                 else:
                     self.unlocked.append(f"{ka['id']}-{kb['id']}")
 
-    def clear(self, pts, layer, net) -> bool:
-        """A MATRIX_W polyline on `layer` clear of other nets' pads, holes, keepouts and cutouts."""
-        from shapely.geometry import LineString
-        line = LineString(pts).buffer(MATRIX_W / 2)
+    def leds(self, leds: list[dict]) -> None:
+        """Per-key RGB cells (REVB-8): VSS and the cap's GND pad each to a GND via, VDD to the cap and on
+        to a VLED via (the inner planes carry both), DIN and DOUT each to a via, and an F.Cu lane from
+        each DOUT via to the next DIN via. A lane with no clear jog is left to the autorouter."""
+        B = pcbnew.B_Cu
+        ends = []
+        for d in leds:
+            ref, cap = d["ref"], d["cap"]
+            vss, din, vdd, dout = (self.pad_xy(ref, n) for n in "1234")
+            c = ((vss[0] + vdd[0]) / 2, (vss[1] + vdd[1]) / 2)
+            lu, lv = math.dist(vss, dout), math.dist(vss, din)
+            eu = ((dout[0] - vss[0]) / lu, (dout[1] - vss[1]) / lu)
+            ev = ((din[0] - vss[0]) / lv, (din[1] - vss[1]) / lv)
+
+            def at(spots):
+                return [(c[0] + u * eu[0] + v * ev[0], c[1] + u * eu[1] + v * ev[1]) for u, v in spots]
+            gnd, vled = self.net(ref, "1"), self.net(ref, "3")
+            c1, c2 = self.pad_xy(cap, "1"), self.pad_xy(cap, "2")
+            self.spur(gnd, vss, at(LED_GND_VIA), LED_W)
+            self.spur(gnd, c2, at(CAP_GND_VIA), LED_W)
+            self.track(vled, [vdd, c1], LED_W, B)
+            self.spur(vled, c1, at(CAP_VLED_VIA), LED_W)
+            a = self.spur(self.net(ref, "2"), din, at(LED_DIN_VIA), MATRIX_W)
+            last = self.pad(ref, "4").GetNetname().startswith("unconnected-")
+            b = None if last else self.spur(self.net(ref, "4"), dout, at(LED_DOUT_VIA), MATRIX_W)
+            ends.append((ref, a, b))
+        for (ref, _, a), (_, b, _) in zip(ends, ends[1:]):
+            net = self.net(ref, "4")
+            axis = 0 if abs(b[0] - a[0]) >= abs(b[1] - a[1]) else 1
+            run = abs(b[axis] - a[axis]) - abs(b[1 - axis] - a[1 - axis])
+            pts = self.jogged(a, b, (a[axis] + b[axis]) / 2, axis, pcbnew.F_Cu, net) if run > LANE_MIN_RUN else None
+            if pts:
+                self.track(net, pts, MATRIX_W, pcbnew.F_Cu)
+            else:
+                self.unlocked.append(net.GetNetname())
+
+    def plane_vias(self, name: str) -> None:
+        """Every top-side SMD pad of plane net `name` (the VLED switch, buffer and their caps) to a via
+        beside it, so it reaches its inner plane."""
+        for fp in sorted(self.board.GetFootprints(), key=lambda f: f.GetReference()):
+            for pad in fp.Pads():
+                if pad.GetNetname() != name or fp.IsFlipped() or pad.HasHole():
+                    continue
+                p = self.xy(pad.GetPosition())
+                spots = [(p[0] + r * math.cos(math.radians(a)), p[1] + r * math.sin(math.radians(a)))
+                         for r in PLANE_VIA_R for a in range(0, 360, 45)]
+                self.spur(pad.GetNet(), p, spots, LED_W, pcbnew.F_Cu)
+
+    def spur(self, net, pad: tuple[float, float], spots: list[tuple[float, float]], width: float,
+             layer=pcbnew.B_Cu):
+        """Locked copper on `layer` from `pad` to a via at the first of `spots` that is clear."""
+        code = net.GetNetCode()
+        for v in spots:
+            disc = Point(v).buffer(VIA_R)
+            if (self.clear([pad, v], layer, net, width)
+                    and not any(g.intersects(disc) for layer in self.obst for g, c in self.obst[layer] if c != code)):
+                self.track(net, [pad, v], width, layer)
+                self.via(net, v)
+                return v
+        raise SystemExit(f"{net.GetNetname()}: no clear via spot beside the pad at ({pad[0]:.2f}, {pad[1]:.2f})")
+
+    def clear(self, pts, layer, net, width: float = MATRIX_W) -> bool:
+        """A polyline on `layer` clear of other nets' pads, holes, keepouts, cutouts and laid copper."""
+        line = LineString(pts).buffer(width / 2)
         code = net.GetNetCode()
         return not any(g.intersects(line) for g, c in self.obst[layer] if c != code)
 
@@ -673,12 +753,12 @@ class Router:
             o = edges.Outline(0)
             ring = [self.xy(o.CPoint(i)) for i in range(o.PointCount())]
             out.append((LineString(ring + ring[:1]).buffer(EDGE_CLEAR), -1))
-        for fp in self.board.GetFootprints():          # rev B LED cutouts (footprint Edge.Cuts)
-            cuts = [g.GetBoundingBox() for g in fp.GraphicalItems() if g.GetLayer() == pcbnew.Edge_Cuts]
+        from shapely.geometry import MultiPoint
+        for fp in self.board.GetFootprints():          # rev B LED cutouts (footprint Edge.Cuts): their hull,
+            cuts = [g for g in fp.GraphicalItems() if g.GetLayer() == pcbnew.Edge_Cuts]   # so a turned one is not a box
             if cuts:
-                xs = [self.xy(b.GetOrigin())[0] for b in cuts] + [self.xy(b.GetEnd())[0] for b in cuts]
-                ys = [self.xy(b.GetOrigin())[1] for b in cuts] + [self.xy(b.GetEnd())[1] for b in cuts]
-                out.append((box(min(xs), min(ys), max(xs), max(ys)).buffer(EDGE_CLEAR), -1))
+                ends = [self.xy(q) for g in cuts for q in (g.GetStart(), g.GetEnd())]
+                out.append((MultiPoint(ends).convex_hull.buffer(LED_EDGE_CLEAR), -1))
         for z in self.board.Zones():
             if z.GetIsRuleArea() and z.GetDoNotAllowTracks() and z.IsOnLayer(layer):
                 from shapely.geometry import Polygon
@@ -722,7 +802,7 @@ class Router:
                                P(cx + sign * (h - depth), a1 + side * depth), P(cx + sign * h, a1), b]
                         if clear(pts):
                             return pts
-        return None                     # caller leaves this run to Freerouting
+        return None                     # caller leaves this run to the maze router
 
     def keepout(self, lines: list[list[tuple[float, float]]]) -> None:
         """B.Cu track keepout under the pair (fills still allowed)."""
@@ -807,9 +887,11 @@ def main(argv: list[str]) -> int:
     r.keepout(r.usb())
     r.ep_caps()
     r.matrix(layout_side(side)["keys"])
+    r.leds(layout_side(side)["leds"])
+    r.plane_vias("VLED")
     board.Save(str(path))
     print(f"{side}: {r.tracks} locked track segments"
-          + (f"; switch -> diode left to Freerouting at {' '.join(r.unlocked)}" if r.unlocked else ""))
+          + (f"; left to the autorouter: {' '.join(r.unlocked)}" if r.unlocked else ""))
     return 0
 
 

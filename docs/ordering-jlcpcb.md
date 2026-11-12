@@ -16,9 +16,10 @@ Switches, keycaps, displays, cables and screws come from other shops: see
 [shopping-list.md](shopping-list.md).
 
 > [!IMPORTANT]
-> Rev B is designed and checked, and the order package is checked in CI on every push.
-> [verification.md](verification.md#summary) records rev A's gates G1 to G3 as passed; the rev B
-> results are recorded there once the boards are regenerated. No board has been built yet. Order 2
+> Rev B is a **four-layer** board (deviation [REVB-8](deviations.md)). The order package is checked
+> in CI on every push. [verification.md](verification.md#summary) records rev A's gates G1 to G3 as
+> passed; the rev B results are recorded there from the final routed boards. Order only from a commit
+> whose `pcb` workflow is green. No board has been built yet. Order 2
 > assembled boards per side (one spare), test them ([build guide](buildguide_en.md)), and only then
 > order the case in aluminium.
 
@@ -85,7 +86,9 @@ JLC renames form options now and then, so pick the closest match. The values are
 ### 1. Upload the Gerbers
 
 On [jlcpcb.com](https://jlcpcb.com), open *Instant Quote* and upload `gerbers.zip` as the Gerber
-file. JLC should read **2 layers** and **198.84 × 174.75 mm**. If it shows about 183 × 159 mm, you
+file. JLC should read **4 layers** and **198.84 × 174.75 mm**. In the Gerber viewer the two inner
+layers are nearly solid copper: inner 1 (`-inner1.g1`) is the GND plane and inner 2 (`-inner2.g2`) the
+VLED plane. If it shows about 183 × 159 mm, you
 uploaded the bare board.
 
 ### 2. PCB options
@@ -93,18 +96,21 @@ uploaded the bare board.
 | Option | Value | Why |
 |---|---|---|
 | Base material | FR-4 | |
-| Layers | **2** | |
+| Layers | **4** | F.Cu signal, In1 GND plane, In2 VLED plane, B.Cu signal (REVB-8) |
 | Dimensions | 198.84 × 174.75 mm (read from the Gerbers) | the panel |
 | PCB qty | **5** | the minimum; you get 5 panels, of which the PCBA quantity are assembled |
 | Product type | Industrial/Consumer electronics | |
 | Different design | 1 | one board per panel |
 | Delivery format | **Panel by Customer** (if the form asks for the panel format: 1 column × 1 row) | the frame is in the Gerbers |
 | PCB thickness | **1.6 mm** | the case stack is built on it |
+| Impedance control | **No** | nothing on the board needs a controlled impedance |
+| Layer stackup | **JLC04161H-7628** (JLC's default for 4 layers, 1.6 mm) | any standard 1.6 mm stack-up does |
 | PCB colour | any (green is cheapest and fastest) | the mask webs at the QFN (about 0.2 mm) suit every colour |
 | Silkscreen | the default for the colour | |
 | Material type | FR-4 TG135 (the default) | |
 | Surface finish | **ENIG** (1 U" gold) | flat pads for the 0.4 mm QFN and the USB-C |
 | Outer copper weight | 1 oz | |
+| Inner copper weight | **0.5 oz** (the default) | the planes carry under 0.5 A |
 | Via covering | **Tented** | |
 | Min via hole size / diameter | 0.3 mm / (0.4/0.45 mm), the default | every via is 0.3 / 0.6 mm |
 | Board outline tolerance | ±0.2 mm (regular) | |
@@ -283,7 +289,7 @@ Run `just pcb-stock left 5` again on the day: it names the line that fails. Then
 | J3 | C27985230 | **none that fits the case** | | | the 5.7 mm sockets (C46061764, C55218875) take the same row but lift the glass 0.7 mm, to 10.45 mm above the PCB at full tolerance, over the pocket ceiling at 10.0 mm (CASE-1). If J3 is out, wait for stock, or untick J3 and solder the 5 mm socket that ships with the nice!view yourself |
 | U3 | C51118 | C82942 (ME6211C33M5G-N) | 370 432 | no | same SOT-23-5 pinout (1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; both datasheets), 500 mA |
 | U4, U5 | C7519 | C2687116 (UMW USBLC6-2SC6) | 109 130 | no | a second-source copy of the same part |
-| F1 | C70069 | C70070 (nSMD025-30V) | 46 671 | no | the same 1206 PTC, 250 mA hold, rated 30 V |
+| F1 | C70076 | none checked | | | REVB-9: nSMD050-24V, 500 mA hold. If it is out, pick a 1206 PTC with 500 mA hold and 24 V or more and check its footprint; do not go back to a 250 mA part (C70069, C70070) |
 | R3, R4 | C2909343 | C25100 (27 Ω 0402) | 36 392 | no | any 27 Ω 0402 |
 | other R and C (0402; 0603 for the 10 µF C1–C3, C20) | | any part of the same value, package and dielectric (prefer basic parts) | | no | keep the 10 µF at 0603, 10 V or more: rev A's 0402 6.3 V part kept only about 2–3 µF at VSYS (REVB-3) |
 | U1, U2, J1, J2, SW1, SW2, D1, D101–D137, U6, U7, LED101–LED137 | | no alternate checked | | | U1 has one source. U2 has huge stock (74 052) as a basic part. For J1 and J2 any other part needs another footprint, so wait for stock. U7's correction (0;0;180) belongs to JLC's footprint of C100024, and the LEDs need a reverse-mount part for the cutout: an alternate for either needs its own placement check |
@@ -295,8 +301,9 @@ them.
 ## Cost estimate
 
 > [!NOTE]
-> This is **rev A's** estimate, and rev B has not been re-estimated. Rev B costs more on every
-> assembly line that counts parts: it places 82 more parts per half (the 74 LEDs and caps on the
+> This is **rev A's** estimate, and rev B has not been re-estimated: **read the cost from your
+> quote.** Rev B is a four-layer board (REVB-8), which costs more to fabricate than the two-layer
+> line below. It also costs more on every assembly line that counts parts: it places 82 more parts per half (the 74 LEDs and caps on the
 > bottom, 8 parts on top), so more SMT joints and more parts to buy (37 LEDs per board among them),
 > and it has five more unique part numbers, so the part loading adds 5 × $1.53 per design. Setup,
 > stencil, X-ray and the J3 hand soldering do not change. Your cart shows the real figures.
@@ -309,7 +316,7 @@ or for shipping, so those two lines are ranges, not quotes. Your cart shows the 
 
 | Line | Per design | Both designs | Basis |
 |---|---|---|---|
-| PCB fabrication, 5 panels, 2 layers, ENIG | $20–50 | $40–100 | not quoted. The panel is 347 cm², under JLC's 650 cm² large-size limit |
+| PCB fabrication, 5 panels, ENIG | $20–50 (rev A, 2 layers) | $40–100 (rev A, 2 layers) | not quoted, and rev B's 4 layers cost more: read it from the quote. The panel is 347 cm², under JLC's 650 cm² large-size limit |
 | Setup, Standard, double-sided | $51.12 | $102.24 | price page |
 | Stencil, double-sided | $16.42 | $32.84 | price page |
 | Part loading, 20 SMT part numbers × $1.53 | $30.60 | $61.20 | the same for basic and extended parts in Standard PCBA. JLC does not say whether the THT J3 counts: +$1.53 if it does |

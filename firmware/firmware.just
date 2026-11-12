@@ -2,7 +2,8 @@
 #   just fw                         every build.yaml row -> build/fw/artifacts/<artifact>.uf2
 #   just fw worxboard_left_central  only the named rows
 
-fw_image   := "zmkfirmware/zmk-build-arm:stable"
+# zmkfirmware/zmk-build-arm:stable by its locked digest (tools/images.lock): the tag moves
+fw_image   := `awk '$1 == "zmkfirmware/zmk-build-arm:stable" { print $2 }' tools/images.lock`
 fw_ws      := "build/fw-ws"
 fw_scripts := "firmware/zmk/scripts"
 

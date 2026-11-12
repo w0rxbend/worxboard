@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1020" height="646" viewBox="0 0 1020 646" font-family="DejaVu Sans, Arial, sans-serif" fill="#1a1a1a">
 <rect width="1020" height="646" fill="#ffffff"/>
-<text x="8" y="18" font-size="14" font-weight="bold">Resistors, 0402 · JLC footprint R0402 (C11702, C25744, C25905, C2909343) · 26 placed, 26 pass</text>
+<text x="8" y="18" font-size="14" font-weight="bold">Resistors, 0402 · JLC footprint R0402 (C11702, C25117, C25744, C25756, C25905, C2909343) · 32 placed, 32 pass</text>
 <text x="8" y="36" font-size="11"><tspan fill="#4d4d4d">grey: KiCad copper</tspan>, white: KiCad holes, <tspan fill="#d62728">red: JLC pads</tspan>, <tspan fill="#1f77b4">blue: part terminals / pegs</tspan>, <tspan fill="#2ca02c">green: part body</tspan>, <tspan fill="#b8860b">gold: board edge</tspan>; red ring = JLC pin 1, cross = KiCad pad 1</text>
 <rect x="2" y="48" width="336" height="296" fill="none" stroke="#dddddd"/>
 <path d="M78.435 157.283 L79.641 151.218 L83.077 146.077 L88.218 142.641 L94.283 141.435 L125.978 141.435 L132.043 142.641 L137.184 146.077 L140.62 151.218 L141.826 157.283 L141.826 200.717 L140.62 206.782 L137.184 211.923 L132.043 215.359 L125.978 216.565 L94.283 216.565 L88.218 215.359 L83.077 211.923 L79.641 206.782 L78.435 200.717 L78.435 157.283 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>

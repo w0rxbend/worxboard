@@ -25,7 +25,8 @@ _autosave-*
 \#auto_saved_files#
 pcb/.tools/
 
-# Production files: force-added on v*-revA hardware tags only (git add -f pcb/production/...)
+# Order packages: committed on main with `git add -f pcb/production` (PKG-4), so a stray build copy
+# is never added by accident. New files in a package (pcbway/ ...) need the -f too.
 pcb/production/*
 !pcb/production/.gitkeep
 

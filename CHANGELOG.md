@@ -7,8 +7,8 @@ firmware and case files.
 ## [Unreleased]
 
 Rev B is the order revision after the rev A pre-order review of 2026-11-04
-([deviations REVB-1 to REVB-5](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)). It is designed and checked, not built; its gate results are
-recorded in `docs/verification.md` once the boards are regenerated. Entries not marked rev B are
+([deviations REVB-1 to REVB-9](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)). It is designed, not built; its gate results are
+recorded in `docs/verification.md` from the final routed boards. Entries not marked rev B are
 rev A's.
 
 ### Added
@@ -44,7 +44,7 @@ rev A's.
   `build/kle.json`. `just layout-check` runs the WS0 acceptance tests and the no-diff check.
 - Root `justfile` that imports each stream's `*.just`. `pyproject.toml` and `uv.lock`
   (Python 3.12; groups `layout`, `case`, `dev`).
-- `tools/kicad_env.sh`, `tools/fetch_freerouting.sh` and `tools/images.lock`.
+- `tools/kicad_env.sh` and `tools/images.lock`.
 - CI: `.github/workflows/layout.yml`.
 - `LICENSE-HARDWARE` (CERN-OHL-S-2.0), `THIRD_PARTY.md` and `docs/deviations.md`.
 - Firmware: a ZMK module for the on-board RP2040 halves (`zephyr/module.yml`, `firmware/zmk/`) with
@@ -54,8 +54,8 @@ rev A's.
   `_EXPERIMENTAL` role swaps and two `_EXPERIMENTAL` RP2350A (`worxboard2`) rows. `just fw`, CI
   `firmware.yml`.
 - PCB: both halves generated headless in KiCad 10 (`pcb/`): vendored MX hot-swap and 2u stabiliser
-  footprints, schematics with netlist checks against `design.py`, seeded placement, Freerouting and a
-  completion router, DRC with schematic parity at 0 violations / 0 unconnected, and JLCPCB gerbers,
+  footprints, schematics with netlist checks against `design.py`, seeded placement, locked critical routes and
+  the repo's own router, DRC with schematic parity at 0 violations / 0 unconnected, and JLCPCB gerbers,
   BOM, CPL, STEP, Edge DXF and renders. `just pcb-all`, CI `pcb.yml` (it also rebuilds both boards
   from scratch and requires them to equal the committed ones).
 - Case and plates: a build123d port of the ErgoDox CNC case (`case/`) with the display pocket and
@@ -83,8 +83,8 @@ rev A's.
   `cpl-images` job).
 - `netcmp.py --board` in stages C and D: the board must carry the `design.py` parts, LCSC numbers and
   flags, no retired part, and J3 with its pin 1 under the nice!view's pin 1 (ELEC-6, ELEC-8).
-- **Case order package** in `case/production/`, case revision A3: JLCCNC STEP + PDF per part with the
-  order notes, JLC3DP STLs, `hardware.csv`. `just corners` checks every internal corner against
+- **Case order package** in `case/production/` (now case revision A5, see Changed): JLCCNC STEP + PDF
+  per part with the order notes, JLC3DP STLs, `hardware.csv`. `just corners` checks every internal corner against
   JLCCNC's radius-for-depth rule, and `just production-check` holds the package to the model, both
   in CI (CASE-1 to CASE-9).
 - Firmware: both displays are laid out portrait and turned in the LVGL flush
@@ -95,6 +95,38 @@ rev A's.
 
 ### Changed
 
+- **Rev B is a four-layer board** (REVB-8): F.Cu signal, In1 solid GND plane, In2 VLED plane, B.Cu
+  signal, 1.6 mm. Every LED cell is locked, scripted copper (GND and VLED vias, the data lane to the
+  next LED). **Freerouting is removed**: `pcb/scripts/route.py` (the former `import_ses.py`) drives the
+  repo's own maze router; `export_dsn.py`, `tools/fetch_freerouting.sh`, the `pcb-route` recipe and the
+  `eclipse-temurin` image pin are deleted. `just pcb <side>` is `pcb-sch`, `pcb-place`, `pcb-finish`,
+  `pcb-fab`. The two-layer boards failed only on ground-return gates, and Freerouting oscillated at
+  50–130 unrouted connections on either half. Order as 4 layers, default stack-up.
+  The maze router may cross the In2 VLED plane at three times the cost of an outer layer (87 mm of
+  track on the left half, 45 mm on the right), keeps the lane ahead of each U1 fan-out stub free, and
+  searches more greedily in its late rounds. Both halves pass every gate locally (verification.md,
+  rev B results).
+- **BOM** (REVB-9): F1 is nSMD050-24V, 500 mA hold (C70076; was nSMD025-24V, 250 mA, C70069): the far
+  half's LED load crosses two F1 in series and was 78 % of the old hold current. R11/R12 are 470 Ω
+  (C25117; were 1 kΩ): the UART low level at the receiver is 0.28 V instead of 0.55 V.
+- Firmware: RGB idle-off is no longer set (`CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE`): it saved "off",
+  so the keyboard booted dark after an idle spell. The 8 % brightness cap stays; `fw-check` rejects
+  idle-off.
+- CI and release: container images run by the digests in `tools/images.lock`
+  (`tools/pull_images.sh`, `firmware.just`, `firmware.yml`); `layout.yml` also runs the generated-docs
+  check and `pytest tests/integration`; the `rebuild` job is `pcb-sch`, `pcb-place`, `pcb-finish`, then
+  the byte compare. `tests/integration/release.py` publishes the committed order packages
+  (`worxboard-<tag>-order-<side>.zip` with `bare-board/` and `pcbway/`, `worxboard-<tag>-case-order.zip`)
+  and no longer has `--production`.
+- `site/gen_docs.py`: a BOM line with parts on both sides (the 100 nF caps) shows both counts instead
+  of failing.
+- **Case revision A5** (CASE-10): the USB-C and TRRS openings are U-slots through the wall, open to the
+  parting face, so ordinary cables seat fully (no "extended tip" USB-C plug, TRRS plug bodies up to
+  Ø8 mm) and the tops need no side operation for them; T1 and T5 are tapped through and all 16 case
+  screws are M2.5 × 12 (the 4 × M2.5 × 10 are gone); the T0/T3 keycaps clear the key well by 0.77 mm;
+  the drawings carry tolerances for the hole patterns, cavity wall, boss heights and slots; new
+  `case/production/pcbway/ORDER_NOTES.md`; the plate spacers are optional and not in the first order.
+  New gates: `plug_check`, `tap_probe`, keycap-to-well clearance.
 - Rev B board and case changes ([deviations REVB](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)):
   - the nice!view module, J3 (now y 38.925) and the case window move 1.0 mm back: the module ends
     about 0.2–0.3 mm short of the C6R1 key well instead of 0.6–0.8 mm into it, where the C6R1 keycap had only
@@ -110,13 +142,13 @@ rev A's.
     has pin 1 in the other corner from the SOT-23-5 row; the LEDs need no correction (REVB-1);
   - `jlc_footprints.json` gains the rev B parts and keeps the 2025-06-19 record of the TRRS jack
     C95562 that rev A's J2 correction was proven on ([REVB-5](docs/deviations.md#revb-5-jlcs-footprint-record-for-the-trrs-jack-c95562-is-kept-as-verified));
-  - documented, not changed: about 40 µF on VSYS at plug-in, the firmware's 4 MB of the 16 MB
+  - documented, not changed: about 60 µF on VSYS at plug-in (30 µF per half; REVB-9 corrects 40), the firmware's 4 MB of the 16 MB
     flash, and the A4 stepping a future RP2350 board needs (REVB-3).
 - Docs for rev B: README, microsite, both ordering guides, shopping list (switches with an LED
   window, shine-through caps), build guide, electrical, firmware, case and verification pages.
 - `.gitignore` no longer ignores `/zephyr/` (the ZMK module lives at `zephyr/module.yml`). It now
-  ignores `/build/`, `pcb/.tools/`, `case/exports/`, and `pcb/production/` outside hardware tags. The
-  two order packages are force-added on `main` (PKG-4).
+  ignores `/build/`, `pcb/.tools/`, `case/exports/` and `pcb/production/`. The two order packages are
+  force-added on `main` (PKG-4).
 - Parts (ELEC-1 to ELEC-3):
   - hot-swap sockets C41430893, replacing the discontinued C2803348;
   - flash C97521 (basic) and crystal C49304726, replacing C113767 and C91749;
@@ -213,7 +245,6 @@ Order review of the turnkey packages (deviations ORDER-1 to ORDER-9):
   right half's settings writes lock interrupts; their effect on the split UART is unmeasured
   ([firmware.md](docs/firmware.md#known-issues)). ZMK drives the LEDs as underglow: no per-key
   colours.
-- The USB-C cable still needs a plug with at least 8 mm of bare shell (ORDER-7).
 - JLC does not document its bottom-side CPL convention; check the sockets, diodes and LEDs in its
   placement preview. Never upload the JLC CPL to PCBWay. The hot-swap socket C41430893 has no field
   report of JLC assembling it.

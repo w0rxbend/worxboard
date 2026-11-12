@@ -441,7 +441,7 @@ def readme(info: dict) -> bytes:
          "rail **Yes** (the frame in the Gerbers is the rail); different design in panel **1** |",
          f"| Size | {p['w']:.2f} x {p['h']:.2f} mm (the panel, from the Gerbers) |",
          "| Quantity | 5 (the minimum) |",
-         "| Layers | **2** |",
+         "| Layers | **4** |",
          "| Material | FR-4, TG 130-140 (the default) |",
          "| Thickness | **1.6 mm** |",
          f"| Min track/spacing | **{info['track']}** (narrowest track {info['min_track']:.3f} mm, clearance rule "
@@ -453,7 +453,8 @@ def readme(info: dict) -> bytes:
          "| Edge connector | No |",
          "| Surface finish | **Immersion gold (ENIG)**, 1U\" |",
          "| Via process | **Tenting vias** |",
-         "| Finished copper | **1 oz Cu** |",
+         "| Finished copper | **1 oz Cu** outer, 0.5 oz inner |",
+         "| Layer order | F.Cu (L1), In1.Cu (L2, GND plane), In2.Cu (L3, VLED plane), B.Cu (L4); standard stack-up, no impedance control |",
          "| Remove product No. | Yes (extra charge) for no PCBWay number on the board; No lets PCBWay print it |",
          f"| Other special request ({REMARK_MAX} characters at most) | `{short}` |",
          "",

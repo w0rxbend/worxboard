@@ -44,7 +44,7 @@ LCSC = {
     "C51118": ("AP2112K-3.3TRG1, 600 mA LDO", "[J]", True),
     "C7519": ("USBLC6-2SC6 ESD array (USB, TRRS)", "[J]", True),
     "C8598": ("B5819W, 1 A Schottky", "[J]", False),
-    "C70069": ("nSMD025-24V PTC, 250 mA hold, 24 V", "[J]", True),
+    "C70076": ("nSMD050-24V PTC, 500 mA hold, 24 V (REVB-9: was nSMD025-24V)", "[J]", True),
     "C165948": ("HRO TYPE-C-31-M-12, USB-C 16P", "[J]", True),
     "C95562": ("PJ-320D-4A TRRS jack, SMD", "[J], G2", True),
     "C455280": ("TS-1088R-02026 tact switch", "[C]", True),
@@ -62,7 +62,7 @@ LCSC = {
     "C55136": ("SY6280AAC VLED load switch, 0.45 A limit (rev B)", "[J]", True),
     "C100024": ("SN74LV1T34DBVR 3.3 V -> VLED data buffer (rev B)", "[J]", True),
     "C25756": ("15 kΩ 0402 (U6 current limit)", "[J]", False),
-    "C25117": ("470 Ω 0402 (LED data series)", "[J]", False),
+    "C25117": ("470 Ω 0402 (LED data and UART series)", "[J]", False),
     "C27985230": ("1×5 2.54 mm female socket, 5.0 mm, **THT** (display, G1)", "[J], G1", True),
 }
 # Parts kept out of the JLC BOM/CPL (reference prefix -> what it is, why)
@@ -287,13 +287,20 @@ def matrix(d: dict) -> str:
 
 
 # ---------------------------------------------------------------- bom.md blocks
-def _board_side(refs: list[str]) -> str:
-    """The assembly side of these references, the same on both boards."""
-    sides = {PCB.footprints(s)[r].side for s in SIDES for r in refs}
-    if len(sides) != 1:
-        raise SystemExit(f"bom: {refs} sit on {sides}")
-    side = sides.pop()
-    return "**bottom**" if side == "bottom" else side
+def _bottom_refs(refs: list[str]) -> list[str]:
+    """The references assembled on the bottom side; each sits on the same side of both boards."""
+    left, right = (PCB.footprints(s) for s in SIDES)
+    differ = [r for r in refs if left[r].side != right[r].side]
+    if differ:
+        raise SystemExit(f"bom: {differ} sit on different sides of the two boards")
+    return [r for r in refs if left[r].side == "bottom"]
+
+
+def _side_cell(total: int, bottom: int) -> str:
+    """`top`, `**bottom**`, or both with counts when one BOM line has parts on both sides."""
+    if bottom == 0:
+        return "top"
+    return "**bottom**" if bottom == total else f"top {total - bottom}, **bottom** {bottom}"
 
 
 def _check_boards() -> None:
@@ -327,16 +334,17 @@ def bom_assembled() -> list[str]:
         if p.in_bom and not p.dnp:
             groups.setdefault((p.value, p.footprint, p.lcsc), []).append(p.ref)
     shared = {lcsc for lcsc, n in Counter(k[2] for k in groups).items() if n > 1}
-    rows = []
+    rows, bottom_total = [], 0
     for (value, fp, lcsc), refs in groups.items():
         what, flag, ext = LCSC[lcsc]
         what += f" ({value})" if lcsc in shared else ""     # SW1 BOOT / SW2 RESET: one part, two lines
+        bottom = len(_bottom_refs(refs))
+        bottom_total += bottom
         rows.append([_refs(refs), str(len(refs)), what, f"[{lcsc}](https://jlcpcb.com/partdetail/{lcsc})",
-                     f"`{fp.split(':')[1]}`", _board_side(refs), flag, "yes" if ext else ""])
+                     f"`{fp.split(':')[1]}`", _side_cell(len(refs), bottom), flag, "yes" if ext else ""])
     n = sum(int(r[1]) for r in rows)
     out = _table(["Designators", "Qty", "Part", "LCSC", "Footprint", "Side", "Status", "Extended"], rows)
-    return out + ["", f"{len(rows)} BOM lines, {n} parts per half, "
-                      f"{sum(int(r[1]) for r in rows if 'bottom' in r[5])} of them on the bottom side."]
+    return out + ["", f"{len(rows)} BOM lines, {n} parts per half, {bottom_total} of them on the bottom side."]
 
 
 def bom_excluded(d: dict) -> list[str]:

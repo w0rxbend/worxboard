@@ -23,7 +23,6 @@ worxboard builds on the work below. The licence terms and where each piece is us
 | [nice!view](https://nicekeyboards.com/nice-view/) by Nice Keyboards | The display module format (Sharp LS011B7DH03 memory LCD) and its pinout |
 | [KiCad](https://www.kicad.org/) 10.0.7 and its [libraries](https://gitlab.com/kicad/libraries) (CC-BY-SA-4.0 with the library exception) | Schematic and PCB tools (`kicad-cli`, the `pcbnew` Python API, the official `kicad/kicad` Docker images); stock symbols, footprints and 3D models |
 | [kicad-sch-api](https://github.com/circuit-synth/kicad-sch-api) 0.5.6 (MIT) | Writes the schematics from `pcb/scripts/design.py` |
-| [Freerouting](https://github.com/freerouting/freerouting) 2.5.0 (GPL-3.0) | Autorouter, run as a tool in an `eclipse-temurin` container |
 | [KiKit](https://github.com/yaqwsx/KiKit) 1.8.1 (MIT) | JLCPCB fabrication outputs (gerbers, BOM, CPL) |
 | [JLCPCB](https://jlcpcb.com) / [LCSC](https://www.lcsc.com) part pages | Part numbers, stock and basic/extended status in [bom.md](bom.md) |
 

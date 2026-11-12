@@ -39,10 +39,14 @@ MIRROR_X = 260.0
 NETCLASSES = {"Default": (0.25, 0.2), "Power": (0.5, 0.2), "USB": (0.25, 0.2)}
 USB_NETS = ("USB_DP", "USB_DM", "USB_C_DP", "USB_C_DM")
 VIA = (0.6, 0.3)                 # pad, drill
-BOARD_MIN = 0.127                # JLC 2-layer minimum track / clearance
+BOARD_MIN = 0.127                # JLC minimum track / clearance
 EDGE_CLEARANCE = 0.5
 HOLE_CLEARANCE = 0.25
 BOARD_T = 1.6
+# Four layers (docs/deviations.md REVB-8): In1 is a solid GND plane and In2 the VLED plane, so every GND
+# and VLED pad returns through a via beside it and no route decides a ground path
+LAYERS = 4
+PLANES = ((pcbnew.F_Cu, "GND"), (pcbnew.In1_Cu, "GND"), (pcbnew.In2_Cu, "VLED"), (pcbnew.B_Cu, "GND"))
 OUTLINE_W = 0.1
 ZONE_CLEARANCE = 0.25
 ZONE_MIN_W = 0.25
@@ -61,11 +65,10 @@ STAB_ROT_DIGITS = 3              # stabiliser rotation from layout.json's rounde
 
 # U1 (x, y, rot) per half. The RP2040 cannot be mirrored: the left one is turned 180 deg so its
 # USB pins face J1, and sits 1.5 mm further back (docs/deviations.md WS2b)
-# KiCad saves items sorted by KIID, so random KIIDs reorder the board, the DSN and with them the
-# Freerouting result. Every board-writing stage seeds the generator from its inputs instead, so
-# the same inputs give a byte-identical board (with PYTHONHASHSEED=0, set by pcb.just). The
-# per-side base seeds are ones whose rebuild routes to 0 unconnected (docs/deviations.md WS2c-4,
-# BOARD-2).
+# KiCad saves items sorted by KIID, so random KIIDs reorder the board and with it the order the
+# maze router meets the nets. Every board-writing stage seeds the generator from its inputs
+# instead, so the same inputs give a byte-identical board (with PYTHONHASHSEED=0, set by pcb.just;
+# docs/deviations.md BOARD-2).
 KIID_SEED = {"left": 0x4, "right": 0x1}
 
 
@@ -372,13 +375,12 @@ def add_outline(board: pcbnew.BOARD, side: str) -> None:
         board.Add(shape)
 
 
-def add_gnd_zones(board: pcbnew.BOARD, side: str) -> None:
-    gnd = board.FindNet("GND")
-    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+def add_zones(board: pcbnew.BOARD, side: str) -> None:
+    for layer, net in PLANES:
         z = pcbnew.ZONE(board)
         z.SetLayer(layer)
-        z.SetNet(gnd)
-        z.SetZoneName(f"GND_{board.GetLayerName(layer)}")
+        z.SetNet(board.FindNet(net))
+        z.SetZoneName(f"{net}_{board.GetLayerName(layer)}")
         z.SetLocalClearance(mm(ZONE_CLEARANCE))
         z.SetMinThickness(mm(ZONE_MIN_W))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
@@ -398,7 +400,7 @@ def add_hole_keepouts(board: pcbnew.BOARD, side: str) -> None:
     for i, (x, y) in enumerate(layout_side(side)["holes"]):
         z = pcbnew.ZONE(board)
         z.SetIsRuleArea(True)
-        z.SetLayerSet(pcbnew.LSET.AllCuMask(2))
+        z.SetLayerSet(pcbnew.LSET.AllCuMask(LAYERS))
         for attr in ("Tracks", "Vias", "ZoneFills"):
             getattr(z, f"SetDoNotAllow{attr}")(True)
         z.SetDoNotAllowPads(False)
@@ -426,7 +428,7 @@ def add_silk(board: pcbnew.BOARD, side: str) -> None:
 def setup_board(board: pcbnew.BOARD) -> None:
     ds = board.GetDesignSettings()
     ds.SetBoardThickness(mm(BOARD_T))
-    board.SetCopperLayerCount(2)
+    board.SetCopperLayerCount(LAYERS)
     ds.m_TrackMinWidth = mm(BOARD_MIN)
     ds.m_MinClearance = mm(BOARD_MIN)
     ds.m_CopperEdgeClearance = mm(EDGE_CLEARANCE)
@@ -473,14 +475,15 @@ def write_rules(pro: Path) -> None:
 # Custom rules (worxboard-<side>.kicad_dru). The SK6812MINI-E pads sit 0.348 mm from their own cutout
 # (gen_footprints.py), so copper may come to 0.3 mm of the LED cutouts; the outline keeps the 0.5 mm
 # copper-to-edge rule (mouse bites, case). JLC and PCBWay route to 0.3 mm (docs/deviations.md REVB-1)
-LED_EDGE_CLEARANCE = 0.3         # the routers keep this (export_dsn, complete_routes, import_ses)
-LED_EDGE_DRC_TOL = 0.01          # DRC allows 10 um under it: the cutout's arcs are polygons in the DSN and
-                                 # the grids (a VLED track once landed at 0.298 mm; REVB-7)
+LED_EDGE_CLEARANCE = 0.3         # the routers keep this (route_critical, complete_routes)
+LED_EDGE_DRC_TOL = 0.01          # DRC allows 10 um under it: the cutout's arcs are polygons on the router's
+                                 # grid (a VLED track once landed at 0.298 mm; REVB-7)
 DRU = f"""(version 1)
 (rule "copper to the LED cutouts"
-\t(condition "B.Layer == 'Edge.Cuts' && B.memberOfFootprint('LED*')")
+\t(condition "A.Type != 'Zone' && B.Layer == 'Edge.Cuts' && B.memberOfFootprint('LED*')")
 \t(constraint edge_clearance (min {LED_EDGE_CLEARANCE - LED_EDGE_DRC_TOL:g}mm)))
-"""
+"""                              # pads and tracks only: the pours and the inner planes keep 0.5 mm, so no
+                                 # plane edge shows at a cutout wall (REVB-8)
 
 
 def courtyard(fp: pcbnew.FOOTPRINT) -> Polygon | None:
@@ -531,7 +534,7 @@ def main(argv: list[str]) -> int:
     setup_board(board)
     add_footprints(board, side, net_path)
     add_outline(board, side)
-    add_gnd_zones(board, side)
+    add_zones(board, side)
     add_hole_keepouts(board, side)
     add_silk(board, side)
     errs = check_zones(board, side)

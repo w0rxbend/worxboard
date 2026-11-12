@@ -6,7 +6,8 @@ hand-soldering the display socket J3. The left and right boards are **two separa
 is its own item.
 
 > [!IMPORTANT]
-> Rev B has **not been built** yet. Order 2 assembled boards per side (one spare), test them
+> Rev B is a **four-layer** board (deviation [REVB-8](deviations.md)) and has **not been built** yet.
+> Read the price from PCBWay's quote: this repo has no estimate for it. Order 2 assembled boards per side (one spare), test them
 > ([build guide](buildguide_en.md)), and only then order the case in aluminium.
 
 ## What you upload
@@ -43,7 +44,7 @@ PCBWay gets the same Gerbers as JLC, but its own BOM and centroid file, from
   (the bare board's own origin for `centroid-bare-board.csv`). Y points up, as in the Gerbers, so the
   Y values are negative. The panel centroids are the bare-board ones moved by the KiKit panel's offset,
   which stage P reads from the panel it builds: (−46.08, +22.60) mm on the left and (−15.08, +22.60) mm
-  on the right for rev A.
+  on the right for rev A; each side README gives its own.
 - **Mid X / Mid Y** is each footprint's KiCad origin. For J3 (pin 1), the hot-swap sockets (the switch
   centre), J1 and J2 that is not the body centre; the side README lists how far off each is.
 - **Rotation** is KiCad's angle, counter-clockwise, 0 to 360°, with KiCad's library footprint as 0°.
@@ -61,15 +62,16 @@ the same polarity marks.
 Do this for the left side, then for the right side. PCBWay renames form options now and then: pick
 the closest match.
 
-1. **PCB.** On pcbway.com, start a PCB quote and upload `gerbers.zip`. PCBWay should read 2 layers and
+1. **PCB.** On pcbway.com, start a PCB quote and upload `gerbers.zip`. PCBWay should read **4 layers** and
    198.84 × 174.75 mm. Fill the form from the side README's *PCB order form*: **Panel by Customer**
-   (tab route, X-out not accepted, 1 design), 2 layers, FR-4, **1.6 mm**, min track/spacing **5/5mil**
+   (tab route, X-out not accepted, 1 design), **4 layers**, FR-4, **1.6 mm**, PCBWay's standard 4-layer
+   stack-up with no impedance control (inner 1 is the GND plane, inner 2 the VLED plane), min track/spacing **5/5mil**
    (the board's rule is 0.127 mm), min hole 0.3 mm, any mask colour, **white** silkscreen, UV printing
-   (multi-colour) **None**, surface finish **Immersion gold (ENIG)**, **Tenting vias**, **1 oz** copper.
+   (multi-colour) **None**, surface finish **Immersion gold (ENIG)**, **Tenting vias**, **1 oz** outer copper, **0.5 oz** inner copper.
    The *Other special request* field takes 200 characters: paste the short remark from the README.
 2. **Assembly.** Turn on the assembly service: **Turnkey**, Board type **Panelized PCBs**, **Both
    sides**, 2 to 5 boards. Accept substitutes **Yes** (the remark limits them). The README gives the
-   part counts the form asks for: 21 unique parts, 118 SMD, 1 QFN (U1), 1 through-hole (J3) on rev A.
+   part counts the form asks for (unique parts, SMD parts, 1 QFN (U1), 1 through-hole (J3)).
    Depanel: **No**, the boards ship in their frames.
 3. **Files.** Upload `pcbway/bom.csv` as the BOM and `pcbway/centroid-panel.csv` as the centroid file
    where the assembly order asks for them.

@@ -2,8 +2,11 @@ name: release
 
 # Spec §14 WS5: on a v* tag, build the firmware, PCB fab outputs and case from the tagged commit,
 # run the integration tests on those outputs, and publish them as a GitHub pre-release:
-# worxboard-<tag>-pcb-{left,right}.zip (JLCPCB gerbers.zip, bom.csv, pos.csv, board STEP, Edge DXF),
-# one .uf2 per build.yaml row, worxboard-<tag>-case-{step,stl}.zip and SHA256SUMS.txt.
+# worxboard-<tag>-order-{left,right}.zip (the committed order package pcb/production/<side>/ with its
+# bare-board/ and pcbway/ folders), worxboard-<tag>-case-order.zip (case/production/),
+# worxboard-<tag>-pcb-{left,right}.zip (bare-board gerbers.zip, bom.csv, pos.csv, board STEP, Edge DXF),
+# one .uf2 per build.yaml row, worxboard-<tag>-case-{step,stl}.zip and SHA256SUMS.txt. The order packages
+# are published as committed: pcb.yml and case.yml run on the same tag and rebuild and byte-compare them.
 # tests/integration/release.py assembles the assets; `just all` + that script do the same locally.
 # Tag push only: nothing here runs on branches, pull requests or by hand.
 
@@ -48,6 +51,8 @@ jobs:
       - uses: extractions/setup-just@v2
       - name: Free disk for the KiCad images (base + -full, about 11 GB)
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: KiCad images by their locked digests (tools/images.lock)
+        run: bash tools/pull_images.sh kicad/kicad:10.0.7 kicad/kicad:10.0.7-full
       - name: just pcb-sch (ERC, netlist, netcmp; the integration tests read the netlist)
         run: just pcb-sch ${{ matrix.side }}
       - name: just pcb-drc (schematic parity, 0 violations, 0 unconnected, checks.py)

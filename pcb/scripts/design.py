@@ -40,7 +40,8 @@ LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744",
 # kept only ~2-3 uF at the ~5 V of VSYS (DC bias); 0603 10 V keeps more (docs/deviations.md REVB-3)
 LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C19702", "27p": "C1557"}
 C_FP = {"10u": C0603}           # every other value is 0402
-LCSC_F1 = "C70069"        # nSMD025-24V: 1206 PTC, 250 mA hold, 24 V (WS2 choice, spec §7 F1)
+LCSC_F1 = "C70076"        # nSMD050-24V: 1206 PTC, 500 mA hold, 24 V. Rev B feeds the far half's LEDs through
+                          # two of them in series: the 250 mA C70069 ran at 78 % of hold (deviations REVB-9)
 # Replacements for discontinued / low-stock parts (docs/deviations.md ELEC-1), JLC stock 2026-11-02
 LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket (Kailh C2803348 discontinued);
                             # second source C49352235 (CPG151101S11-2), same land pattern
@@ -130,7 +131,7 @@ def _usb_power() -> list[Part]:
         Part("JP1", "Jumper:SolderJumper_2_Bridged", "VLINK",
              "Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm", "",
              {"A": "VSYS", "B": "VLINK_JP"}, g, in_bom=False),
-        Part("F1", "Device:Polyfuse", "250mA", "Fuse:Fuse_1206_3216Metric", LCSC_F1,
+        Part("F1", "Device:Polyfuse", "500mA", "Fuse:Fuse_1206_3216Metric", LCSC_F1,
              {"1": "VLINK_JP", "2": "VLINK"}, g),
     ]
 
@@ -179,8 +180,8 @@ def _trrs(side: str) -> list[Part]:
              "C95562", {"T": t["T"], "R1": t["R1"], "R2": t["R2"], "S": t["S"]}, g),
         Part("U5", "Power_Protection:USBLC6-2SC6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", "C7519",
              {"I/O1": "TRRS_A", "I/O2": "TRRS_B", "VBUS": "VLINK", "GND": "GND"}, g),
-        R("R11", "1k", "TRRS_A", t["TRRS_A"], g),      # the side swap lives here
-        R("R12", "1k", "TRRS_B", t["TRRS_B"], g),
+        R("R11", "470", "TRRS_A", t["TRRS_A"], g),     # the side swap lives here. 470: with R13 the RX low level
+        R("R12", "470", "TRRS_B", t["TRRS_B"], g),     # is 0.28 V, not the 0.55 V of 2 x 1k (deviations REVB-9)
         R("R13", "10k", "UART_RX", "3V3", g),
         TP("TP11", "TRRS_DET", g),
     ]

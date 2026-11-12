@@ -1,19 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Import the Freerouting session, stitch and fill the GND pours (spec §9 stage 10).
+"""Route what the locked critical routes leave open, stitch and fill the pours (spec §9 stage 10).
 
-    python3 pcb/scripts/import_ses.py <side> [--route-only | --continue]
-        build/<side>/<side>.ses -> pcb/<side>/worxboard-<side>.kicad_pcb
+    python3 pcb/scripts/route.py <side> [--continue]     (edits pcb/<side>/worxboard-<side>.kicad_pcb)
 
---route-only imports the session and stops (an intermediate routing round, see pcb.just).
---continue skips the import and runs more completion rounds on the board as saved (stage_c.sh
-uses it while DRC still reports unconnected items).
+--continue runs more completion rounds on the board as saved (stage_c.sh uses it while DRC still
+reports unconnected items).
 
-After the import, complete_routes.py routes whatever Freerouting left open (and, for the last
-gaps, rips up and reroutes other nets, keeping a change only when fewer gaps remain). Then GND stitching vias go on a STITCH_NEAR grid in Z_BACK around U1, Y1 and J1
-and a STITCH_FAR grid elsewhere, wherever a via clears every other net, hole and the edge
-(spec §8.4). They are placed after routing rather than before (docs/deviations.md WS2b), so
-they never block a route. The pours are then filled; vias that do not land in filled GND on
-both layers are dropped and the pours refilled.
+complete_routes.py routes every open connection of the placed board with its maze router, the U1
+fan-out nets first (and, for the last gaps, rips up and reroutes other nets, keeping a change only
+when fewer gaps remain). No external autorouter runs: on four layers GND and VLED are planes, the
+matrix and the LED cells are locked copper (route_critical.py), and about a hundred short signal and
+supply connections remain (docs/deviations.md REVB-8). Then GND stitching vias go on a STITCH_NEAR
+grid in Z_BACK around U1, Y1 and J1 and a STITCH_FAR grid elsewhere, wherever a via clears every
+other net, hole and the edge (spec §8.4). They are placed after routing rather than before
+(docs/deviations.md WS2b), so they never block a route. The pours are then filled; vias that do not
+land in filled GND on both outer layers are dropped and the pours refilled.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ from shapely.ops import unary_union  # noqa: E402
 from shapely.strtree import STRtree  # noqa: E402
 
 import complete_routes  # noqa: E402
-from place import BOARD_MIN, VIA, layout_side, mm, outline_points, pt, seed_kiids  # noqa: E402
+from place import VIA, layout_side, mm, outline_points, pt, seed_kiids  # noqa: E402
 from route_critical import Router  # noqa: E402
 
 STITCH_NEAR = 5.0            # grid pitch near U1 / Y1 / J1 (mm)
@@ -45,6 +46,7 @@ LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
 COMPLETE_ROUNDS = 3          # completion passes against the filled pours
 LATE_MAX_POPS = 6_000_000    # --continue rounds: A* budget per attempt
 LATE_ATTEMPTS = ((0.1, 35.0),)   # ... and one wide-window attempt
+LATE_HEURISTIC = 2.5         # ... and a greedier A*: a board-crossing rip-up route otherwise spends the budget
 
 
 def to_mm(v) -> tuple[float, float]:
@@ -163,18 +165,18 @@ def finish_open(board: pcbnew.BOARD, side: str, fanout: set[str]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) not in (2, 3) or argv[1] not in ("left", "right") or argv[2:] not in ([], ["--route-only"], ["--continue"]):
+    if len(argv) not in (2, 3) or argv[1] not in ("left", "right") or argv[2:] not in ([], ["--continue"]):
         print(__doc__)
         return 2
-    side, route_only = argv[1], argv[2:] == ["--route-only"]
+    side = argv[1]
     path = ROOT / "pcb" / side / f"worxboard-{side}.kicad_pcb"
-    ses = ROOT / "build" / side / f"{side}.ses"
-    seed_kiids(side, b"import_ses", " ".join(argv[1:]).encode(), path.read_bytes(), ses.read_bytes())
+    seed_kiids(side, b"route", " ".join(argv[1:]).encode(), path.read_bytes())
     board = pcbnew.LoadBoard(str(path))
     if argv[2:] == ["--continue"]:
         # later rounds: bigger windows and search budgets for the long leftovers
         complete_routes.MAX_POPS = LATE_MAX_POPS
         complete_routes.ATTEMPTS = complete_routes.ATTEMPTS + LATE_ATTEMPTS
+        complete_routes.HEURISTIC = LATE_HEURISTIC
         fill(board)
         fanout = set(Router.fanout_nets(board))
         failed = complete_routes.complete(board, side, fanout, skip=(), extra=complete_routes.pour_copper(board))
@@ -184,22 +186,9 @@ def main(argv: list[str]) -> int:
         board.Save(str(path))
         print(f"{side}: completion round, still open: {', '.join(failed) or 'none'}")
         return 0
-    for t in list(board.GetTracks()):          # re-import replaces the previous session
+    for t in list(board.GetTracks()):          # a re-run replaces the previous routes
         if not t.IsLocked():
             board.Delete(t)
-    if not pcbnew.ImportSpecctraSES(board, str(ses)):
-        raise SystemExit(f"SES import failed: {ses}")
-    thin = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T and not t.IsLocked()
-            and pcbnew.ToMM(t.GetWidth()) < BOARD_MIN - 1e-6]
-    for t in thin:                             # Freerouting necks some down below the board minimum:
-        board.Delete(t)                        # the completion router rejoins them at full width
-    in_pads = {v.m_Uuid.AsString(): v for v, _ in complete_routes.vias_in_pads(board) if not v.IsLocked()}
-    for v in in_pads.values():                 # vias in SMD pads go too; the completion router
-        board.Delete(v)                        # rejoins outside the pads (deviations REVIEW-FIX-3)
-    if route_only:
-        board.Save(str(path))
-        print(f"{side}: imported {ses.name} (routing round)")
-        return 0
     fanout = set(Router.fanout_nets(board))
     failed = complete_routes.complete(board, side, fanout)
     vias = add_stitching(board, side)
@@ -223,7 +212,7 @@ def main(argv: list[str]) -> int:
     stats = {"tracks": sum(t.Type() == pcbnew.PCB_TRACE_T for t in board.GetTracks()),
              "vias": sum(t.Type() == pcbnew.PCB_VIA_T for t in board.GetTracks()),
              "stitching": len(vias) - len(dead)}
-    print(f"{side}: imported {ses.name}, {json.dumps(stats)}")
+    print(f"{side}: routed, {json.dumps(stats)}")
     return 0
 
 

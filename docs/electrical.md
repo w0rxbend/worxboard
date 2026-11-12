@@ -27,7 +27,7 @@ tables are generated: [pinout.md](pinout.md) (GPIOs, TRRS, J3, part positions) a
   115 200 baud. The TX/RX crossover is in the PCB netlist, so the firmware pinctrl is the same on
   both halves.
 - **Host on the left.** The left half is the central. The right USB-C gives power and UF2 flashing.
-- **Two PCBs from one script**: `worxboard-left` and `worxboard-right`, 2-layer, 1.6 mm, ENIG. They
+- **Two PCBs from one script**: `worxboard-left` and `worxboard-right`, 4-layer, 1.6 mm, ENIG. They
   have the same parts and references and share one matrix netlist; only R11/R12 (the TRRS data
   lines) differ.
 
@@ -44,7 +44,7 @@ The same on both halves (deviations WS2a-1, WS2a-2):
 | VBUS sense divider | R5, R6 |
 | Decoupling | C5 (flash), C8–C15 (3V3 pins), C16/C17 (DVDD), C18/C19 (VREG_VIN/VOUT) |
 | BOOT and RESET | SW1 (BOOT) with R9 1 kΩ and R8 10k QSPI_SS pull-up; SW2 (RESET) with R10 10k RUN pull-up |
-| TRRS jack, ESD, series resistors, RX pull-up | J2, U5, R11/R12 (1 kΩ), R13 (10k) |
+| TRRS jack, ESD, series resistors, RX pull-up | J2, U5, R11/R12 (470 Ω), R13 (10k) |
 | Display socket | J3 (1×5 2.54 mm, 5.0 mm THT socket C27985230, fitted by JLC) |
 | Per-key RGB (rev B) | U6 SY6280AAC VLED switch (R14 15k ISET, R15 10k EN pull-down, C21 10 µF in, C20 10 µF out), U7 SN74LV1T34 data buffer (C22 100 nF, R16 470 Ω out), LED101–LED137 SK6812MINI-E with C101–C137 100 nF |
 | Test pads | TP1–TP3 display DC/RST/BL, TP6/TP7 GP24/GP25, TP8 SWCLK, TP9 SWDIO, TP10 GND, TP11 TRRS_DET (rev A's TP4/TP5 on GP22/GP23 became the RGB lines) |
@@ -61,7 +61,7 @@ USB-C VBUS ──┬── R5 10k ─┬─ GP26 (VBUS_SENSE) ── R6 10k ─�
 VSYS ── C1 10 µF ── GND                        (at D1 and U3's input)
 VSYS ── U4 USBLC6-2SC6 VBUS pin (USB ESD clamp reference) ── C2 10 µF ── GND   (C2 at the pin)
 VSYS ── U3 AP2112K-3.3 (EN tied to VIN) ──► 3V3 (RP2040, flash, display)   C3 10 µF + C4 1 µF out
-VSYS ── JP1 SolderJumper_2_Bridged ── F1 PTC 1206, 250 mA hold ──► VLINK ── TRRS Ring2
+VSYS ── JP1 SolderJumper_2_Bridged ── F1 PTC 1206, 500 mA hold ──► VLINK ── TRRS Ring2
 VLINK ── U5 USBLC6-2SC6 VBUS pin (TRRS ESD; IO1 = TRRS_A, IO2 = TRRS_B)
 VSYS ── C21 10 µF ── U6 SY6280AAC (EN = GP23, R15 10k to GND; ISET R14 15k: 0.45 A) ──► VLED   C20 10 µF
 VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100 nF, C101–C137)
@@ -70,14 +70,22 @@ VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100
 - **Two hosts at once are safe.** Each VBUS reaches VSYS only through its own D1. The cable joins
   the two VSYS nets *after* both diodes, so no host is ever back-fed; the higher VBUS supplies both
   halves.
-- **One cable is enough.** The far half runs from VLINK at about 4.4 V. The AP2112K dropout is about
-  250 mV, which leaves margin. 1117-type regulators (about 1 V dropout) would not.
+- **One cable is enough.** The far half's current crosses **two** F1 in series (the near F1, the
+  cable, the far F1). VSYS on the host half is about 4.6 V at a 5.0 V port (D1 drops about 0.4 V). At
+  the full rev B load of a half, about 181–196 mA (full white at the 8 % cap), the two fuses drop an
+  estimated 0.06–0.29 V and the cable and contacts about 0.1 V more, so the far half sees about
+  4.2–4.4 V, and about 4.0–4.2 V at a 4.75 V port: above the LEDs' 3.7 V minimum. With the LEDs off
+  (about 30 mA) it is close to 4.5 V. The AP2112K dropout is about 250 mV, which leaves margin;
+  1117-type regulators (about 1 V dropout) would not. The fuse resistance behind these numbers is an
+  estimate (deviation REVB-9): measure VSYS on the cable-fed half at full white on the first boards.
 - **JP1** (bridged by default) joins VSYS to the cable. It sits on the top side in the back strip,
   next to F1 and the USB-C, under the case top. Cut it on **both** halves for split-powered mode,
   where each half needs its own USB-C ([build guide](buildguide_en.md#3-choose-the-power-mode-jp1)).
-- **F1** (C70069, nSMD025-24V: 250 mA hold, 24 V; deviation WS2a-4) limits the current into VLINK.
-  It protects against shorts while a plug is inserted and keeps the PJ-320 contacts below their
-  roughly 300 mA rating.
+- **F1** (C70076, nSMD050-24V: 500 mA hold, 24 V; deviations WS2a-4, REVB-9) limits the current into
+  VLINK. It protects against shorts while a plug is inserted, and its hold current equals the 500 mA
+  contact rating in LCSC's listing of the PJ-320D-4A. Rev A and the first rev B drafts used the 250 mA
+  nSMD025-24V (C70069): the rev B LED load of the far half was 78 % of its hold current and could drop
+  up to about 1 V over the two fuses.
 - **VBUS_SENSE** (GP26 / ADC0) sees VBUS through a 10k/10k divider, about 2.5 V. Rev A firmware does
   not use it; it is there for future host detection.
 - **VBUS is a clean presence signal.** U4's clamp reference (its "VBUS" pin) is on **VSYS**, not
@@ -101,11 +109,13 @@ VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100
 - **C1–C3 are 10 µF 0603 10 V X5R** (CL10A106KP8NNNC, JLC basic C19702). Rev A's 0402 6.3 V part kept
   only about 2–3 µF at the ~5 V of VSYS (DC bias, an estimate): still above the AP2112K's 1 µF
   minimum, but with little margin. The 0603 10 V part keeps more.
-- **Plug-in capacitance is above USB's nominal 10 µF.** Each half has 20 µF directly on VSYS (C1, C2),
-  and the cable joins both halves' VSYS, so the host sees about 40 µF nominal (less after DC bias),
-  plus what U3 charges behind it on each half. Almost every host tolerates this, and many split
-  keyboards do the same. The rev B LEDs add nothing here: their 37 × 100 nF and C20 sit behind U6,
-  which is off until the firmware enables it, and U6 limits that inrush to 0.45 A.
+- **Plug-in capacitance is above USB's nominal 10 µF.** Each half has 30 µF directly on VSYS: C1, C2
+  and C21, U6's input cap, which is on VSYS and not behind the switch. The cable joins both halves'
+  VSYS, so the host sees about 60 µF nominal (roughly 12–15 µF per half after DC bias; the far half's
+  share charges through both polyfuses), plus what U3 charges behind it on each half. Almost every
+  host tolerates this, and many split keyboards do the same. The LEDs' own 37 × 100 nF and C20 sit
+  behind U6, which is off until the firmware enables it, and U6 limits that inrush to 0.45 A
+  (deviation REVB-9 corrects the earlier 20 / 40 µF figures).
 - **The firmware uses 4 MB of the 16 MB flash.** `worxboard.dtsi` declares 4 MB with the settings
   partition at 3.5 MB (an RP2040 board with 4 MB or more can run the same image); the other 12 MB go
   unused. That is safe.
@@ -117,13 +127,20 @@ VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100
 
 | Contact | Left PCB | Right PCB | Why |
 |---|---|---|---|
-| Tip | `TRRS_A` = UART_TX (GP0 via R11 1 kΩ) | `TRRS_A` = UART_RX (GP1 via R11 1 kΩ) | The tip wipes every spring while the plug slides in, so only 1 kΩ-limited data lines are on it |
+| Tip | `TRRS_A` = UART_TX (GP0 via R11 470 Ω) | `TRRS_A` = UART_RX (GP1 via R11 470 Ω) | The tip wipes every spring while the plug slides in, so only data lines are on it; their 470 Ω protects the MCU pin |
 | Ring1 | `TRRS_B` = UART_RX (via R12) | `TRRS_B` = UART_TX (via R12) | Crossed in the netlist; the firmware is identical |
 | Ring2 | VLINK | VLINK | Next to the sleeve, so it can only touch the sleeve spring; that short is limited by F1 |
 | Sleeve | GND | GND | |
 
-- The 1 kΩ series resistors sit at the jack on both data lines; U5 clamps the jack side.
+- The 470 Ω series resistors (R11, R12) sit at the jack on both data lines, on the MCU side of U5; U5
+  clamps the jack side. They limit the current into the MCU pin, not a hot-plug surge: a plug tip that
+  wipes the powered Ring2 spring charges the far half through U5's steering diodes and both F1. So
+  plug the TRRS cable into both jacks **before** USB.
 - R13 pulls UART_RX up to 3V3 (10 kΩ) on the MCU side, so it idles high with no cable.
+- **Levels:** a low is the far TX through 2 × 470 Ω against R13: 3.3 V × 940 / 10 940 = 0.28 V at the
+  receiver, plus the ground shift of the LED return current in the sleeve (about 0.06–0.12 V), against
+  the RP2040's 0.8 V maximum input-low level. With the 1 kΩ of rev A it was 0.55 V (deviation REVB-9).
+  A high is 3.3 V.
 - The jack is a PJ-320D-4A SMD part (C95562) on the top side, assembled by JLC. Its mouth is at the
   inner board edge in a local bump, centred at y 103.0, between the inner-column keys. Its body,
   14.1 × 6.1 × 5.0 mm, is relieved in the case by 0.75 mm all round, with 1.0 mm headroom (gate G2;
@@ -228,20 +245,22 @@ One SK6812MINI-E under every switch, 37 per half, in one chain per half (deviati
   LED137 DOUT (open). The order is a serpentine: row 0 inward, row 1 outward, row 2 inward, C6R2,
   row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1 (`layout/leds.py` `CHAIN`), the
   same key ids on both halves. Each LED is turned so DIN → DOUT runs towards the next one.
-- **Supply:** VLED is VSYS (about 4.6 V on USB, 4.4 V over the cable; the LEDs run from 3.7 V)
+- **Supply:** VLED is VSYS (about 4.6 V on USB, about 4.2–4.4 V over the cable at full load, see
+  [power path](#power-path); the LEDs run from 3.7 V)
   through U6 SY6280AAC: active-high EN on GP23 with R15 pulling it low, so the LEDs stay dark (and
-  draw nothing: 0.6 mA each when dark) until the firmware enables them (ZMK `ext-power`). R14 15k
+  draw nothing: 0.6 mA each when dark, 1 mA typical in the datasheet) until the firmware enables them (ZMK `ext-power`). R14 15k
   sets the current limit to 6800 / 15k = 0.45 A (±25 %), the part's 0.4 A minimum: it is a short
   and inrush guard, not the budget. U6 also keeps the 37 × 100 nF + 10 µF of VLED off VBUS when a
   cable is plugged in.
 - **Budget:** one LED draws 12 mA per colour, 36 mA at full white. The binding limit is a right half
-  fed over the cable: its 250 mA F1 hold, and the left USB port's 500 mA for both halves. The
+  fed over the cable, through two F1 (500 mA hold each), and the left USB port's 500 mA for both halves. The
   firmware caps brightness at 8 % (`CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=8`): full white is about 107 mA
   per half (129 mA at the datasheet's 14.5 mA per colour) plus 22 mA for the dark LEDs and ~30 mA for the
-  RP2040, flash and display, at most ~181 mA: about 72 % of F1's 250 mA hold (a PTC's hold falls when
-  warm; both F1s carry it), and ~360 mA from the left port for both halves. The USB descriptor declares
-  500 mA, bus powered. On a weak bus-powered hub (4.4 V) the cable-fed right half sees ~3.6–3.8 V at its
-  LEDs, at their 3.7 V minimum: use a 5 V port or split-power mode. Raise it only with both halves on their own USB-C
+  RP2040, flash and display, at most ~181 mA (~196 mA with 1 mA per dark LED): under 40 % of F1's 500 mA
+  hold (a PTC's hold falls when warm; both F1s carry it), and ~360–390 mA from the left port for both
+  halves. The USB descriptor declares 500 mA, bus powered. On a weak bus-powered hub (4.4 V) the
+  cable-fed right half sees roughly 3.6–3.8 V at its LEDs, at their 3.7 V minimum: use a 5 V port or
+  split-power mode. Raise it only with both halves on their own USB-C
   and JP1 cut on both (split-power mode); see [firmware.md](firmware.md).
 - **Checks:** `netcmp.py` (the chain, U6/U7 wiring, VLED's members) and `checks.py` (each LED in its
   switch window with its cutout, turned along the chain, its 100 nF within 8 mm of VLED copper).
@@ -271,16 +290,16 @@ One SK6812MINI-E under every switch, 37 per half, in one chain per half (deviati
 
 | Item | Value |
 |---|---|
-| Stack-up | 2 layers, 1.6 mm FR4, 1 oz copper, ENIG |
+| Stack-up | 4 layers, 1.6 mm FR4, ENIG: F.Cu signal + GND pour, In1.Cu solid GND plane, In2.Cu VLED plane (it also carries a few short signal tracks where the outer layers are full, REVB-8), B.Cu signal + GND pour; 1 oz outer, 0.5 oz inner copper (JLC's default `JLC04161H-7628`; deviation REVB-8) |
 | Default netclass | 0.25 mm track, 0.2 mm clearance |
-| Power netclass (VBUS, VSYS, VLINK, 3V3, GND) | 0.5 mm track, 0.2 mm clearance |
+| Power netclass (VBUS, VSYS, VLINK, VLED, 3V3, GND) | 0.5 mm track, 0.2 mm clearance |
 | USB netclass | 0.25 mm track, 0.2 mm gap |
 | RP2040 fan-out, U1 signal nets, matrix rows/columns | 0.15–0.18 mm (deviation WS2b-3) |
-| Board minimum | 0.127 mm track and clearance (JLC 2-layer, gate G3) |
+| Board minimum | 0.127 mm track and clearance (inside JLC's limits, gate G3) |
 | Vias | 0.3 mm drill, 0.6 mm pad |
 | Board-edge clearance | 0.5 mm |
-| Ground | pours on both layers; stitching vias on a 5 mm grid around U1/Y1/J1 and a 10 mm grid elsewhere, placed after routing where they land in filled GND on both layers (deviation WS2b-4) |
-| Mounting holes | Ø6.5 rule area (no tracks, vias or pour) on both layers |
+| Ground | the In1 plane and pours on both outer layers; every GND pad of the LED cells and the top-side VLED parts has its own via to the plane; stitching vias on a 5 mm grid around U1/Y1/J1 and a 10 mm grid elsewhere, placed after routing where they land in filled GND on both outer layers (deviation WS2b-4) |
+| Mounting holes | Ø6.5 rule area (no tracks, vias or pour) on every layer |
 
 The stitching vias are the fix for the EMI issue reported on the Corne v4
 ([foostan/crkbd#265](https://github.com/foostan/crkbd/issues/265)).
@@ -309,14 +328,15 @@ Every stage is a script, run headless in pinned containers (spec §9; `just pcb 
 | Stage | Recipe | What it does |
 |---|---|---|
 | 1–6 | `just pcb-sch <side>` | footprints, `design.py` → schematic (kicad-sch-api), ERC (0 errors), netlist, `netcmp.py` against the design and `layout/pins.py` |
-| 7–9 | `just pcb-place <side>` | placement from `layout.json`, locked critical routes (QFN fan-out, USB pair, matrix), DSN |
-| — | `just pcb-route <side>` | Freerouting 2.5.0 |
-| 10–12 | `just pcb-finish <side>` | session import, completion router with rip-up (WS2b-6), pours, stitching, DRC gate, `checks.py` |
+| 7–8 | `just pcb-place <side>` | placement from `layout.json`, the planes, locked critical routes (QFN joins, USB pair, matrix, the 37 LED cells) |
+| 10–12 | `just pcb-finish <side>` | the repo's maze router with rip-up (`route.py`, `complete_routes.py`; WS2b-6), stitching, pours, DRC gate, `checks.py` |
 | 11–12 | `just pcb-drc <side>` | the DRC gate and checks on the committed board only |
 | 13–14 | `just pcb-fab <side>` | KiKit JLC files, the board part and J3 checks (`netcmp.py --board`), `cpl_check.py`, renders, Edge DXF, STEP (in `kicad/kicad:10.0.7-full`) |
 | P | `just pcb-production <side>` | the JLC order package in `pcb/production/<side>/`: panel, Gerbers, BOM, CPL, README ([ordering-jlcpcb.md](ordering-jlcpcb.md)) |
 
-The gate is `kicad-cli pcb drc --schematic-parity --severity-error`: both committed boards pass
-with 0 violations, 0 unconnected items and 0 parity issues. The layout stages are seeded, so a
+No external autorouter runs (deviation REVB-8): Freerouting left the pipeline with the move to four
+layers. The gate is `kicad-cli pcb drc --schematic-parity --severity-error`: a board passes with
+0 violations, 0 unconnected items and 0 parity issues; the recorded results are in
+[verification.md](verification.md). The board-writing stages seed KiCad's ids from their inputs, so a
 from-scratch rebuild reproduces the committed boards byte for byte; the `pcb` workflow's `rebuild`
-job checks that (deviation WS2c-4). A full rebuild takes about 20 minutes per side.
+job checks that (deviation WS2c-4).

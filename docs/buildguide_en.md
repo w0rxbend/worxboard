@@ -7,9 +7,9 @@ on the PCB: the RP2040 and its support parts, the USB-C and TRRS connectors, the
 solder only the displays' own header pins, then plug in the displays, the switches and the keycaps.
 
 > [!IMPORTANT]
-> Rev B (rev A plus per-key RGB and the display setback, [deviations.md](deviations.md)) has **not
-> been built yet**. The boards pass DRC and every scripted check, and the firmware and the case
-> build, but nothing has run on hardware ([verification.md](verification.md)). Order the boards as [ordering-jlcpcb.md](ordering-jlcpcb.md) describes. Read
+> Rev B (rev A plus per-key RGB, the display setback and a four-layer board,
+> [deviations.md](deviations.md)) has **not been built yet**. Nothing has run on hardware; the gates
+> the boards, the firmware and the case passed are recorded in [verification.md](verification.md). Order the boards as [ordering-jlcpcb.md](ordering-jlcpcb.md) describes. Read
 > [electrical.md](electrical.md) once before you start.
 
 > [!WARNING]
@@ -46,13 +46,12 @@ For one keyboard (both halves). The full list with specs, quantities and shops i
 | MX-compatible switches, 3- or 5-pin | 74 | 37 per half |
 | 2u plate-mount stabilisers | 4 | thumb keys T4 and T5 on each half |
 | Keycaps | 74 | 58 × 1u, 8 × 1.5u (outer column), 4 × 1.5u mounted vertically (inner column), 4 × 2u (thumbs) |
-| Case: top shell, bottom tray, plate spacer per half; 6 tent legs; the TPU foot-cap tree | 1 set | [`case/production/`](../case/production/README.md), [case.md](case.md) |
-| M2.5 × 12 countersunk screws | 12 | 6 per half, in the edge bosses T2–T4 and T6–T8 |
-| M2.5 × 10 countersunk screws | 4 | 2 per half, in the bosses under the key well, T1 and T5 |
+| Case: top shell and bottom tray per half; 6 tent legs; the TPU foot-cap tree. The plate spacers are optional and not in the first order | 1 set | [`case/production/`](../case/production/README.md), [case.md](case.md) |
+| M2.5 × 12 countersunk screws | 16 | 8 per half, in T1–T8 |
 | Rubber feet, Ø10 mm | 8 | 4 per half |
 | M3 × 12 knurled thumbscrews without a collar (DIN 653) and friction washers | 6 + 6 | one per leg; not DIN 464, whose collar makes it reach too far ([legs.md](legs.md)) |
-| TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm, with a **slim plug head: ≤ Ø6.3 mm for the first 3.7 mm** behind the metal shaft ([case.md](case.md#trrs-cable)) |
-| USB-C cable | 1–2 | with **at least 8 mm** of bare metal plug shell, or the plug does not seat in the case ([shopping list](shopping-list.md#cables)). The second is only needed in split-powered mode or for flashing the right half |
+| TRRS cable, 4-pole, **straight** (not crossed) | 1 | 3.5 mm. Any common plug fits: the case slot takes a plug body up to Ø8 mm ([case.md](case.md#trrs-cable)) |
+| USB-C cable | 1–2 | a USB 2.0 data cable (not charge-only). An ordinary plug fits: the case slot takes an overmould up to 13 × 8 mm ([shopping list](shopping-list.md#cables)). The second is only needed in split-powered mode or for flashing the right half |
 
 ## Tools
 
@@ -125,9 +124,11 @@ Test each board on its own, before anything is fitted, so any fault is easy to r
    the peripheral and sends its keys over TRRS.
 6. With both boards **unpowered**, connect them with the TRRS cable. Then plug the host into the
    **left** board and test every right-hand socket the same way.
-7. **LEDs (rev B).** At start-up the firmware switches the LED supply on and lights every LED dimly
-   (the brightness is capped at 8 %, see [firmware.md](firmware.md)). Check that all 37 light on
-   each board, in the same colour. A dark LED and every LED after it in the chain (row 0 inward, row 1
+7. **LEDs (rev B).** At start-up the firmware switches the LED supply on and lights every LED red and
+   very dimly: a fresh board starts at about 1 % duty, which is easy to take for a dead chain in a
+   bright room. Hold the layer 1 key and press brightness up (`RGB_BRI`) **ten times** to reach the
+   8 % cap ([firmware.md](firmware.md#brightness-cap)). Check that all 37 light on each board, in the
+   same colour. A dark LED and every LED after it in the chain (row 0 inward, row 1
    outward, row 2 inward, C6R2, row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1)
    points at that LED or the one before it. On layer 1 the thumbs carry the RGB controls (toggle,
    effect, brightness, hue); a press on the left half also sets the right half.
@@ -174,14 +175,14 @@ firmware assumes. Set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` in
 
 ## 5. Prepare the case
 
-The case order package is [`case/production/`](../case/production/README.md), case revision A3. It
-is checked against the PCB STEPs by `just fitcheck`, with 0 mm³ of interference on both halves.
+The case order package is [`case/production/`](../case/production/README.md), case revision A5. It
+is checked against the PCB STEPs by `just fitcheck` ([verification.md](verification.md)).
 Before you machine aluminium, 3D-print a test top and check it against your assembled PCB:
 
 - The display sits in its pocket under the window, with the glass below the bezel skin.
-- The USB-C notch on the back wall lines up with J1 on **both** halves, and your cable's plug seats
-  fully and latches (it needs at least 8 mm of bare metal shell).
-- The TRRS hole in the inner bump lines up with the jack mouth, and the plug seats fully.
+- The USB-C slot in the back wall lines up with J1 on **both** halves, and your cable's plug seats
+  fully and latches.
+- The TRRS slot in the inner bump lines up with the jack mouth, and the plug seats fully.
 - The BOOT and RESET pin holes in the top skin sit over the two buttons.
 - The C6R1 keycap clears the display module's far end.
 
@@ -194,19 +195,17 @@ Before you machine aluminium, 3D-print a test top and check it against your asse
    both stems move freely. They cannot go in later: the plate is part of the top shell, and the wire
    clips in from underneath, which is closed off once the PCB is in.
 3. Lay the PCB, top side up, with its display plugged in, on the posts of the bottom tray.
-4. Lay the plate spacer over the PCB. Its openings line up with the switch positions, and the two
-   channels beside each 2u thumb key take the stabiliser wire.
-5. Put the top shell on, so its bosses meet the PCB, the display goes up into its pocket, and each
-   stabiliser's housings and wire drop into the spacer's cut-outs and channel.
-6. Fit the 8 M2.5 countersunk screws from below:
-   - the **2 × M2.5 × 10** go into the two bosses under the key well, T1 and T5 (holes 0 and 4 in
-     [pinout.md](pinout.md#mounting-holes)). Tighten them **snug only**: their blind threads are
-     short;
-   - the **6 × M2.5 × 12** go into the others.
+4. If you ordered the optional plate spacer, lay it over the PCB. Its openings line up with the
+   switch positions, and the two channels beside each 2u thumb key take the stabiliser wire. The
+   first order leaves the spacers out.
+5. Put the top shell on, so its bosses meet the PCB and the display goes up into its pocket (with a
+   spacer, each stabiliser's housings and wire drop into its cut-outs and channel).
+6. Fit the 8 **M2.5 × 12** countersunk screws from below, one in each of T1–T8.
 
-   Do not use longer screws: every thread in the top shell is blind, and a longer screw stops
-   before its head seats. Tighten them gently: they clamp the PCB between the tray posts and the
-   shell bosses.
+   Do not use longer screws: the edge threads are blind, so a longer screw stops before its head
+   seats, and at T1 and T5 (tapped through, under the key well) its tip would stand out of the
+   key-well floor. Tighten them gently: they clamp the PCB between the tray posts and the shell
+   bosses.
 
 ## 7. Switches, stabilisers and keycaps
 

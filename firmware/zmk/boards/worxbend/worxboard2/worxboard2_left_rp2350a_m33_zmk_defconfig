@@ -24,8 +24,8 @@ CONFIG_RETENTION_BOOT_MODE=y
 
 # Per-key RGB power cap (docs/firmware.md#rgb). ZMK scales brightness 0-100 onto BRT_MIN-BRT_MAX %.
 # Full white at 8 %: 37 x 36 mA x 8 % ~ 107 mA per half (129 mA at the datasheet's 14.5 mA per colour),
-# plus 22 mA of dark LEDs and ~30 mA of RP2040, flash and display: <= ~181 mA, ~72 % of the 250 mA hold of
-# the cable polyfuse F1 that feeds the right half (a PTC's hold falls when warm). Raise it only in
+# plus 22 mA of dark LEDs and ~30 mA of RP2040, flash and display: <= ~181 mA: under 40 % of the 500 mA hold
+# of the cable polyfuses F1 that feed the right half, ~360 mA of the left port's 500 mA for both halves. Raise it only in
 # split-power mode (JP1 cut on both halves, a USB-C cable on each half), and to 20 at most (U6's limit).
 CONFIG_ZMK_RGB_UNDERGLOW_BRT_MIN=1
 CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=8

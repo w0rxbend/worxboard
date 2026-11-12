@@ -13,11 +13,11 @@ again on the day you order.
 | Order | Shop | What | Files and settings |
 |---|---|---|---|
 | PCBs, assembled | [JLCPCB](https://jlcpcb.com) | 2 designs (left, right): 5 PCBs and 2 assembled each, Standard PCBA, both sides | [`pcb/production/`](../pcb/production/), steps in [ordering-jlcpcb.md](ordering-jlcpcb.md) |
-| Machined case | [JLCCNC](https://jlccnc.com) | 2 top shells, 2 bottom trays, 6 tent legs; aluminium 6061-T6, bead blast + anodize | [`case/production/jlccnc/`](../case/production/jlccnc/ORDER_NOTES.md) |
-| Printed case parts | [JLC3DP](https://jlc3dp.com) | 2 plate spacers (MJF PA12), 1 tree of 8 leg foot caps (FDM TPU 95A) | [`case/production/jlc3dp/`](../case/production/jlc3dp/ORDER_NOTES.md) |
+| Machined case | [JLCCNC](https://jlccnc.com) (or PCBWay CNC, [notes](../case/production/pcbway/ORDER_NOTES.md)) | 2 top shells, 2 bottom trays, 6 tent legs; aluminium 6061-T6, bead blast + anodize | [`case/production/jlccnc/`](../case/production/jlccnc/ORDER_NOTES.md) |
+| Printed case parts | [JLC3DP](https://jlc3dp.com) | 1 tree of 8 leg foot caps (FDM TPU 95A); the 2 plate spacers (MJF PA12) are optional, not in the first order | [`case/production/jlc3dp/`](../case/production/jlc3dp/ORDER_NOTES.md) |
 | Everything below | keyboard and hardware shops | switches, keycaps, stabilisers, displays, cables, screws, feet, thumbscrews | this page |
 
-The case package is case revision **A3**. Its [README](../case/production/README.md) says what it
+The case package is case revision **A5**. Its [README](../case/production/README.md) says what it
 expects from the parts it holds. Order the aluminium case only after one assembled PCB has been
 checked: a 3D-printed test top is cheap ([case.md](case.md#before-machining)).
 
@@ -70,28 +70,27 @@ hardware shops.
 
 | Item | Qty | Spec | Where |
 |---|---|---|---|
-| TRRS cable | **1** | 3.5 mm, **4-pole** (TRRS, not TRS), **straight** 1:1 wiring (the crossover is on the PCB). The plug head must be **≤ Ø6.3 mm for its first 3.7 mm** behind the metal shaft, because the plug passes a Ø6.5 mm hole in the 3 mm case wall ([case.md](case.md#trrs-cable)). Check it with calipers | keyboard shops ("TRRS cable", often coiled); audio shops (headset extension cables are TRRS) |
-| USB-C cable | **1**, optionally 2 | USB 2.0 data cable (not charge-only), C to whatever your host has, with an **extended plug: at least 8 mm of bare metal shell in front of the overmould**, and an overmould that fits the case's 13 × 8 mm recess. The receptacle sits 1.7 mm behind the floor of that recess, so a common plug (6.5–6.6 mm of shell) stops about 1.2 mm short and does not latch; a slim overmould does not help. Such plugs are sold as "extended tip" or "long neck" USB-C, often for phones in thick cases: measure the shell with calipers. The second cable is only needed for split-powered mode (JP1 cut) or to flash the right half without moving the cable | any shop |
+| TRRS cable | **1** | 3.5 mm, **4-pole** (TRRS, not TRS), **straight** 1:1 wiring (the crossover is on the PCB). Any common plug fits: the case takes a plug body up to **Ø8 mm** ([case.md](case.md#trrs-cable)) | keyboard shops ("TRRS cable", often coiled); audio shops (headset extension cables are TRRS) |
+| USB-C cable | **1**, optionally 2 | USB 2.0 data cable (not charge-only), C to whatever your host has. An ordinary plug fits: the case slot takes an overmould up to 13 × 8 mm right up to the receptacle (case revision A5, CASE-10). The second cable is only needed for split-powered mode (JP1 cut) or to flash the right half without moving the cable | any shop |
 
 ### Case hardware
 
-From [`case/production/hardware.csv`](../case/production/hardware.csv) (case revision A3, CASE-3).
+From [`case/production/hardware.csv`](../case/production/hardware.csv) (case revision A5, CASE-3, CASE-10).
 No threaded inserts are needed: JLCCNC taps every thread into the aluminium top, and the plate is
 milled into it.
 
 | Item | Qty | Spec | Where |
 |---|---|---|---|
-| M2.5 × 12 countersunk screws | **12** | M2.5 × 0.45, 12 mm including the head, 90° head ≤ Ø5.2 mm (DIN 7991 hex socket, or ISO 7046 cross recess), steel or A2. Six per half, in T2–T4 and T6–T8 | hardware shops. LCSC C5138785 (GB819 cross recess, A2) had only 13 in stock |
-| M2.5 × 10 countersunk screws | **4** | the same, 10 mm. Two per half, in T1 and T5, under the key well: **snug only** | hardware shops. LCSC had none in stock |
+| M2.5 × 12 countersunk screws | **16** | M2.5 × 0.45, 12 mm including the head, 90° head ≤ Ø5.2 mm (DIN 7991 hex socket, or ISO 7046 cross recess), steel or A2. Eight per half, in T1–T8 | hardware shops. LCSC C5138785 (GB819 cross recess, A2) had only 13 in stock |
 | Rubber feet | **8** | self-adhesive, Ø10 mm (at most Ø10.3), 2–3 mm tall. Four per half, in the Ø10.5 × 0.6 mm recesses | electronics distributors, hardware shops |
 | Leg thumbscrews | **6** | M3 × 12 knurled-head thumbscrew **without a collar: DIN 653** (flat head underside, Ø ≥ 7 mm, so it bears on the leg's back face), or the stock ErgoDox EZ M3 spring thumbscrew, measured first. **Not DIN 464** or any shouldered thumbscrew: the collar drops into the leg's Ø6.5 × 4 mm counterbore and the screw reaches 4 mm further, into the bottom of the blind thread ([legs.md](legs.md#positions)) | hardware shops. ZSA sells EZ spare parts |
 | Friction washers | **6** | Ø10 × Ø3.2 mm, 0.5–1.0 mm thick, fibre, rubber or cork: one between each leg hub and its boss | hardware shops |
 | Leg foot caps | 6 (8 printed) | TPU 95A, from the JLC3DP tree. Snip them off at the base and push them onto the leg spigots | JLC3DP, above |
 
 > [!WARNING]
-> **Screw lengths matter.** Every tapped hole in the top shell is blind. An M2.5 × 14 in an edge
-> boss, or an M2.5 × 12 in T1 or T5, reaches past the end of the thread and stops before its head
-> seats. An M3 thumbscrew may reach at most 3.7 mm past the outer and thumb bosses and 5.7 mm past
+> **Screw lengths matter.** An M2.5 × 14 reaches past the end of the blind thread in an edge boss
+> and stops before its head seats; in T1 or T5, which are tapped through, it stands 0.4–0.6 mm out
+> of the key-well floor. The leg threads are blind too. An M3 thumbscrew may reach at most 3.7 mm past the outer and thumb bosses and 5.7 mm past
 > the inner one: an M3 × 12 on the 8 mm leg hub needs its washer ([`case/production/README.md`](../case/production/README.md)).
 
 ### Tools
@@ -109,14 +108,14 @@ milled into it.
 | Assembled PCB, left / right (JLCPCB) | 1 / 1 (2 / 2 ordered) |
 | Top shell, bottom tray, left / right (JLCCNC) | 1 each |
 | Tent legs (JLCCNC) | 6 |
-| Plate spacers, left / right (JLC3DP) | 1 / 1 |
+| Plate spacers, left / right (JLC3DP), optional | 0 in the first order, then 1 / 1 |
 | Leg foot cap tree (JLC3DP) | 1 (8 caps) |
 | MX switches, 3- or 5-pin | 74 |
 | Keycaps: 1u / 1.5u / 2u | 58 / 12 / 4 |
 | 2u plate-mount stabilisers | 4 |
 | nice!view with its header | 2 |
-| TRRS cable, 4-pole, straight, slim plug | 1 |
-| USB-C data cable, plug shell ≥ 8 mm (extended tip) | 1–2 |
-| M2.5 × 12 / M2.5 × 10 countersunk screws | 12 / 4 |
+| TRRS cable, 4-pole, straight | 1 |
+| USB-C data cable | 1–2 |
+| M2.5 × 12 countersunk screws | 16 |
 | Rubber feet, Ø10 mm | 8 |
 | M3 × 12 knurled thumbscrews without a collar (DIN 653) and friction washers | 6 + 6 |

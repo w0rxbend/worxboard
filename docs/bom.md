@@ -29,11 +29,11 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 |---|---|---|---|---|---|---|---|
 | U1 | 1 | RP2040 microcontroller | [C2040](https://jlcpcb.com/partdetail/C2040) | `QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm` | top | [C] | yes |
 | U2 | 1 | W25Q128JVSIQ, 16 MB QSPI flash | [C97521](https://jlcpcb.com/partdetail/C97521) | `SOIC-8_5.3x5.3mm_P1.27mm` | top | [J] |  |
-| C5, C8–C17 | 11 | 100 nF 0402 | [C1525](https://jlcpcb.com/partdetail/C1525) | `C_0402_1005Metric` | top | [C] |  |
+| C5, C8–C17, C22, C101–C137 | 49 | 100 nF 0402 | [C1525](https://jlcpcb.com/partdetail/C1525) | `C_0402_1005Metric` | top 12, **bottom** 37 | [C] |  |
 | Y1 | 1 | 12 MHz crystal, CL 18 pF, 3225 (YXC XL2EL89CRI-111YLC-12M) | [C49304726](https://jlcpcb.com/partdetail/C49304726) | `Crystal_SMD_3225-4Pin_3.2x2.5mm` | top | [J] | yes |
-| R7, R9, R11, R12 | 4 | 1 kΩ 0402 | [C11702](https://jlcpcb.com/partdetail/C11702) | `R_0402_1005Metric` | top | [C] |  |
+| R7, R9 | 2 | 1 kΩ 0402 | [C11702](https://jlcpcb.com/partdetail/C11702) | `R_0402_1005Metric` | top | [C] |  |
 | C6, C7 | 2 | 27 pF 0402 | [C1557](https://jlcpcb.com/partdetail/C1557) | `C_0402_1005Metric` | top | [C] | yes |
-| R5, R6, R8, R10, R13 | 5 | 10 kΩ 0402 | [C25744](https://jlcpcb.com/partdetail/C25744) | `R_0402_1005Metric` | top | [C] |  |
+| R5, R6, R8, R10, R13, R15 | 6 | 10 kΩ 0402 | [C25744](https://jlcpcb.com/partdetail/C25744) | `R_0402_1005Metric` | top | [C] |  |
 | SW1 | 1 | TS-1088R-02026 tact switch (BOOT) | [C455280](https://jlcpcb.com/partdetail/C455280) | `SW_SPST_TS-1088-xR020` | top | [C] | yes |
 | SW2 | 1 | TS-1088R-02026 tact switch (RESET) | [C455280](https://jlcpcb.com/partdetail/C455280) | `SW_SPST_TS-1088-xR020` | top | [C] | yes |
 | C4, C18, C19 | 3 | 1 µF 0402 | [C52923](https://jlcpcb.com/partdetail/C52923) | `C_0402_1005Metric` | top | [C] |  |
@@ -42,15 +42,20 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 | R3, R4 | 2 | 27 Ω 0402 | [C2909343](https://jlcpcb.com/partdetail/C2909343) | `R_0402_1005Metric` | top | [C] | yes |
 | U4, U5 | 2 | USBLC6-2SC6 ESD array (USB, TRRS) | [C7519](https://jlcpcb.com/partdetail/C7519) | `SOT-23-6` | top | [J] | yes |
 | D1 | 1 | B5819W, 1 A Schottky | [C8598](https://jlcpcb.com/partdetail/C8598) | `D_SOD-123` | top | [J] |  |
-| C1–C3 | 3 | 10 µF 0402 | [C15525](https://jlcpcb.com/partdetail/C15525) | `C_0402_1005Metric` | top | [C] |  |
+| C1–C3, C20, C21 | 5 | 10 µF 0603, 10 V X5R (rev B: was 0402 6.3 V) | [C19702](https://jlcpcb.com/partdetail/C19702) | `C_0603_1608Metric` | top | [J] |  |
 | U3 | 1 | AP2112K-3.3TRG1, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) | `SOT-23-5` | top | [J] | yes |
-| F1 | 1 | nSMD025-24V PTC, 250 mA hold, 24 V | [C70069](https://jlcpcb.com/partdetail/C70069) | `Fuse_1206_3216Metric` | top | [J] | yes |
+| F1 | 1 | nSMD050-24V PTC, 500 mA hold, 24 V (REVB-9: was nSMD025-24V) | [C70076](https://jlcpcb.com/partdetail/C70076) | `Fuse_1206_3216Metric` | top | [J] | yes |
 | J2 | 1 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | `Jack_3.5mm_PJ320D_Horizontal` | top | [J], G2 | yes |
+| R11, R12, R16 | 3 | 470 Ω 0402 (LED data and UART series) | [C25117](https://jlcpcb.com/partdetail/C25117) | `R_0402_1005Metric` | top | [J] |  |
 | J3 | 1 | 1×5 2.54 mm female socket, 5.0 mm, **THT** (display, G1) | [C27985230](https://jlcpcb.com/partdetail/C27985230) | `PinSocket_1x05_P2.54mm_Vertical_H5.0mm` | top | [J], G1 | yes |
+| U6 | 1 | SY6280AAC VLED load switch, 0.45 A limit (rev B) | [C55136](https://jlcpcb.com/partdetail/C55136) | `SOT-23-5` | top | [J] | yes |
+| R14 | 1 | 15 kΩ 0402 (U6 current limit) | [C25756](https://jlcpcb.com/partdetail/C25756) | `R_0402_1005Metric` | top | [J] |  |
+| U7 | 1 | SN74LV1T34DBVR 3.3 V -> VLED data buffer (rev B) | [C100024](https://jlcpcb.com/partdetail/C100024) | `SOT-23-5` | top | [J] | yes |
+| LED101–LED137 | 37 | SK6812MINI-E RGB LED, reverse mount through a PCB cutout (rev B) | [C5149201](https://jlcpcb.com/partdetail/C5149201) | `LED_SK6812MINI-E_ReverseMount` | **bottom** | [J] | yes |
 | SK101–SK137 | 37 | MX hot-swap socket CPG151101S11-16 (HanElectricity) | [C41430893](https://jlcpcb.com/partdetail/C41430893) | `SW_MX_Hotswap_Kailh` | **bottom** | [J] | yes |
 | D101–D137 | 37 | 1N4148W switching diode | [C81598](https://jlcpcb.com/partdetail/C81598) | `D_SOD-123` | **bottom** | [J] |  |
 
-22 BOM lines, 119 parts per half, 74 of them on the bottom side.
+27 BOM lines, 201 parts per half, 148 of them on the bottom side.
 <!-- END GENERATED: bom_assembled -->
 
 - **Stock.** Check it on the day you order: `just pcb-stock left 5` (both halves draw on the same
@@ -81,7 +86,7 @@ deviation ELEC-6).
 | Designators | Qty | What | Why |
 |---|---|---|---|
 | JP1 | 1 | solder jumper VSYS → F1 → VLINK, bridged | copper only; cut it for split-powered mode |
-| TP1–TP11 | 11 | Ø1.0 mm test pads: TP1 `DISP_DC`, TP2 `DISP_RST`, TP3 `DISP_BL`, TP4 GP22, TP5 GP23, TP6 GP24, TP7 GP25, TP8 `SWCLK`, TP9 `SWDIO`, TP10 `GND`, TP11 `TRRS_DET` | copper only |
+| TP1–TP3, TP6–TP11 | 9 | Ø1.0 mm test pads: TP1 `DISP_DC`, TP2 `DISP_RST`, TP3 `DISP_BL`, TP6 GP24, TP7 GP25, TP8 `SWCLK`, TP9 `SWDIO`, TP10 `GND`, TP11 `TRRS_DET` | copper only |
 | H1–H8 | 8 | M2.5 mounting holes, NPTH Ø2.7 | drilled |
 | STAB_T4, STAB_T5 | 2 | 2u stabiliser holes (board-only footprint, no symbol) | drilled |
 <!-- END GENERATED: bom_excluded -->

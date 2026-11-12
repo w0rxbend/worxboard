@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   check:
-    name: Layout acceptance (WS0)
+    name: Layout acceptance (WS0), generated docs, firmware-to-PCB tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,14 @@ jobs:
 
       - name: just layout-check
         run: just layout-check
+
+      - name: Generated docs are up to date (pinout, matrix, BOM tables from the committed boards)
+        run: uv run python site/gen_docs.py --check
+
+      # Firmware devicetree source vs layout/pins.py vs the committed boards. The tests that need
+      # `just fw` or `just pcb-fab` outputs skip here; release.yml runs them all, with no skips.
+      - name: pytest tests/integration (firmware, pins.py and PCB agree)
+        run: uv run pytest tests/integration -rs
 
       - name: Upload KLE and layout exports
         uses: actions/upload-artifact@v4

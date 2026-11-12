@@ -10,24 +10,42 @@ docs. The gates block **ordering**, not the repository.
 > **Rev B** (per-key RGB, the display setback and the review fixes, [deviations REVB](deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)) changes
 > both boards and their order packages. Everything recorded below is **rev A's**. The rev B results
 > (integration tests, CI, the order packages, the boards and gates G1–G3) are recorded on this page
-> after the boards are regenerated; until then, nothing here is a rev B result. What only a built
+> from the final routed boards; until then, nothing here is a rev B result. What only a built
 > rev B board can confirm is listed under [Not verified until a board is built](#not-verified-until-a-board-is-built).
 
-## Rev B results (2026-11-08)
+## Rev B results
 
-**Not orderable.** No left board has passed stage C, so the rev B fab outputs, order packages, from-scratch rebuild, and gate table were not run. The files in `pcb/production/` are still rev A. Main-tree `KIID_SEED` is still `{"left": 0x4, "right": 0x1}`, and `pcb/left/worxboard-left.kicad_pcb` is the placed board (492 segments), not a routed one. Commit under the working tree is `ff4449a`. Nothing was committed.
+**Passed locally on 2026-11-12, not yet on a commit.** Rev B is a four-layer board, routed by locked
+scripted copper and the repo's own maze router, with no Freerouting and no seed search (deviation
+[REVB-8](deviations.md)), and with the BOM changes of REVB-9. The gates below ran on the working
+tree of that day, in the pinned containers. Two gates are still open: the CI `rebuild` jobs, which
+need a commit, and the stock of the BOM lines on the order day. Order only from a commit on which the
+`pcb` workflow is green.
 
-| Half | Seed | Result |
-|---|---|---|
-| Right | `0x1`, `build/seedtrials/right-1` | **Pass.** DRC 0 violations / 0 unconnected / 0 parity, `checks.py` 15/15, `netcmp --board` 2/2 (221 footprints). U4 pin 2 to J1 GND is 10.3 mm. |
-| Left | `0x1` with U7 at (65.6, 49.0), `leftB-1` | **Fail.** DRC ended 0/0/0. U4 pin 2 to J1 GND is 13.2 mm (the move opened that path). U1 ground links 1 of 2. C5 to U2 pin 4 has no copper path. Stage C stopped in `gnd_ties.py`. |
-| Left | `0x3`, `0x4`, `0x5`, old U7 at (73.35, 48.19) | **Fail.** `0x3` and `0x5` lost the U4 clamp-ground path. `0x4` left COL2 unconnected and missed an LED cutout by 0.002 mm under the old 0.30 mm rule. |
-| Left | `0x6`, old U7, `left-6` | **Fail.** DRC 0/0/0. U4 path 20.5 mm, U1 links 2. C5 to U2 pin 4 stayed 38.8 mm (limit 30). |
-| Left | `0x2`, `0x3`, `0x4`, `0x5` with U7 moved (`leftB-2` .. `leftB-5`), and old-placement `0x7` .. `0x9` | **No result.** Freerouting had finished (54–64 connections left, against 67 on the clean right board). Stage C was still running when the machine went down at 05:20. No `trial.done`. |
+| # | Gate | Left | Right |
+|---|---|---|---|
+| 1 | `just pcb-sch <side>`: ERC, `netcmp.py` against `design.py` | 0 errors, 11 passed | 0 errors, 11 passed |
+| 2 | `just pcb-finish <side>`: DRC violations / unconnected / parity | 0 / 0 / 0 | 0 / 0 / 0 |
+| 2 | `checks.py`, `netcmp.py --board` | 15 passed; 2 passed | 15 passed; 2 passed |
+| 2 | Track segments (locked) / vias | 3414 (807) / 512 | 3528 (792) / 533 |
+| 2 | Track length F.Cu / B.Cu / In2.Cu, mm | 3269 / 2761 / 87 | 3153 / 2919 / 45 |
+| 3 | `just pcb-fab <side>`: `cpl_check.py`, renders, STEP | 201 of 201 placed | 201 of 201 placed |
+| 4 | `just pcb-production-check <side>`: `jlc_check`, package rebuilt byte for byte | 12 passed, identical | 12 passed, identical |
+| 5 | `just fitcheck`: PCB STEP in the case | 0 mm³ interference | 0 mm³ interference |
+| 6 | From-scratch rebuild equals the board byte for byte (local run) | identical | identical |
+| 6 | CI `rebuild` jobs | open: needs a commit | open: needs a commit |
+| 7 | `just fw` with `fw-check` | 6 of 6 targets built | (same run) |
+| 7 | `pytest tests/integration`, `pytest layout`, `site/gen_docs.py --check` | 112 passed, 0 skipped; 38 passed; current | (same run) |
+| 8 | Stock of all BOM lines (`just pcb-stock`) | open: run on the order day | open: run on the order day |
 
-The 11:00 Europe/Kyiv stop arrived with those jobs dead. They were not restarted: a finish plus the order gates cannot complete in the time that was left, and a new seed was already out of bounds after 09:15. `leftB-2`, `leftB-3`, and `leftB-5` still have their Freerouting session files and an unrouted placed board, so `just pcb-finish left` in those trees is the resume. `leftB-4`'s board file was already imported and still had COL2 open; do not finish that copy in place.
+`just pcb-cpl-images`, `just model`, `just corners`, `just order` and the case `production-check`
+(15 generated files match) ran in the same session. The In2 lengths are the signal tracks the maze
+router laid across the VLED plane (REVB-8); the DRC gate shows the plane still reaches every LED.
 
-Host checks that do not read copper had already passed on this working tree before the route: layout pytest, `layout.export --check`, the ZMK layout and keymap checks, the display-rotation host test, and 9 firmware regressions. `just pcb-mpn-check` inside the KiCad container was not run. Hardware items below are unchanged: no board has been built.
+The two-layer rev B attempt of 2026-11-08 is closed: its right half passed and its left half did
+not pass stage C in any routed seed, every failure being a ground-return path that two layers left
+to the autorouter (REVB-7, REVB-8). No board has been built; the hardware items at the end of this
+page are unchanged.
 
 ## Summary
 
@@ -340,7 +358,8 @@ host (BOARD-2), and `prune.py` leaves no unlocked dangling copper (BOARD-4, BOAR
 
 ## Open items that block ordering
 
-None. The five items WS5 listed are done:
+For rev B: the gates listed under [Rev B results](#rev-b-results), which are pending. For rev A:
+none. The five items WS5 listed are done:
 
 | # | Gate | Item | Done in |
 |---|---|---|---|

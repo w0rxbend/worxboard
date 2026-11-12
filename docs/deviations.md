@@ -704,7 +704,7 @@ now has more than 50 at JLC and covers the order with JLC's attrition.
   discharges land on the grounded shell first. A VBUS TVS is a rev B option, not added here.
 - **Re-checked, unchanged:** D1 B5819W (1 A, 40 V, 9 A surge); AP2112K (VIN ≤ 6 V, 250 mV dropout
   at 600 mA: the far half's VSYS of 4.2 V or more leaves margin); F1 nSMD025-24V (0.35 Ω, R1 max
-  2.5 Ω: two in series drop under 0.1 V at the 40 mA of a half); C1–C3 10 µF 6.3 V on ≤ 5.2 V;
+  2.5 Ω: two in series drop under 0.1 V at the 40 mA of a half; rev B's LED load changed this, REVB-9); C1–C3 10 µF 6.3 V on ≤ 5.2 V;
   U5's reference on VLINK (4.2–5.2 V, or floating with JP1 cut on both halves, where the TVS still
   clamps and nothing reaches a USB connector); two hosts at once still meet only behind their own D1.
 - **Consumers:** PCB (re-route U4 pin 5 to VSYS and keep it short: ST asks for a short track from
@@ -1818,6 +1818,59 @@ revision **A1**. The order package is committed in [`case/production/`](../case/
     `JACK_MIN_CLEAR`.
   - No other stream's files change: the PCB, `layout` and the STEP envelopes are as before.
 
+### CASE-10. Standard plugs seat: the USB-C and TRRS openings are U-slots, T1 and T5 are tapped through, fit-critical tolerances are on the drawings; case revision A5 (§10.5, §10.6; supersedes ORDER-7, corrects CASE-3 for T1 and T5)
+
+- **Problem** (pre-order mechanical review, MECH-1 to MECH-7, on the committed A4 package):
+  - USB-C: the 13 × 8 mm recess was 1.8 mm deep in a 3.0 mm wall, so a plug's overmould stopped
+    1.7 mm before the J1 mouth. A standard plug ended about 1.2 mm short and did not latch. ORDER-7
+    fixed this in the docs only (a cable with 8 mm of bare shell). No gate checked that a plug mates.
+  - TRRS: a Ø6.5 hole with the jack barrel 3.65 mm inboard. A plug body wider than Ø6.3 stopped at
+    the wall, which puts VLINK and GND on the wrong plug rings. The hole left a 0.85 mm bridge above
+    the parting plane.
+  - T1 and T5 (under the key well): blind, 3.6 deep, 1.4 mm of engagement for an M2.5 × 10, with
+    0.78 mm of skin, so a stripped hole could not be repaired.
+  - The T0 and T3 keycaps cleared the clipped key-well wall by 0.52 and 0.62 mm; `pcb_check` accepted
+    zero.
+  - The drawings left every fit-critical dimension under ISO 2768-m (±0.5 over 120–400 mm).
+  - The spacer's switch openings are 15.0 mm against the 15.6 mm housing keepout of `layout.keys`.
+  - No PCBWay notes; drawing notes named JLCCNC; the README called the A3-size sheets "A4 drawings".
+- **Change** (`case/worxboard_case.py`, `case/drawings.py`, `case/production/`):
+  - `CASE_REVISION` **A5**.
+  - J1: `USB_SLOT` 13.0 × 8.0, a U-slot through the whole back wall, Z 6.2–14.2, open to the parting
+    face; its lowest 0.8 mm is a notch through the tray wall. `USB_NOTCH` and `USB_RECESS*` are gone.
+  - J2: `TRRS_SLOT_W` 8.2, a U-slot from the parting face to Z 15.2. It runs 1.5 mm past the wall as a
+    0.6 mm step in the pocket ceiling (the ceiling is Z 14.6), with R1.5 end corners. A plug body up
+    to Ø8 mm seats; one wider than Ø5 meets the PCB edge 0.15 mm before the barrel front.
+  - Both slots are cut in the underside setup. The only side operations left are the three leg bosses.
+  - T1 and T5 are drilled and tapped through the boss and the plate (5.0 mm), with a Ø2.9 × 90° exit
+    chamfer in the key-well floor, between two keycaps. All eight holes take an M2.5 × 12 (3.4 mm
+    engagement); `SCREW_MIN_ENGAGE` is 3.0 (was 1.4).
+  - `WELL_MIN_WALL` 1.75 (was 2.0): the T0 and T3 caps keep 0.77 mm. The well's clipped corner now
+    ends on the outline's corner arc, so `_filleted_polygon_face` lets a fillet use a whole edge whose
+    other end gets no fillet.
+  - Drawings: T1–T8 and C1–C8 positions ±0.1 hole to hole, cavity wall +0.2/0, boss face to plate top
+    5.00 ±0.10, parting face to boss face 1.60 +0.10/0, slot widths +0.2/0, post tops and parting face
+    in one plane within 0.05, flatness 0.2 in the restrained state, dimensions after finishing, rack
+    marks on inside faces, overall sizes. The notes no longer name a shop.
+  - `case/production/pcbway/ORDER_NOTES.md` for ordering the same files at PCBWay.
+  - Spacers: no model change. They are left out of the first order (`jlc3dp/ORDER_NOTES.md`). Opening
+    `SPACER_HOLE` to 15.6 merges the openings with the T5 boss clearance and `spacer_check` fails.
+- **Gates** (all in `just model`):
+  - `plug_check()`: a 12.9 × 7.9 mm overmould swept to 0.45 mm from the J1 mouth, and a Ø8.0 plug body
+    swept to the J2 barrel front, must not touch the built top or tray.
+  - `jack_check()`: each slot is open to the parting face, no wider or taller than modelled, and stops
+    0.5 mm under the top-edge fillet.
+  - `tap_probe()`: 0.8 mm of plate all round each through thread; `tap_check()`: the screw tip stays
+    0.3 mm under the key-well floor.
+  - `pcb_check()`: every keycap at least `KEYCAP_WELL_CLEAR_MIN` = 0.7 mm from the well wall.
+- **Verified**: `just model` (all case checks passed), `just corners` (passed, no side-operation
+  corners left), `just order production production-check` (15 generated files match),
+  `pytest case` (10 passed). Top 140.0 g (was 140.6), tray 208.1 g. `plates/*.dxf` and the spacer and
+  cap-tree STLs are unchanged.
+- **Not verified**: `just fitcheck` ran on the layout envelopes only (no PCB STEP yet): 0 mm³. The
+  0.45 mm USB-C figure (6.65 mm shell less 6.20 mm mating depth) is from memory of the Type-C spec.
+  PCBWay's design rules were not re-read. Nothing has been printed or machined.
+
 ## PKG: the JLC turnkey order package (`pcb/scripts/stage_p.sh`, `package.py`, `panel.json`, `panel_tabs.py`, `jlc_check.py`, `cpl_check.py`, `jlc_footprints.py`, `jlc_rotations.csv`, `pcb/production/`)
 
 Written by DOCS from the PKG commits (4396f6c, 653659a, 0c692a9, 73ec186) on 2026-11-04.
@@ -2099,6 +2152,9 @@ JLC3DP's published rules and the parts they hold. Each defect below was confirme
 
 ### ORDER-7. The USB-C cable needs a plug with at least 8 mm of bare shell (§10.5)
 
+**Superseded by CASE-10** (case revision A5): the USB-C opening is a U-slot and an ordinary cable
+seats. The entry below is the record of case revisions A1–A4.
+
 - **Problem:** J1's mouth is flush with the PCB back edge (`layout/jacks.py`; footprint front at
   y 30.6). The case leaves 0.5 mm, then the 3.0 mm wall with a 13 × 8 mm recess 1.8 mm deep
   (`USB_RECESS_DEPTH`; notch centre y 28.6), so the recess floor is 1.7 mm in front of the mouth and
@@ -2278,5 +2334,93 @@ what was done:
   the final boards. On 2026-11-08 the moved U7 placement was routed. Seed 0x1 (`leftB-1`) reached DRC
   0/0/0 with U4 pin 2 to J1 GND at 13.2 mm, then failed: one U1 ground link of the two required, and no
   copper path from C5 to U2 pin 4. Seeds 0x2–0x5 of that placement did not finish stage C (the machine
-  went down at 05:20). The left seed is still unset.
+  went down at 05:20). **Superseded by REVB-8:** the four-layer boards need no seed search; `KIID_SEED`
+  (left 0x4, right 0x1) only keeps the rebuild byte-identical.
 
+### REVB-8. Four layers with GND and VLED planes, scripted LED cells, no Freerouting (§8.4, §9 stages 8–10; supersedes WS2b-3's Freerouting step and the seed search of WS2c-4, BOARD-2 and REVB-7)
+
+- **Spec:** two layers, 1.6 mm (§8.4); Freerouting routes what the locked critical routes leave (§9).
+- **Problem:** the two-layer rev B boards did not pass stage C on the left half. Every failing gate was
+  a ground-return artefact of two layers: U4's clamp GND to J1's GND, C5's GND to U2 pin 4, U1's exposed
+  pad to the main B.Cu plane and the count of separate U1 ground links (BOARD-14, ORDER-4, REVB-7). The
+  B.Cu LED routing cut the pour into islands, so each of those paths depended on where the autorouter
+  happened to leave copper. Freerouting oscillated at 50–130 unrouted connections on either half, and
+  which `KIID_SEED` gave a clean board was a lottery (REVB-7 "Seeds").
+- **Change, stack** (`place.py` `LAYERS = 4`, `PLANES`): F.Cu signal + GND pour, **In1.Cu solid GND
+  plane**, **In2.Cu VLED plane**, B.Cu signal + GND pour; still 1.6 mm, 1 oz outer copper, ENIG. Every
+  GND and VLED pad reaches its plane through a via beside it, so no route decides a ground path. The
+  pours and the inner planes keep 0.5 mm from the LED cutouts; only pads and tracks may come to 0.29 mm
+  (`place.py` `DRU`), so no plane edge shows at a cutout wall.
+- **Change, LED cells** (`route_critical.py` `leds`, `plane_vias`): each of the 37 LED cells is locked,
+  scripted copper: a GND via at the LED's VSS pad and one at its 100 nF, VDD → the cap → a VLED via,
+  a via at DIN and at DOUT, and an F.Cu data lane to the next LED of the chain. The top-side VLED parts
+  (U6, U7 and their caps) get a VLED via beside each pad.
+- **Change, routing:** Freerouting is out of the pipeline. `route.py` (the former `import_ses.py`)
+  drives the repo's own maze router `complete_routes.py` over what the locked routes leave open: about a
+  hundred short signal and supply connections, the U1 fan-out nets first, then rip-up and reroute for
+  the last gaps (WS2b-6), GND stitching and the pours. Three things were needed before both halves
+  closed. (1) The router may also run on In2 (`LAYERS`, `LAYER_COST`): a cell there costs three
+  times an outer one, so a track crosses the VLED plane only where F.Cu and B.Cu are full; the DRC
+  gate (0 unconnected) proves the plane still reaches every LED. In1 stays a solid GND plane.
+  (2) The lane straight ahead of every U1 fan-out stub end costs extra for other nets in every pass
+  (`ESCAPE_*`), because a clean route of a neighbour walled a stub in just as a rip-up route did.
+  (3) The `--continue` rounds search more greedily (`route.py` `LATE_HEURISTIC`): the rip-up
+  search for a row line that crosses the whole board otherwise spent its budget. Deleted: `pcb/scripts/export_dsn.py`,
+  `tools/fetch_freerouting.sh`, the `pcb-route` recipe and the `eclipse-temurin` image pin in
+  `tools/images.lock`. `just pcb <side>` is now `pcb-sch` → `pcb-place` → `pcb-finish` → `pcb-fab`.
+- **Change, seeds:** nothing searches for a seed any more. `KIID_SEED` (left 0x4, right 0x1) stays in
+  `place.py` only so that the same inputs write a byte-identical board; the CI `rebuild` job still
+  requires that.
+- **Change, checks and package:** `checks.py` `main_plane()` takes the largest filled piece of the In1
+  GND zone (it was the largest B.Cu pour island, REVB-7), and its ground raster reads F.Cu, B.Cu and
+  In1. `jlc_check.py` requires 11 Gerber layers, 4 of them copper (`-inner1.g1`, `-inner2.g2`); the
+  order READMEs (`package.py`, `pcbway.py`) say 4 layers.
+- **Order:** a 4-layer, 1.6 mm board on the fab's default stack-up: at JLCPCB `JLC04161H-7628`, 1 oz
+  outer and 0.5 oz inner copper. Nothing on the board is impedance controlled (the USB pair is short and
+  full-speed), so the default stack-up is enough. The price is higher than for two layers: read it from
+  the quote ([ordering-jlcpcb.md](ordering-jlcpcb.md), [ordering-pcbway.md](ordering-pcbway.md)).
+- **Result:** in a trial run the maze router alone closed the left board to DRC 0 violations / 0
+  unconnected in about 20 minutes. The figures of the final boards:
+
+  | | Left | Right |
+  |---|---|---|
+  | DRC violations / unconnected / parity | 0 / 0 / 0 | 0 / 0 / 0 |
+  | Track segments (of them locked) / vias | 3414 (807) / 512 | 3528 (792) / 533 |
+  | Track length F.Cu / B.Cu / In2.Cu, mm | 3269 / 2761 / 87 | 3153 / 2919 / 45 |
+  | `checks.py` | 15 passed, 0 failed | 15 passed, 0 failed |
+  | JLC package (`cpl_check`, `jlc_check`) | 201 of 201 placed, 12 passed | 201 of 201 placed, 12 passed |
+  | Case fit (`just fitcheck`, PCB STEP in the case) | 0 mm3 interference | 0 mm3 interference |
+  | `pcb-finish` (maze router, pours, gates) wall time | under 25 minutes | about 25 minutes |
+
+- **Consumers:** the fab order (4 layers), `docs/electrical.md` (PCB rules, how the boards are made),
+  `.github/workflows/pcb.yml` (`rebuild` = `pcb-sch`, `pcb-place`, `pcb-finish`, then the byte compare),
+  `docs/verification.md` (rev B results).
+
+### REVB-9. F1 is a 500 mA polyfuse and the UART series resistors are 470 Ω (§6, §7; corrects WS2a-4's F1 and REVB-3's plug-in capacitance)
+
+- **Problem, F1:** with one USB-C cable the far half is fed through **two** F1 in series (near F1, TRRS
+  Ring2, far F1). Rev A argued the drop at the 40 mA of a half (WS2a-4). Rev B's LEDs raise that half's
+  load to about 181 mA, 196 mA with the SK6812MINI-E's 1 mA static current per LED. For the
+  nSMD025-24V (C70069, 250 mA hold, 0.35 Ω typical, R1max 2.5 Ω) that is 78 % of the hold current at
+  25 °C, more when warm, and a drop of 0.13 V up to about 1 V over the two fuses: the far half's VSYS
+  could fall under the LEDs' 3.7 V minimum (dim or colour-shifted LEDs, possible nuisance trips).
+- **Change, F1** (`design.py` `LCSC_F1`, `mpn.json`): **nSMD050-24V, 500 mA hold, LCSC C70076**, same
+  1206 footprint and maker (TECHFUSE). 196 mA is 39 % of its hold current. 500 mA is also the
+  PJ-320D-4A contact rating in LCSC's listing (`mpn.json`, C95562). The short-circuit and wrong-plug
+  protection of VLINK stays. Its resistance is not taken from the TECHFUSE datasheet here; a 500 mA
+  1206 part of the same class lists 0.15 Ω initial and 0.75 Ω after a trip, which gives 0.06–0.29 V
+  over both fuses at 196 mA. Measure the far half's VSYS and VLED at full white at the cap on the
+  first boards, with a scope (the LED current is PWM).
+- **Problem, UART:** each data line is TX → series resistor → cable → series resistor → RX, with R13
+  10 kΩ pulling RX up to 3V3. With 2 × 1 kΩ the low level at RX was 3.3 V × 2k / 12k = 0.55 V, and rev B
+  adds the ground shift of the LED return current in the sleeve (about 0.06–0.12 V, PWM-modulated),
+  against the RP2040's 0.8 V maximum input-low level.
+- **Change, UART** (`design.py` R11, R12): **470 Ω (C25117**, already in the BOM for R16) instead of
+  1 kΩ. The low level is 3.3 V × 940 / 10 940 = 0.28 V. R13 stays 10 kΩ, so no BOM line is added. The
+  series resistors still limit the current into an unpowered half's pin, now to about 10 mA.
+  `tests/integration/test_pins.py` `JACK_RES` follows.
+- **Correction, plug-in capacitance (REVB-3):** VSYS carries C1, C2 and **C21** (U6's input cap, added
+  by REVB-6), 3 × 10 µF: 30 µF per half and 60 µF through the cable, not 20 and 40 µF. No hardware
+  change; the far half's 30 µF charge through both polyfuses.
+- **Consumers:** the BOM (`docs/bom.md`, generated), `docs/electrical.md` (power path, TRRS link),
+  `docs/firmware.md` and the `*_defconfig` comments (the brightness cap's margin), both order packages.

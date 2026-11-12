@@ -114,6 +114,11 @@ class RgbCheckTest(unittest.TestCase):
                 self.write(GOOD_CONFIG.replace(f"{key}=y\n", ""), GOOD_DTS, GOOD_MAP)
                 self.assertEqual(self.errors(), [f"core: {key} is not set"])
 
+    def test_idle_off_is_rejected(self):
+        self.write(GOOD_CONFIG + f"{fw_check.IDLE_OFF}=y\n", GOOD_DTS, GOOD_MAP)
+        self.assertEqual(self.errors(), [f"core: {fw_check.IDLE_OFF} is set, the keyboard would boot dark "
+                                         "after an idle spell"])
+
     def test_led_strip_is_required(self):
         broken = {
             "no chosen strip": GOOD_DTS.replace("\t\tzmk,underglow = &led_strip;\n", ""),

@@ -29,7 +29,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-GERBER_SUFFIXES = ["-CuTop.gtl", "-CuBottom.gbl", "-MaskTop.gts", "-MaskBottom.gbs", "-SilkTop.gto",
+GERBER_SUFFIXES = ["-CuTop.gtl", "-inner1.g1", "-inner2.g2", "-CuBottom.gbl", "-MaskTop.gts", "-MaskBottom.gbs", "-SilkTop.gto",
                    "-SilkBottom.gbo", "-PasteTop.gtp", "-PasteBottom.gbp", "-EdgeCuts.gm1", "-PTH.drl",
                    "-NPTH.drl"]
 BOM_HEADER = ["Comment", "Designator", "Footprint", "LCSC Part #"]
@@ -202,7 +202,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "",
         "| Option | Value |",
         "|---|---|",
-        "| Base material / layers | FR-4, **2** layers |",
+        "| Base material / layers | FR-4, **4** layers |",
         "| Dimensions | taken from the Gerbers |",
         "| PCB qty | 5 (the minimum) |",
         "| Product type | Industrial/Consumer electronics |",
@@ -210,6 +210,9 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "| PCB thickness | **1.6 mm** |",
         "| Surface finish | **ENIG** |",
         "| Outer copper weight | 1 oz |",
+        "| Inner copper weight | 0.5 oz |",
+        "| Layer order | F.Cu (L1), In1.Cu (L2, GND plane), In2.Cu (L3, VLED plane), B.Cu (L4) |",
+        "| Impedance / stack-up | No requirement; the default JLC04161H-7628 stack-up |",
         "| Via covering | Tented |",
         "| Min via hole size / diameter | 0.3 mm / (0.4/0.45 mm), the default |",
         "| Board outline tolerance | ±0.2 mm |",

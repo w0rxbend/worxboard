@@ -240,8 +240,8 @@ def check_trrs(nl: Netlist, side: str) -> list[str]:
     for contact in ("T", "R1"):
         (jack,) = j2.pin_net(contact)
         uart = t[t[contact]]
-        if via_resistor(nl, jack, "1k") != {uart}:
-            errs.append(f"{contact} ({jack}) does not reach {uart} through 1k")
+        if via_resistor(nl, jack, "470") != {uart}:
+            errs.append(f"{contact} ({jack}) does not reach {uart} through 470")
     return errs
 
 

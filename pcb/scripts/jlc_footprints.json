@@ -10994,9 +10994,9 @@
   "svg_check_mm": 0.0005,
   "source": "https://lceda.cn/api/products/C55136/components?version=6.4.7"
  },
- "C70069": {
-  "lcsc": "C70069",
-  "title": "nSMD025-24V",
+ "C70076": {
+  "lcsc": "C70076",
+  "title": "nSMD050-24V",
   "package": "F1206",
   "updated": "2022-04-08",
   "pads": [
@@ -11161,7 +11161,7 @@
    }
   ],
   "svg_check_mm": 0.0003,
-  "source": "https://lceda.cn/api/products/C70069/components?version=6.4.7"
+  "source": "https://lceda.cn/api/products/C70076/components?version=6.4.7"
  },
  "C7519": {
   "lcsc": "C7519",

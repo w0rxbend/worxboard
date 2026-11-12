@@ -55,6 +55,7 @@ USB_MAX_MM = 25.0
 USB_SKEW_MM = 1.0
 Y1_MAX_MM = 3.0
 EDGE_TOL_MM = 0.01
+RASTER_LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.In1_Cu)   # GndRaster: both outer layers and the GND plane
 SNAP = 1e-3                  # mm, track end-point identity
 USB_LINES = {"D+": (("USB_DP", "USB_C_DP"), "47"), "D-": (("USB_DM", "USB_C_DM"), "46")}
 XTAL_PINS = ("20", "21")   # RP2040 XIN, XOUT
@@ -253,15 +254,12 @@ def decoupling(board: pcbnew.BOARD) -> tuple[dict[str, float], dict[str, float],
 
 
 def main_plane(board: pcbnew.BOARD):
-    """The main B.Cu GND plane, as geometry: every filled B.Cu GND island of at least MAIN_PLANE_MIN_MM2
-    (else the largest), or None. Rev A had one B.Cu plane; rev B's B.Cu LED routing splits it into large
-    islands, each stitched to the F.Cu plane, so U1 must reach a plane-sized island, not one of them in
-    particular (deviations REVB-7)."""
-    from shapely.ops import unary_union
-    gnd, B = board.FindNet("GND").GetNetCode(), pcbnew.B_Cu
-    pours = [it.geoms[B] for it in complete_routes.pour_copper(board) if it.net == gnd and B in it.geoms]
-    big = [g for g in pours if g.area >= MAIN_PLANE_MIN_MM2] or ([max(pours, key=lambda g: g.area)] if pours else [])
-    return unary_union(big) if big else None
+    """The GND plane, as geometry: the largest filled piece of the In1 GND zone, or None. On two layers
+    this was the largest B.Cu pour island (deviations REVB-7); the inner plane replaces it (REVB-8)."""
+    gnd, P = board.FindNet("GND").GetNetCode(), RASTER_LAYERS[2]
+    pieces = [g for z in board.Zones() if not z.GetIsRuleArea() and z.GetNetCode() == gnd and z.IsOnLayer(P)
+              for g in sps_polys(z.GetFilledPolysList(P))]
+    return max(pieces, key=lambda g: g.area) if pieces else None
 
 
 def u1_gnd(board: pcbnew.BOARD) -> tuple[int, int, list[str], float]:
@@ -279,7 +277,7 @@ def u1_gnd(board: pcbnew.BOARD) -> tuple[int, int, list[str], float]:
     main = max(pours, key=lambda it: it.geoms[B].area)
     group = next(g for g in complete_routes.islands(mine + pours, gnd) if any(it is main for it in g))
     joined = {id(it.ref) for it in group if it.ref is not None}
-    vias = {it.ref.anchors[B][0]: it for it in mine if not it.pad and len(it.ref.geoms) == 2}
+    vias = {it.ref.anchors[B][0]: it for it in mine if not it.pad and len(it.ref.geoms) == len(complete_routes.LAYERS)}
     ep = pad_poly(next(p for p in board.FindFootprintByReference("U1").Pads() if p.GetNumber() == "57"))
     ep_vias = [xy for xy in vias if ep.contains(Point(xy))]
     ep_in = sum(id(vias[xy].ref) in joined for xy in ep_vias)
@@ -303,17 +301,17 @@ class GndRaster:
         import shapely
         from shapely.geometry import LineString
         from shapely.ops import unary_union
-        F, B = pcbnew.F_Cu, pcbnew.B_Cu
+        F, B, P = RASTER_LAYERS
         gnd = board.FindNet("GND").GetNetCode()
         h = GND_RET_GRID
         x0, y0, x1, y1 = bounds
         xs = np.arange(x0, x1, h)
         ys = np.arange(y0, y1, h)
         X, Y = np.meshgrid(xs, ys)
-        geo, hops, pads = {F: [], B: []}, [], {}
+        geo, hops, pads = {F: [], B: [], P: []}, [], {}
         for z in board.Zones():
             if not z.GetIsRuleArea() and z.GetNetCode() == gnd:
-                for layer in (F, B):
+                for layer in RASTER_LAYERS:
                     if z.IsOnLayer(layer):
                         geo[layer] += sps_polys(z.GetFilledPolysList(layer))
         for t in board.GetTracks():
@@ -321,8 +319,8 @@ class GndRaster:
                 continue
             if t.Type() == pcbnew.PCB_VIA_T:
                 disc = Point(mm_xy(t.GetPosition())).buffer(pcbnew.ToMM(t.GetWidth(F)) / 2)
-                geo[F].append(disc)
-                geo[B].append(disc)
+                for layer in RASTER_LAYERS:
+                    geo[layer].append(disc)
                 hops.append(disc)
             else:
                 line = LineString([mm_xy(t.GetStart()), mm_xy(t.GetEnd())])
@@ -337,10 +335,11 @@ class GndRaster:
                         geo[layer].append(poly)
                         pads.setdefault(f"{fp.GetReference()}.{pad.GetNumber()}", []).append((layer, poly))
                 if len(on) == 2:
+                    geo[P] += sps_polys(pad.GetEffectivePolygon(P, pcbnew.ERROR_INSIDE))
                     hops.append(Point(mm_xy(pad.GetPosition())).buffer(pcbnew.ToMM(min(pad.GetSize().x, pad.GetSize().y)) / 2))
         self.X, self.Y, self.pads, self.h = X, Y, pads, h
         self.copper = [shapely.contains_xy(unary_union(geo[layer]).buffer(GND_RET_GROW - erode), X, Y).ravel()
-                       for layer in (F, B)]
+                       for layer in RASTER_LAYERS]
         # the hop (via or through-hole pad) that owns each cell, -1 for none
         self.hop = np.full(X.size, -1, dtype=np.int64)
         ny, nx = X.shape
@@ -357,7 +356,7 @@ class GndRaster:
                 view[sub] = k
 
     def cells(self, geom, layer_index: int):
-        """Raster cells inside `geom` that carry copper on layer 0 (F.Cu) or 1 (B.Cu)."""
+        """Raster cells inside `geom` that carry copper on layer 0 (F.Cu), 1 (B.Cu) or 2 (the In1 plane)."""
         import numpy as np
         import shapely
         return np.flatnonzero(shapely.contains_xy(geom, self.X, self.Y).ravel() & self.copper[layer_index])
@@ -377,7 +376,7 @@ class GndRaster:
         import numpy as np
         h, nx = self.h, self.X.shape[1]
         ny, size = self.X.shape[0], self.X.size
-        dist = [np.full(size, math.inf), np.full(size, math.inf)]
+        dist = [np.full(size, math.inf) for _ in RASTER_LAYERS]
         prev = {} if goals is not None else None
         heap = []
         for li, i in starts:
@@ -407,12 +406,13 @@ class GndRaster:
                         if prev is not None:
                             prev[(li, j)] = (li, i)
                         heapq.heappush(heap, (d + w, li, j))
-            k = hop[i]
-            if k >= 0 and copper[1 - li][i] and d + GND_RET_VIA_MM < dist[1 - li][i]:
-                dist[1 - li][i] = d + GND_RET_VIA_MM
-                if prev is not None:
-                    prev[(1 - li, i)] = (li, i)
-                heapq.heappush(heap, (d + GND_RET_VIA_MM, 1 - li, i))
+            if hop[i] >= 0:
+                for lj in range(len(copper)):
+                    if lj != li and copper[lj][i] and d + GND_RET_VIA_MM < dist[lj][i]:
+                        dist[lj][i] = d + GND_RET_VIA_MM
+                        if prev is not None:
+                            prev[(lj, i)] = (li, i)
+                        heapq.heappush(heap, (d + GND_RET_VIA_MM, lj, i))
         return (math.inf, []) if goals is not None else dist
 
 
@@ -433,8 +433,8 @@ def gnd_return(board: pcbnew.BOARD) -> tuple[dict[str, float], float]:
         cells = [i for li, i in r.pad_cells(f"{c}.2") if li == 0]
         out[c] = float(dist[0][np.array(cells)].min()) if cells else math.inf
     main = main_plane(board)
-    cells = r.cells(main, 1) if main is not None else []
-    return out, float(dist[1][cells].min()) if len(cells) else math.inf
+    cells = r.cells(main, 2) if main is not None else []
+    return out, float(dist[2][cells].min()) if len(cells) else math.inf
 
 
 def u1_gnd_links(board: pcbnew.BOARD) -> list[float]:
@@ -458,7 +458,7 @@ def u1_gnd_links(board: pcbnew.BOARD) -> list[float]:
     edge[[0, -1], :] = True
     edge[:, [0, -1]] = True
     edge = np.flatnonzero(edge)
-    goals = {(li, int(i)) for li in (0, 1) for i in edge[r.copper[li][edge]]}
+    goals = {(li, int(i)) for li in range(len(r.copper)) for i in edge[r.copper[li][edge]]}
     k = max(1, round(GND_LINK_APART / GND_RET_GRID))
     out = []
     while len(out) < GND_LINKS_COUNT:
@@ -639,7 +639,7 @@ def main(argv: list[str]) -> int:
     print(f"     U1 GND over B.Cu alone: {ep_in}/{ep_n} EP vias and {len(caps_in)}/{len(U1_CAPS)} cap GND vias "
           f"in the main B.Cu GND plane ({area:.0f} mm2): {', '.join(caps_in) or 'no caps'}")
     ret, ep_plane = gnd_return(board)
-    results.append((f"U1 exposed pad -> main B.Cu GND plane: {ep_plane:.1f} mm of GND copper",
+    results.append((f"U1 exposed pad -> In1 GND plane: {ep_plane:.1f} mm of GND copper",
                     [f"{ep_plane:.1f} mm > {EP_PLANE_MAX_MM}"] if ep_plane > EP_PLANE_MAX_MM else []))
     worst = max(ret, key=ret.get)
     results.append((f"U1 cap GND return to the exposed pad <= {ret[worst]:.1f} mm ({worst}): " + ", ".join(

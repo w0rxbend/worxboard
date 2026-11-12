@@ -26,8 +26,13 @@ mkdir -p "$WORK/panel"
 python3 -m kikit.ui panelize -p pcb/scripts/panel.json --text "text: worxboard $SIDE rev B, JLC SMT panel" \
     "$PCB" "$PANEL"
 
-# P2. DRC of the panel: no error, nothing unconnected (the board's own DRC gate is stage C / pcb-drc)
-kicad-cli pcb drc --severity-error --exit-code-violations --format json -o "$WORK/panel-drc.json" "$PANEL"
+# P2. DRC of the panel: no error, nothing unconnected (the board's own DRC gate is stage C / pcb-drc).
+# KiKit moves the LED cutouts from their footprints to the panel outline, so the board's LED-cutout rule
+# (place.DRU) matches nothing here: the panel gets the same limit for every edge. The outline's 0.5 mm
+# is held on the board in stage C, and jlc_check proves the panel copper is the board's (PKG-2)
+printf '(version 1)\n(rule "panel edges"\n\t(condition "A.Type != '"'"'Zone'"'"'")\n\t(constraint edge_clearance (min 0.29mm)))\n' \
+    > "${PANEL%.kicad_pcb}.kicad_dru"
+kicad-cli pcb drc --severity-error --format json -o "$WORK/panel-drc.json" "$PANEL"
 python3 - "$WORK/panel-drc.json" <<'EOF'
 import json, sys
 d = json.load(open(sys.argv[1]))

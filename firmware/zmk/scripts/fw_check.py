@@ -40,7 +40,8 @@ BRT_CAP = 8                # %, CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX in the board *_
 LED_COUNT = 37             # SK6812MINI-E per half, one per key (layout/leds.py CHAIN)
 GRB = [2, 1, 3]            # LED_COLOR_ID_GREEN, _RED, _BLUE
 RGB_KCONFIG = ("CONFIG_ZMK_RGB_UNDERGLOW", "CONFIG_WS2812_STRIP_RPI_PICO_PIO", "CONFIG_ZMK_EXT_POWER",
-               "CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER", "CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE")
+               "CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER")
+IDLE_OFF = "CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE"   # saves "off": the board would boot dark
 RGB_SYMBOLS = ("ws2812_led_strip_update_rgb", "ext_power_generic_init", "zmk_rgb_underglow_init",
                "behavior_rgb_underglow_driver_api")
 
@@ -97,6 +98,8 @@ def check_rgb(name: str, bdir: Path) -> list[str]:
     errors = []
     cfg = kconfig(bdir)
     errors += [f"{name}: {key} is not set" for key in RGB_KCONFIG if cfg.get(key) != "y"]
+    if cfg.get(IDLE_OFF) == "y":
+        errors.append(f"{name}: {IDLE_OFF} is set, the keyboard would boot dark after an idle spell")
     brt = cfg.get("CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX")
     if brt is None or int(brt) > BRT_CAP:
         errors.append(f"{name}: CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX is {brt or 'unset'}, cap {BRT_CAP} %")

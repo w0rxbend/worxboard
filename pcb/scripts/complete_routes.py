@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Finish the connections Freerouting left open (spec §9 stage 10, after the session import).
+"""Route everything the locked critical routes leave open (spec §9 stage 10).
 
-A small two-layer maze router: for every net still split into islands it rasterises, on a fine
+A small maze router over F.Cu, B.Cu and, at LAYER_COST, the In2 VLED plane layer: for every net still split into islands it rasterises, on a fine
 grid around the gap (ATTEMPTS), all other-net copper, holes, keepouts and the board edge (dilated by the
 track half-width + the clearance + a grid margin), then runs A* with 45 deg moves and vias between the
 islands. Routes are written as ordinary (unlocked) tracks and vias; DRC is the judge afterwards.
@@ -22,7 +22,7 @@ import shapely.ops
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.ops import unary_union
 
-from place import POWER_NETS, VIA, mm, outline_points, pt
+from place import PLANES, POWER_NETS, VIA, mm, outline_points, pt
 
 ATTEMPTS = ((0.1, 6.0), (0.05, 4.0), (0.1, 18.0))   # (grid mm, window margin mm), in order
 MAX_POPS = 1_500_000         # A* expansion budget per attempt
@@ -38,10 +38,14 @@ MAX_ROUTES = 600
 HEURISTIC = 1.3              # A* weight (> 1: faster, slightly longer routes)
 QUANT = 0.6                  # extra dilation, in grid steps, for the centre-line quantisation
 WIDTHS = {"power": (0.5, 0.25, 0.2), "fanout": (0.15,), "default": (0.25, 0.15)}
-LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu)
-ESCAPE_LEN = 2.0             # soft mode: a lane this long straight on from other nets' locked
+LAYERS = (pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.In2_Cu)
+# In2 is the VLED plane: a track there cuts a slot in it, so a cell costs this many times an outer one
+# and the router crosses the plane only where the outer layers are full (deviations REVB-8)
+LAYER_COST = {pcbnew.In2_Cu: 3.0}
+OUTER = (pcbnew.F_Cu, pcbnew.B_Cu)
+ESCAPE_LEN = 2.0             # a lane this long straight on from other nets' locked
 ESCAPE_R = 0.35              # stub ends (+- this) costs ESCAPE_COST mm of track per grid cell,
-ESCAPE_COST = 3.0            # so a rip-up route does not wall in the next stub
+ESCAPE_COST = 3.0            # so another net's route does not wall in the next stub
 STUB_ENDS: list = []         # (net, layer, lane) for locked track ends that join nothing (collect)
 PROTECT: set = set()         # nets a rip-up should spare (negotiate: those it just routed) ...
 PROTECT_COST = 25.0          # ... crossing them costs this many mm of track per grid cell
@@ -89,8 +93,13 @@ def led_cutouts(board: pcbnew.BOARD) -> list:
     return out
 
 
+PLANE_CODES: set[int] = set()   # nets with an inner plane (place.PLANES); collect() sets it
+
+
 def collect(board: pcbnew.BOARD) -> tuple[list[Item], list]:
     items, keepouts = [], []
+    PLANE_CODES.clear()
+    PLANE_CODES.update(board.FindNet(n).GetNetCode() for l, n in PLANES if l not in OUTER)
     for t in board.GetTracks():
         if t.Type() == pcbnew.PCB_VIA_T:
             c = Point(xy(t.GetPosition()))
@@ -132,7 +141,7 @@ def stub_ends(items: list[Item]) -> list:
                 k = (it.net, layer, round(p[0], 3), round(p[1], 3))
                 n, _ = ends.get(k, (0, q))
                 ends[k] = (n + 1, q)
-    fixed = [(it.net, l, g) for it in items if it.ref is None and not it.pour and (it.pad or len(it.geoms) == 2)
+    fixed = [(it.net, l, g) for it in items if it.ref is None and not it.pour and (it.pad or len(it.geoms) == len(LAYERS))
              for l, g in it.geoms.items()]
     tree = shapely.STRtree(np.array([g for _, _, g in fixed], dtype=object))
     out = []
@@ -178,6 +187,10 @@ def islands(items: list[Item], net: int) -> list[list[Item]]:
                                         predicate="intersects")):
                 if mine[idx[b]].pad:
                     parent[find(pours[a])] = find(idx[b])
+    if net in PLANE_CODES:                        # an inner plane joins every via and drilled pad of its net
+        holes = [i for i, it in enumerate(mine) if not it.pour and (it.hole is not None or len(it.geoms) == len(LAYERS))]
+        for i in holes[1:]:
+            parent[find(i)] = find(holes[0])
     groups: dict[int, list[Item]] = {}
     for i, it in enumerate(mine):
         groups.setdefault(find(i), []).append(it)
@@ -310,10 +323,9 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
             grid.mark(index.dilated(it, key, CLEARANCE + half + quant), (dear if dr else soft if ripable else blocked)[key])
             grid.mark(index.dilated(it, key, CLEARANCE + vr + quant), via_dear if dr else via_soft if ripable else via_bad)
     penal = {l: np.zeros((grid.ny, grid.nx), bool) for l in LAYERS}
-    if soft_ok:
-        for n, l, lane in STUB_ENDS:
-            if n != net and win.intersects(lane):
-                grid.mark(lane.buffer(ESCAPE_R), penal[l])
+    for n, l, lane in STUB_ENDS:                 # in every mode: a clean route walls a stub in as well
+        if n != net and win.intersects(lane):
+            grid.mark(lane.buffer(ESCAPE_R), penal[l])
     for layers, g, no_via in keepouts:
         if g.intersects(win):
             for l in layers:
@@ -334,7 +346,7 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
                 goal |= {(k, int(j), int(i)) for j, i in cells}
             else:
                 dst += [(k, int(j), int(i)) for j, i in cells]
-    STATS.update(cells=2 * grid.nx * grid.ny, start=len(start), goal=len(goal), pops=0)
+    STATS.update(cells=len(LAYERS) * grid.nx * grid.ny, start=len(start), goal=len(goal), pops=0)
     if not start or not goal:
         return None
     gj = np.array([c[1] for c in goal])
@@ -346,8 +358,8 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
         di = max(ti0 - i, 0, i - ti1)
         return max(dj, di) + (math.sqrt(2) - 1) * min(dj, di)
     nyx = grid.ny * grid.nx
-    cost = np.full(2 * nyx, np.inf, dtype=np.float32)
-    prev = np.full(2 * nyx, -1, dtype=np.int64)
+    cost = np.full(len(LAYERS) * nyx, np.inf, dtype=np.float32)
+    prev = np.full(len(LAYERS) * nyx, -1, dtype=np.int64)
     heap = []
     for k, j, i in start:
         n = k * nyx + j * grid.nx + i
@@ -362,7 +374,8 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
     dr = [dear[l] & ~blocked[l] for l in LAYERS]
     via_dr = via_dear & ~via_bad
     pen = [penal[l] for l in LAYERS]
-    via_pen = penal[LAYERS[0]] | penal[LAYERS[1]]
+    via_pen = np.logical_or.reduce(pen)
+    layer_cost = [LAYER_COST.get(l, 1.0) for l in LAYERS]
     pops = 0
     blk = [blocked[l] for l in LAYERS]
     found = None
@@ -385,20 +398,22 @@ def route_pair(index: "Index", keepouts, net: int, a: list[Item], b: list[Item],
                 if dj and di and (blk[k][j, ii] or blk[k][jj, i]):
                     continue                     # no corner cutting
                 nn = k * nyx + jj * grid.nx + ii
-                ng = (g0 + c + (soft_cells if sft[k][jj, ii] else 0.0) + (esc_cells if pen[k][jj, ii] else 0.0)
+                ng = (g0 + c * layer_cost[k] + (soft_cells if sft[k][jj, ii] else 0.0) + (esc_cells if pen[k][jj, ii] else 0.0)
                       + (dear_cells if dr[k][jj, ii] else 0.0))
                 if ng < cost[nn]:
                     cost[nn] = ng
                     prev[nn] = n
                     heapq.heappush(heap, (ng + HEURISTIC * h(jj, ii), ng, nn))
-        if not via_bad[j, i] and not blk[1 - k][j, i]:
-            nn = (1 - k) * nyx + j * grid.nx + i
-            ng = (g0 + via_cells + (soft_cells if via_sft[j, i] else 0.0) + (esc_cells if via_pen[j, i] else 0.0)
-                  + (dear_cells if via_dr[j, i] else 0.0))
-            if ng < cost[nn]:
-                cost[nn] = ng
+        if via_bad[j, i]:
+            continue
+        via_g = (g0 + via_cells + (soft_cells if via_sft[j, i] else 0.0) + (esc_cells if via_pen[j, i] else 0.0)
+                 + (dear_cells if via_dr[j, i] else 0.0))
+        for k2 in range(len(LAYERS)):
+            nn = k2 * nyx + j * grid.nx + i
+            if k2 != k and not blk[k2][j, i] and via_g < cost[nn]:
+                cost[nn] = via_g
                 prev[nn] = n
-                heapq.heappush(heap, (ng + HEURISTIC * h(j, i), ng, nn))
+                heapq.heappush(heap, (via_g + HEURISTIC * h(j, i), via_g, nn))
     STATS["pops"] = pops
     if found is None:
         return None
@@ -529,7 +544,8 @@ def complete(board: pcbnew.BOARD, side: str, fanout: set[str], only: tuple[str, 
         groups = islands(items, code)
         if len(groups) > 1:
             todo.append((code, ni, len(groups)))
-    hard = [code for code, _, _ in sorted(todo, key=lambda t: t[2])]
+    # the U1 fan-out nets first: their stub ends sit in a ring round U1 that later routes would wall in
+    hard = [code for code, _, _ in sorted(todo, key=lambda t: (t[1].GetNetname() not in fanout, t[2]))]
     soft: list[int] = []                         # nets that failed without ripping anything
     rips: dict[int, int] = {}
     dead: set = set()                            # (island, island, mode) pairs that found no route

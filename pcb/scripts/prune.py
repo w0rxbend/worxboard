@@ -3,8 +3,8 @@
 
     python3 pcb/scripts/prune.py <side>      (edits pcb/<side>/worxboard-<side>.kicad_pcb)
 
-The rip-up of complete_routes.negotiate() cuts other nets' routes and reroutes them, and Freerouting
-runs some segments past the point where the rest of their net joins them. KiCad's DRC reports what
+The rip-up of complete_routes.negotiate() cuts other nets' routes and reroutes them, and
+some segments end up running past the point where the rest of their net joins them. KiCad's DRC reports what
 is left as `track_dangling` and `via_dangling` warnings (docs/deviations.md BOARD-4). Each round runs
 the DRC and, for every unlocked item it names:
 

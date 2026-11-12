@@ -13,7 +13,6 @@ under their own licences. Nothing here is copied wholesale unless it says so.
 | [foostan/crkbd](https://github.com/foostan/crkbd) (Corne v4) | MIT | Electrical reference (RP2040 support circuit and BOM parts), repo structure | `pcb/`, `docs/` |
 | [ceoloide/ergogen-footprints](https://github.com/ceoloide/ergogen-footprints) `switch_mx` | MIT | Cross-check of the Kailh MX hot-swap footprint geometry | `pcb/scripts/gen_footprints.py` |
 | [KiCad libraries](https://gitlab.com/kicad/libraries) | CC-BY-SA-4.0 with the KiCad library exception | Stock symbols, footprints and 3D models | referenced by `pcb/` |
-| [Freerouting](https://github.com/freerouting/freerouting) | GPL-3.0 | Autorouter, run as a tool (not distributed) | `tools/fetch_freerouting.sh` |
 | [KiKit](https://github.com/yaqwsx/KiKit) | MIT | JLCPCB fabrication outputs, run as a tool | `pcb/` |
 | [build123d](https://github.com/gumyr/build123d) | Apache-2.0 | CAD kernel for the case | `case/` |
 | [Shapely](https://github.com/shapely/shapely) | BSD-3-Clause | 2D geometry in `layout/` and `case/` | `layout/`, `case/` |

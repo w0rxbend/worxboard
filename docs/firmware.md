@@ -31,8 +31,7 @@ listed under [future work](#future-work). No row has been removed: all six build
   Download the `worxboard-firmware` artifact from a green run; it holds one `<artifact>.uf2` per row
   (six files, under 1 MB zipped). The workflow also checks the layout dtsi, the keymap and the right
   peripheral (see below), and that the checked-out ZMK matches the pin.
-- **Release**: tagged `v*-revA` releases will attach the same `.uf2` files (`release.yml`; no tag
-  exists yet).
+- **Release**: a tagged `v*` release attaches the same `.uf2` files (`release.yml`).
 - **Locally**: `just fw` builds every row (or `just fw <artifact>…` the named ones) in Docker
   (`zmkfirmware/zmk-build-arm:stable`) into `build/fw/`. The west workspace lives in `build/fw-ws/`,
   outside the source tree (deviation WS1-2); `just fw-west` refreshes it only when `west.yml` changes.
@@ -47,7 +46,7 @@ listed under [future work](#future-work). No row has been removed: all six build
     without the LED strip, the VLED switch or the brightness cap.
   - `just fw-check`, on both core rows: exactly one supported display rotation is configured and
     the rotating flush is linked; the [RGB](#rgb) strip (37 GRB LEDs on PIO0, GP22), the VLED
-    ext-power switch (GP23), idle-off and `BRT_MAX` ≤ 12 are configured, and the strip, ext-power and
+    ext-power switch (GP23) and `BRT_MAX` ≤ 8 are configured, idle-off is not set, and the strip, ext-power and
     `rgb_ug` code are linked. On the right peripheral it also checks that the custom screen
     and its 8 KB LVGL heap are in, that
     there are no `zmk_ble_` or battery symbols, and that flash use is at most 40 KB above the seed
@@ -111,7 +110,7 @@ physical layout and the keymap order cannot drift. CI regenerates it and fails o
 | `worxboard-layouts.dtsi` | **Generated**: the 6×14 transform and the physical layout |
 | `worxboard_left_rp2040_zmk.dts` | Left half: the shared definition as is |
 | `worxboard_right_rp2040_zmk.dts` | Right half: `col-gpios` reversed (GP20…GP14) and `col-offset = <7>`, so both PCBs share one matrix netlist |
-| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, LVGL/ls0xx defaults, HID indicators forwarded on both halves (deviation WS1-4), the custom status screen on the right with an 8192 B LVGL heap (`LV_Z_MEM_POOL_SIZE`; the left built-in screen keeps ZMK's 4096 B; WS1-8), RGB underglow with idle-off, and settings on both halves |
+| `Kconfig.defconfig` | `ZMK_SPLIT` on, `ZMK_SPLIT_ROLE_CENTRAL` on the left, the W25Q flash boot stage, LVGL/ls0xx defaults, HID indicators forwarded on both halves (deviation WS1-4), the custom status screen on the right with an 8192 B LVGL heap (`LV_Z_MEM_POOL_SIZE`; the left built-in screen keeps ZMK's 4096 B; WS1-8), RGB underglow (idle-off left at ZMK's default, off), and settings on both halves |
 | `*_defconfig` | RP2040 SoC, USB on the left only (`CONFIG_ZMK_USB` is not set on the right), the RGB brightness cap |
 | `worxboard.zmk.yml` | ZMK metadata: features keys, display, underglow and studio |
 
@@ -173,13 +172,13 @@ From [`layout/pins.py`](../layout/pins.py). Both halves use the same nodes in `w
 - **Strip**: `chain-length = <37>`, GRB `color-mapping`, `frequency = <800000>`, and
   `reset-delay = <500>` µs: the LEDs need more than 200 µs low between frames, and Zephyr's driver
   starts that sleep when the last word is queued, up to about 270 µs before it has been sent. The PIO node sets
-  `bit-waveform = <3>, <3>, <4>`, 10 PIO cycles per bit: T0H 375 ns, T1H 750 ns, as Zephyr's own
-  RP2040 boards. `pio0_ws2812_default` muxes GP22 to PIO0.
+  `bit-waveform = <3>, <3>, <4>`, 10 PIO cycles per bit, as Zephyr's own RP2040 boards. The driver's
+  integer clock divider is 125 MHz / 8 MHz = 15, so a cycle is 120 ns: T0H 360 ns, T1H 720 ns. `pio0_ws2812_default` muxes GP22 to PIO0.
 - **PIO0 holds only the strip.** The Zephyr driver loads its 4-instruction program at the top of
   an empty PIO and starts at instruction 31, so it cannot share PIO0 with another program.
 - **VLED** is off until the firmware drives GP23. ZMK's ext-power driver switches it on at boot, and
   the underglow switches it with the LEDs (`CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER`, a ZMK default):
-  toggle-off and idle-off cut VLED, and on restores it.
+  toggle-off cuts VLED, and on restores it.
 
 ### Controls
 
@@ -199,16 +198,16 @@ Saturation and speed have no keys; ZMK Studio can bind them. The LEDs start red 
 ### Brightness cap
 
 With one USB-C cable on the left, the left port (500 mA) feeds both halves, and the right half's
-RP2040, display and LEDs run over the TRRS cable through F1 (250 mA hold,
+RP2040, display and LEDs run over the TRRS cable through both halves' F1 (500 mA hold each,
 [electrical.md](electrical.md#power-path)). One SK6812MINI-E draws about 12 mA per colour at full
 duty (36 mA white) and 0.6 mA when dark. So the boards cap the LEDs:
 
 | Option | Value | Why |
 |---|---|---|
-| `CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX` | 8 (`*_defconfig`) | ZMK scales brightness 0–100 onto `BRT_MIN`–`BRT_MAX` % duty, in every effect (`rgb_underglow.c` `hsb_scale_min_max` / `_zero_max`). Full white is 37 × 36 mA × 8 % ≈ 107 mA (129 mA at the datasheet's 14.5 mA per colour), plus 22 mA for 37 dark LEDs and ~30 mA for the RP2040, flash and display: at most ~181 mA per half, about 72 % of F1's 250 mA hold. The first rev B setting, 12 %, reached ~245 mA worst case, 98 % of it (independent review) |
+| `CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX` | 8 (`*_defconfig`) | ZMK scales brightness 0–100 onto `BRT_MIN`–`BRT_MAX` % duty, in every effect (`rgb_underglow.c` `hsb_scale_min_max` / `_zero_max`). Full white is 37 × 36 mA × 8 % ≈ 107 mA (129 mA at the datasheet's 14.5 mA per colour), plus 22 mA for 37 dark LEDs and ~30 mA for the RP2040, flash and display: at most ~181 mA per half (~196 mA at the datasheet's 1 mA per dark LED), under 40 % of F1's 500 mA hold and ~360–390 mA from the left port's 500 mA for both halves. The cap was set against the 250 mA fuse of the first rev B draft (12 % reached ~245 mA worst case, independent review); with the 500 mA fuse (deviation REVB-9) the port budget is the limit, so it stays 8 |
 | `CONFIG_ZMK_RGB_UNDERGLOW_BRT_MIN` | 1 (`*_defconfig`) | Keeps the LEDs visibly lit at the lowest step: ZMK limits `BRT_START` to `BRT_MAX` on the 0–100 scale, and without a floor its integer maths turns a start of 8 into 0 % (on but dark) |
 | `CONFIG_ZMK_RGB_UNDERGLOW_BRT_START` | 8 (`*_defconfig`) | 1 + 7 × 8 / 100 → 1 % duty at boot; each brightness step (10) adds about 0.7 % up to 8 % |
-| `CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE` | y (`Kconfig.defconfig`) | After 30 s without a key press (`ZMK_IDLE_TIMEOUT`) the strip goes dark and VLED switches off |
+| `CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE` | n (ZMK default; `just fw-check` rejects y) | Idle-off goes through ZMK's normal off path, which saves "off" after 60 s: a keyboard left idle for about 90 s would boot dark at the next power-up and no key press would light it, and each half would go dark on its own idle timer. Without it the LEDs stay lit while the port is powered, also through host sleep; `RGB_TOG` switches them and VLED off |
 | `CONFIG_ZMK_RGB_UNDERGLOW_ON_START` | y (ZMK default) | ext-power switches VLED on at boot anyway, so the LEDs start on with it |
 
 The cap is a `*_defconfig` setting, not a `Kconfig.defconfig` default: ZMK's `Kconfig.defaults` gives
@@ -257,18 +256,17 @@ Verified in the pinned ZMK source (`zmk/app/` in `build/fw-ws/`), not yet on har
   right half; if the halves ever disagree, one or two presses of the toggle bring them back in step.
 - **Each half animates on its own** 50 ms timer, so breathe, spectrum and swirl are not frame-locked
   across the halves.
-- **Each half idles on its own key presses**: on a peripheral, `src/activity.c:110-111` sees only
-  local key and sensor events. Type only on the left and the right goes dark after 30 s; it lights
-  again at its next key press.
+- **No idle-off.** On a peripheral, `src/activity.c:110-111` sees only local key and sensor events,
+  so with `CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE` a half that is not typed on would go dark after
+  30 s while the other stays lit. The boards leave it off (see the table above).
 - **Both halves keep their RGB state.** In ZMK only Studio and BLE turn on Zephyr settings, so the
   wired right half had none and would boot lit at `BRT_START` whatever the left restored. The boards
   default `SETTINGS` on with RGB (`Kconfig.defconfig`), so each half saves its own state. ZMK saves
   on/off and the effect when they change; a brightness or colour change is saved with the next save,
   because `zmk_rgb_underglow_set_hsb()`, which the relayed absolute colour uses, does not save
   (`src/rgb_underglow.c:377-385`).
-- **Idle-off is saved too.** ZMK's idle-off goes through the normal off path, which saves after a
-  60 s debounce. A keyboard left idle for more than about 90 s before it is unplugged boots dark;
-  press the toggle.
+- **A fresh board boots dim.** `BRT_START` 8 scales to 1 % duty, red: easy to take for a dead chain.
+  Hold the layer 1 key and press `RGB_BRI` ten times to reach the 8 % cap.
 
 ## Known issues
 
@@ -277,7 +275,7 @@ Verified in the pinned ZMK source (`zmk/app/` in `build/fw-ws/`), not yet on har
   commands) and the `*_EXPERIMENTAL` role-swap pair are untested.
 - **Settings writes lock interrupts.** The RP2040 flash driver locks interrupts while it programs or
   erases (`zephyr/drivers/flash/flash_rpi_pico.c:227,277`). With RGB, each half writes settings about
-  a minute after an RGB change or an idle transition. Whether a write can drop a frame on the
+  a minute after an RGB change. Whether a write can drop a frame on the
   115 200 baud split UART is unmeasured.
 - **Display orientation is not checked on hardware.** Which panel end is pixel x = 0 comes from
   ZMK's nice_view widgets and the vendor's product images; no Sharp LS011B7DH03 datasheet was found.
@@ -293,8 +291,9 @@ Verified in the pinned ZMK source (`zmk/app/` in `build/fw-ws/`), not yet on har
   there. The seed build had the same warnings; the target is experimental and has no hardware.
 - The board-folder `worxboard.conf` files are not read when `ZMK_CONFIG` is set (they document the
   defaults only); the options that count are in `firmware/zmk/config/worxboard.conf`.
-- The build image is the floating `zmkfirmware/zmk-build-arm:stable` tag, as in ZMK's own
-  `build-user-config.yml`; the ZMK source itself is pinned.
+- The build image is `zmkfirmware/zmk-build-arm:stable` at the digest in `tools/images.lock`
+  (`just fw` and the firmware workflow run it by digest), and the ZMK source is pinned. Zephyr comes
+  from ZMK's branch ref `v4.1.0+zmk-fixes`, which can move.
 
 ## Future work
 

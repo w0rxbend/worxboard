@@ -20,7 +20,7 @@ docs-links *args:
 
 # Build the GitHub Pages microsite into _site/ (adds case STLs and renders when they exist)
 site:
-    uv run python site/build_site.py {{site_out}} {{quote(version)}}
+    uv run --group site python site/build_site.py {{site_out}} {{quote(version)}}
 
 # Build the site and serve it on http://localhost:8000
 site-serve: site

@@ -37,7 +37,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 | 🟩 PCB (`pcb/`) | ✅ **Designed (rev B, four layers). Gates passed locally; CI rebuild and stock check open.** Both halves are generated in KiCad 10, with the per-key RGB chain, the VLED switch U6 and the data buffer U7, on F.Cu / GND plane / VLED plane / B.Cu. The gates of the final routed boards and their order packages in [`pcb/production/`](pcb/production/) are recorded in [verification.md](docs/verification.md#rev-b-results). The pipeline stops on an ERC error, a netlist mismatch (the RGB chain included), a DRC violation, an unconnected item or a parity issue, and on a failed scripted check: the USB pair, crystal, decoupling, U1 ground return and GND links, via-in-pad, J1 pin-in-paste, outline, and each LED in its switch window. |
 | 💾 Firmware (`firmware/`, `zephyr/`, `build.yaml`) | 🔨 **Builds.** All six `build.yaml` rows build locally and in CI: left central, right peripheral, two role-swap rows and two RP2350A rows. Both screens are laid out portrait for the upright display. The LED chains run as ZMK underglow, capped at 8 % brightness. Nothing has run on hardware. |
 | 🧱 Case and plates (`case/`, `plates/`) | ✅ **Orderable.** Every case check passes, and so does JLCCNC's internal-corner rule. `just fitcheck` reports 0 mm³ of interference against both PCB STEPs plus the layout envelopes. The JLCCNC / JLC3DP package for case revision A5 (with PCBWay notes) is committed in [`case/production/`](case/production/README.md). Nothing has been printed or machined. |
-| 📚 Docs and microsite (`docs/`, `site/`) | ✅ **Done.** The turnkey ordering guides for JLCPCB and PCBWay, shopping list, build guide, generated BOM, pinout and matrix, and the electrical, case, legs and firmware docs. The site has the 3D viewer. |
+| 📚 Docs and microsite (`docs/`, `site/`) | ✅ **Done.** The turnkey ordering guides for JLCPCB and PCBWay, shopping list, build guide, generated BOM, pinout and matrix, and the electrical, case, legs and firmware docs. The site is a product page with the 3D viewer and a build guide rendered from these docs. |
 | 🧪 Gates and release | ⏳ **Rev A passed. Rev B passed locally, CI open.** [`docs/verification.md`](docs/verification.md) records rev A's integration tests (111 passed), CI, order-package checks and gates G1–G3, and the rev B gate results of 2026-11-12. [`release.yml`](.github/workflows/release.yml) publishes the committed order packages, the firmware and the case files on a `v*` tag. The tag `v0.1.0-revA` points at the rev A commit. |
 | 🛠️ Hardware | ⏳ **Not built.** What only a real board can confirm is [listed](docs/verification.md#not-verified-until-a-board-is-built). |
 
@@ -58,10 +58,10 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 ## 📸 Gallery
 
 > [!NOTE]
-> Every image in this README is a render, a CAD drawing or a screenshot. No photos exist yet, because no board has been built. The PCB renders and the CPL proofs were regenerated from the rev B boards on 2026-11-12, and the case renders show case revision A5. **The two viewer screenshots still show rev A**: no LEDs, and the display before its 1.0 mm setback. They were committed on 2026-11-02, before case revisions A3 to A5, so the case they show is older (for example, it has no raised display bezel). They also predate the re-placed turnkey boards (BOARD-1), so the parts drawn on the PCBs are from the older layout. KiCad has no 3D model for the USB-C, the TRRS jack or the hot-swap sockets, so the PCB renders show only their footprints.
+> Every image in this README is a render, a CAD drawing or a screenshot. No photos exist yet, because no board has been built. The PCB renders and the CPL proofs were regenerated from the rev B boards on 2026-11-12, and the case renders show case revision A5. The two viewer images were captured from the microsite's 3D viewer on 2026-11-12: they show rev B in the case of revision A5, with the LEDs lit. KiCad has no 3D model for the USB-C, the TRRS jack or the hot-swap sockets, so the PCB renders show only their footprints.
 
 <table>
-<tr><td align="center" width="50%"><a href="docs/images/site-viewer-exploded.png"><img src="docs/images/site-viewer-exploded.png" alt="Right half exploded in the 3D viewer, silver finish" width="100%"></a><br><sub>💥 Right half exploded in the viewer: tray, PCB, printed spacer, top shell, switches, keycaps</sub></td><td align="center" width="50%"><a href="case/renders/right_with_legs.png"><img src="case/renders/right_with_legs.png" alt="CAD render of the closed right-half case with its three tent legs" width="100%"></a><br><sub>🦵 Closed right-half case with its three custom tent legs (CAD render)</sub></td></tr>
+<tr><td align="center" width="50%"><a href="docs/images/site-viewer-exploded.png"><img src="docs/images/site-viewer-exploded.png" alt="Right half exploded in the 3D viewer, black finish, LEDs lit" width="100%"></a><br><sub>💥 Right half exploded in the viewer: tray, PCB, printed spacer, top shell, switches, keycaps</sub></td><td align="center" width="50%"><a href="case/renders/right_with_legs.png"><img src="case/renders/right_with_legs.png" alt="CAD render of the closed right-half case with its three tent legs" width="100%"></a><br><sub>🦵 Closed right-half case with its three custom tent legs (CAD render)</sub></td></tr>
 <tr><td align="center"><a href="docs/images/pcb-left-top.png"><img src="docs/images/pcb-left-top.png" alt="KiCad render of the left PCB, top side" width="100%"></a><br><sub>🟩 Left PCB, top (rev B): RP2040, flash, USB-C J1, BOOT/RESET, JP1 (“cut = split power”), display socket J3, TRRS jack J2 on the inner bump</sub></td><td align="center"><a href="docs/images/pcb-right-top.png"><img src="docs/images/pcb-right-top.png" alt="KiCad render of the right PCB, top side" width="100%"></a><br><sub>🟩 Right PCB, top (rev B): mirrored, same netlist; both boards print DO NOT HOT-PLUG TRRS and HOST → LEFT by J2</sub></td></tr>
 <tr><td align="center"><a href="docs/images/pcb-left-bottom.png"><img src="docs/images/pcb-left-bottom.png" alt="KiCad render of the left PCB, bottom side" width="100%"></a><br><sub>🟩 Left PCB, bottom (rev B): 37 hot-swap socket footprints and 37 diodes; rev B adds an LED and its cap at every key</sub></td><td align="center"><a href="docs/images/pcb-right-bottom.png"><img src="docs/images/pcb-right-bottom.png" alt="KiCad render of the right PCB, bottom side" width="100%"></a><br><sub>🟩 Right PCB, bottom (rev B): 37 socket footprints and 37 diodes, all fitted by the fab</sub></td></tr>
 <tr><td align="center" colspan="2"><a href="case/renders/pair_top_iso.png"><img src="case/renders/pair_top_iso.png" alt="CAD render of both CNC top shells side by side" width="100%"></a><br><sub>🧱 Both CNC top shells: the plate is milled into the key well, with 2u stabiliser cut-outs and a display window on each half</sub></td></tr>
@@ -253,17 +253,22 @@ Each layer has 74 bindings, in the order 12 / 14 / 12 / 14 / 10 and then the 12 
 > [!NOTE]
 > **Live at [w0rxbend.github.io/worxboard](https://w0rxbend.github.io/worxboard/).** The manual [`pages`](.github/workflows/pages.yml) workflow deploys it from `main`, so the site shows `main` as of its last run. Run it locally with `just site-serve` (port 8000). GitHub also opens the committed STLs, such as [`worxboard_left_spacer.stl`](case/production/jlc3dp/worxboard_left_spacer.stl), in its own 3D viewer.
 
-The microsite in [`site/`](site/) has a three.js viewer, adapted from the [ErgoDox CNC case](https://github.com/w0rxbend/ergodox) viewer (the hero shot and the exploded view above are screenshots of it). It builds both halves straight from `layout/build/layout.json`: the PCB, switches, keycaps with legends and the displays. It places every assembled part of the committed KiCad boards at its real position, and it adds the case STLs if `just model` ran before `just site`.
+The microsite in [`site/`](site/) is a product page and a build guide. The product page opens with a scroll-driven tour of the keyboard in a three.js viewer (the hero shot and the exploded view above were captured from it): the aluminium case, the lights, the display, the exploded stack and the tent legs. The viewer was adapted from the [ErgoDox CNC case](https://github.com/w0rxbend/ergodox) viewer. It builds both halves straight from `layout/build/layout.json`: the PCB, switches, keycaps with legends, the LEDs and the displays. It places every assembled part of the committed KiCad boards at its real position, and it adds the case STLs if `just model` ran before `just site`.
+
+The build guide is one page per step: ordering at JLCPCB, ordering at PCBWay, soldering at home, the shopping list, the case orders, assembly and firmware. `site/build_site.py` renders those pages from the Markdown files in `docs/` and `case/production/`, so the site and the repository cannot drift apart, and the build fails on a broken anchor between two guide pages.
+
+The "Explore" section of the product page is the free viewer:
 
 | Feature | What it does |
 |---|---|
-| 🎬 **Scenes** | Pair / Left / Right, plus six case finishes: Black, Silver, Space grey, Blue, Red, Orange |
-| 🎥 **Camera** | Iso, Top, Front and Side presets, fullscreen, auto-rotate |
+| 🎬 **Scenes** | Pair / Left / Right, plus six case finishes, each with its keycap set: Black, Silver, Space grey, Blue, Red, Orange |
+| 🌈 **Light** | The four ZMK underglow effects (solid, breathe, spectrum, swirl), brightness and colour. A render, not a measurement of the real LEDs |
+| 🎥 **Camera** | Iso, Top, Front and Side presets, full screen, slow turn |
 | 💥 **Explode, cut, swing** | Pull the stack apart (tray, PCB, spacer, top shell, switches, keycaps), sweep a section plane along Y, swing the three tent legs per half from 0° to 180° |
 | 🖱️ **Hover** | Shows a key's legend and ZMK matrix position, or a part's reference, value and footprint |
-| 📥 **Downloads** | The case STLs and `layout.json`; a Screenshot button; deep links such as `#scene=left&finish=silver&view=top` |
+| 📥 **Downloads** | The case STLs and `layout.json`; a Save image button; deep links such as `#scene=left&finish=silver&view=top` |
 
-Around the viewer, the page carries the specs, the build journey, the order packages, the case Z stack, the open issues and a filterable gallery of every render and placement proof, with a lightbox.
+Below the viewer, the page carries the specs, the build steps with links into the guide, the status of the design, a filterable gallery of every render and placement proof, and the documentation index. It states that the project is free and open source and names both licences.
 
 ## 🚀 From zero to typing
 
@@ -636,7 +641,7 @@ The layout, firmware, pcb and case workflows run on every push to `main`, on pul
 - 🐳 **Build image.** The firmware builds in `zmkfirmware/zmk-build-arm:stable` at the digest in `tools/images.lock`; Zephyr comes from ZMK's branch ref `v4.1.0+zmk-fixes`, which can move.
 - 💾 **RP2350A target** (`worxboard2`): settings, the RGB state included, do not persist, because the flash map and NVS are forced off.
 - 🧠 **LVGL heap.** Heap use has not been measured on hardware. On a 64-bit host the right screen peaks at about 5.2 KB of its 8 KB heap, and the left at about 4.7 KB against ZMK's 4 KB default.
-- 🖼️ **Stale previews.** The viewer screenshots show rev A and predate case revisions A3 to A5, and `spacer.png` predates the stabiliser-wire channels. CI re-renders the case into the `worxboard-case` artifact.
+- 🖼️ **Stale preview.** `spacer.png` predates the stabiliser-wire channels. CI re-renders the case into the `worxboard-case` artifact.
 - 📜 **Licence split** ([below](#-license)): it still needs the maintainer's confirmation.
 
 ## 🔭 Future work
@@ -668,7 +673,7 @@ plates/              plate DXFs, for cutting an optional separate 1.5 mm plate
 docs/                build guide, BOM, electrical, pinout, matrix, ordering, case, legs,
                      firmware, spec; images/ (PCB renders, layout.svg, viewer screenshots,
                      CPL proofs)
-site/                microsite: web/ (three.js viewer), build_site.py, gen_docs.py, pcbdata.py
+site/                microsite: web/ (product page, three.js viewer), guide.template.html, build_site.py, gen_docs.py, pcbdata.py
 tests/integration/   integration tests: pins, gates, stock, stabilisers, release assembly
 tools/               container helpers and pinned image digests
 .github/workflows/   layout, firmware, pcb, case (push, PR, tags); pages (manual); release (v* tags)
@@ -684,6 +689,7 @@ tools/               container helpers and pinned image digests
 | | [shopping-list.md](docs/shopping-list.md) | the four orders and every off-board part for one keyboard |
 | | [ordering-jlcpcb.md](docs/ordering-jlcpcb.md) | the turnkey JLCPCB order step by step: form fields, placement checks, alternates, cost estimate |
 | | [ordering-pcbway.md](docs/ordering-pcbway.md) | the same order at PCBWay: its own BOM and centroid files, the form, substitutions, manufacturer part numbers |
+| | [soldering-at-home.md](docs/soldering-at-home.md) | bare boards and loose parts instead of factory assembly: which parts need reflow, what to order, the order of work (an untested path) |
 | | [bom.md](docs/bom.md) | bill of materials with LCSC numbers (generated), JLC fees, the ordering gates |
 | 📖 **Reference** | [electrical.md](docs/electrical.md) | power path, TRRS link, USB-C, MCU support circuit, display, per-key RGB, reference designators, PCB rules and pipeline |
 | | [pinout.md](docs/pinout.md) | RP2040 GPIO map, TRRS contacts, display header, part positions, holes (generated) |

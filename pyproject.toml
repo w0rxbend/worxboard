@@ -16,6 +16,9 @@ case = [
     "pypdfium2==5.14.0",
 ]
 dev = ["pytest>=8"]
+site = [
+    "markdown-it-py==4.3.0",
+]
 
 [tool.uv]
 package = false

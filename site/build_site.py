@@ -1,25 +1,35 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Assemble the GitHub Pages microsite.
 
-Copies the static viewer (site/web/), layout/build/layout.json, the doc images and the case renders
-and, when they exist, the case STLs from case/exports/. Writes manifest.json with the case part
-stats, leg placements, the gallery list and the PCB components: every assembled part of the
+Copies the static product page (site/web/), layout/build/layout.json, the doc images and the case
+renders and, when they exist, the case STLs from case/exports/. Writes manifest.json with the case
+part stats, leg placements, the gallery list and the PCB components: every assembled part of the
 committed boards (pcb/<side>/*.kicad_pcb) as a box at its footprint position, sized from the
 footprint's Fab outline. The case STLs are optional (`just model`).
+
+Renders the build guide: one page per Markdown file of GUIDE_STEPS, in the page frame of
+site/guide.template.html, plus guide.html as their index. The Markdown stays the single source, so
+the site and the repository cannot drift apart; the build fails if a link between two guide pages
+names an anchor that does not exist.
 
 usage: build_site.py <out dir> [version]
 """
 from __future__ import annotations
 
+import html
 import inspect
 import json
 import math
+import re
 import shutil
 import struct
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from string import Template
 
 import numpy as np
+from markdown_it import MarkdownIt
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -32,6 +42,53 @@ CASE_DIR = ROOT / "case"
 CASE_EXPORTS = CASE_DIR / "exports"
 IMAGE_DIRS = (ROOT / "docs/images", CASE_DIR / "renders")
 REPO = "https://github.com/w0rxbend/worxboard"
+GUIDE_TEMPLATE = ROOT / "site/guide.template.html"
+GUIDE_INDEX = "guide"   # guide.html, the index of the guide pages
+
+
+@dataclass(frozen=True)
+class Guide:
+    slug: str      # the page is <slug>.html
+    source: str    # its Markdown file, from the repository root
+    title: str     # short name, for the navigation
+    summary: str   # one sentence, for the guide index
+
+
+# The build path in the order a builder walks it: (step, what happens in it, its pages).
+GUIDE_STEPS = (
+    ("Get the boards",
+     "Two circuit boards, one per half. A factory can fit all 201 parts of each for you, or you can solder them yourself.",
+     (Guide("order-jlcpcb", "docs/ordering-jlcpcb.md", "Order at JLCPCB",
+            "Both boards, fully assembled: the files to upload, every form field, the placement check and the cost."),
+      Guide("order-pcbway", "docs/ordering-pcbway.md", "Order at PCBWay",
+            "The same boards from PCBWay, with its own parts list and placement files."),
+      Guide("solder-at-home", "docs/soldering-at-home.md", "Solder it at home",
+            "Bare boards and loose parts instead of factory assembly: what it takes and how to go about it."))),
+    ("Buy the rest",
+     "What no factory sends: switches, keycaps, stabilisers, displays, cables and screws.",
+     (Guide("shopping-list", "docs/shopping-list.md", "Shopping list",
+            "Every off-board part for one keyboard, with quantities and what to look for."),)),
+    ("Order the case",
+     "Machined aluminium for the shells, trays and legs, 3D prints for the spacers and foot caps. Test the boards first.",
+     (Guide("case", "docs/case.md", "The case",
+            "How the case is built up, its files, and the test print to make before any aluminium is cut."),
+      Guide("order-case-cnc", "case/production/jlccnc/ORDER_NOTES.md", "Machined parts at JLCCNC",
+            "The CNC order: one upload per part, the form settings and the remarks to paste."),
+      Guide("order-case-print", "case/production/jlc3dp/ORDER_NOTES.md", "Printed parts at JLC3DP",
+            "The plate spacers and the tree of leg foot caps."),
+      Guide("order-case-pcbway", "case/production/pcbway/ORDER_NOTES.md", "The case at PCBWay",
+            "The same case files, ordered from PCBWay instead."))),
+    ("Assemble",
+     "Test the bare boards, fit the displays, close the case, push in the switches and keycaps.",
+     (Guide("assemble", "docs/buildguide_en.md", "Assemble it",
+            "From a box of parts to a keyboard, step by step, with a troubleshooting list."),)),
+    ("Bring it to life",
+     "Flash both halves, then make the layout and the lights your own.",
+     (Guide("firmware", "docs/firmware.md", "Firmware",
+            "Get the ZMK firmware, flash it, change the keymap and control the lights."),)),
+)
+GUIDES = tuple(g for _, _, pages in GUIDE_STEPS for g in pages)
+ALERTS = {"NOTE": "Note", "TIP": "Tip", "IMPORTANT": "Important", "WARNING": "Warning", "CAUTION": "Caution"}
 
 AL_DENSITY = 2.70e-3      # g/mm3, 6061
 CAD_ORIGIN = (130.0, 100.0)   # KiCad -> CAD frame: (x - OX, -(y - OY)), as in the reference case
@@ -57,8 +114,8 @@ GALLERY = {  # image stem -> (caption, group), in gallery order; unknown images 
     "layout": ("Layout of both halves, generated from layout/: ErgoDox stagger, 25° thumbs, the display in the C6R0 slot", "layout"),
     "pcb-left-top": ("Left PCB, top: RP2040, flash, USB-C J1, BOOT/RESET, JP1, display socket J3, TRRS jack J2 on the inner bump", "pcb"),
     "pcb-right-top": ("Right PCB, top: mirrored, same netlist; both boards print DO NOT HOT-PLUG TRRS by J2", "pcb"),
-    "pcb-left-bottom": ("Left PCB, bottom: 37 hot-swap socket footprints and 37 diodes", "pcb"),
-    "pcb-right-bottom": ("Right PCB, bottom: 37 socket footprints and 37 diodes, all fitted by JLC", "pcb"),
+    "pcb-left-bottom": ("Left PCB, bottom: 37 hot-swap sockets, 37 diodes and 37 LEDs", "pcb"),
+    "pcb-right-bottom": ("Right PCB, bottom: 37 sockets, 37 diodes and 37 LEDs, all fitted by the fab", "pcb"),
     "pair_top_iso": ("Both CNC top shells: the plate is milled into the key well, with 2u stabiliser cut-outs and a display window", "case"),
     "right_with_legs": ("Closed right-half case with its three custom tent legs", "case"),
     "right_top_underside": ("Right top shell, underside: plate webbing, screw bosses, display pocket", "case"),
@@ -70,21 +127,25 @@ GALLERY = {  # image stem -> (caption, group), in gallery order; unknown images 
     "leg_section": ("Outer leg mount section: M3 tapped pad and Ø10 boss", "case"),
     "section": ("Six sections through the right half: key column, display column, across the display, back-edge screws, USB-C, TRRS", "case"),
     "overlay": ("The right-half case over the PCB layout: case outline, PCB, key well, display pocket, window, zones, bosses", "case"),
-    "cpl-sk-hotswap-socket": ("Placement proof, hot-swap sockets (bottom): 74 placed, 74 pass", "proof"),
-    "cpl-d101-diode-sod123f": ("Placement proof, matrix diodes (bottom): 74 placed, 74 pass", "proof"),
-    "cpl-u1-rp2040-qfn56": ("Placement proof, U1 RP2040 QFN-56: both halves pass", "proof"),
-    "cpl-u2-flash-soic8": ("Placement proof, U2 QSPI flash SOIC-8: both halves pass", "proof"),
-    "cpl-u3-ldo-sot23-5": ("Placement proof, U3 3.3 V LDO SOT-23-5: both halves pass", "proof"),
-    "cpl-u4-u5-esd-sot23-6": ("Placement proof, U4 and U5 ESD arrays: 4 placed, 4 pass", "proof"),
-    "cpl-y1-crystal-3225": ("Placement proof, Y1 12 MHz crystal: both halves pass", "proof"),
-    "cpl-d1-schottky-sod123": ("Placement proof, D1 Schottky on the USB power path: both halves pass", "proof"),
-    "cpl-c-0402": ("Placement proof, 0402 capacitors: 38 placed, 38 pass", "proof"),
-    "cpl-r-0402": ("Placement proof, 0402 resistors: 26 placed, 26 pass", "proof"),
-    "cpl-f1-ptc-1206": ("Placement proof, F1 polyfuse on the TRRS power line: both halves pass", "proof"),
-    "cpl-j1-usb-c": ("Placement proof, J1 USB-C, mouth over the back edge: both halves pass", "proof"),
-    "cpl-j2-trrs-pj320d": ("Placement proof, J2 TRRS jack on the inner bump: both halves pass", "proof"),
-    "cpl-j3-display-socket": ("Placement proof, J3 display socket: five contacts in five holes", "proof"),
-    "cpl-sw-tact-ts1088": ("Placement proof, SW1 and SW2 BOOT and RESET switches: 4 placed, 4 pass", "proof"),
+    "cpl-sk-hotswap-socket": ("Placement proof, hot-swap sockets (bottom)", "proof"),
+    "cpl-d101-diode-sod123f": ("Placement proof, matrix diodes (bottom)", "proof"),
+    "cpl-u1-rp2040-qfn56": ("Placement proof, U1 RP2040 QFN-56", "proof"),
+    "cpl-u2-flash-soic8": ("Placement proof, U2 QSPI flash SOIC-8", "proof"),
+    "cpl-u3-ldo-sot23-5": ("Placement proof, U3 3.3 V LDO SOT-23-5", "proof"),
+    "cpl-u4-u5-esd-sot23-6": ("Placement proof, U4 and U5 ESD arrays", "proof"),
+    "cpl-y1-crystal-3225": ("Placement proof, Y1 12 MHz crystal", "proof"),
+    "cpl-d1-schottky-sod123": ("Placement proof, D1 Schottky on the USB power path", "proof"),
+    "cpl-c-0402": ("Placement proof, 0402 capacitors", "proof"),
+    "cpl-r-0402": ("Placement proof, 0402 resistors", "proof"),
+    "cpl-f1-ptc-1206": ("Placement proof, F1 polyfuse on the TRRS power line", "proof"),
+    "cpl-j1-usb-c": ("Placement proof, J1 USB-C, mouth over the back edge", "proof"),
+    "cpl-j2-trrs-pj320d": ("Placement proof, J2 TRRS jack on the inner bump", "proof"),
+    "cpl-j3-display-socket": ("Placement proof, J3 display socket", "proof"),
+    "cpl-sw-tact-ts1088": ("Placement proof, SW1 and SW2 BOOT and RESET switches", "proof"),
+    "cpl-led-smd-4p-l3-2-w2-8-ls5-9-sk6812mini-e": ("Placement proof, SK6812MINI-E LEDs (bottom)", "proof"),
+    "cpl-c0603": ("Placement proof, 0603 capacitors", "proof"),
+    "cpl-sot-23-5-l2-9-w1-6-p0-95-ls2-8-br": ("Placement proof, SOT-23-5 on JLC's L2.9-W1.6 footprint", "proof"),
+    "cpl-sot-23-5-l3-0-w1-7-p0-95-ls2-8-bl": ("Placement proof, SOT-23-5 on JLC's L3.0-W1.7 footprint", "proof"),
 }
 WIDE = ("pair_top_iso", "section")   # layout.svg is shown full width in its own section
 GALLERY_SKIP = ("site-viewer",)   # screenshots of this page: copied (for the link preview), not listed
@@ -186,6 +247,158 @@ def components(side: str) -> list[dict]:
     return out
 
 
+# ---------- guide pages ----------
+def heading_slug(text: str, used: dict[str, int]) -> str:
+    """The anchor GitHub gives a heading, so the links inside the Markdown files work unchanged."""
+    slug = re.sub(r"[^\w\- ]", "", text.strip().lower()).replace(" ", "-")
+    seen = used.get(slug, 0)
+    used[slug] = seen + 1
+    return f"{slug}-{seen}" if seen else slug
+
+
+def site_url(target: str, source: Path) -> str:
+    """Where a link or image of the Markdown file `source` points once that file is a site page."""
+    if re.match(r"[a-z][a-z0-9+.-]*:|#", target):
+        return target   # another site, or an anchor in the same page
+    path, _, fragment = target.partition("#")
+    dest = (source.parent / path).resolve()
+    anchor = f"#{fragment}" if fragment else ""
+    page = next((g.slug for g in GUIDES if ROOT / g.source == dest), None)
+    if page:
+        return f"{page}.html{anchor}"
+    if dest.parent in IMAGE_DIRS and dest.suffix in IMAGE_EXT:
+        return f"images/{dest.name}"   # gallery() copies both image folders there
+    kind = "tree" if dest.is_dir() else "blob"
+    return f"{REPO}/{kind}/main/{dest.relative_to(ROOT).as_posix()}{anchor}"
+
+
+def without_contents(tokens: list) -> list:
+    """Drop a "Contents" section: the page frame lists the headings beside the text."""
+    kept, skipping = [], False
+    for i, tok in enumerate(tokens):
+        if tok.type == "heading_open":
+            skipping = tokens[i + 1].content.strip() == "Contents"
+        if not skipping:
+            kept.append(tok)
+    return kept
+
+
+@dataclass(frozen=True)
+class Page:
+    slug: str
+    title: str
+    description: str
+    body: str                             # HTML of the article
+    sections: tuple[tuple[str, str], ...]  # (anchor, text) of each h2
+    anchors: frozenset[str] = frozenset()  # every heading anchor, for the link check
+    source: str = ""                      # the Markdown file it was rendered from, if any
+
+
+def render_guide(md: MarkdownIt, guide: Guide) -> Page:
+    """One Markdown file as a guide page: GitHub's heading anchors, links and images moved to the site."""
+    source = ROOT / guide.source
+    tokens = without_contents(md.parse(source.read_text()))
+    used: dict[str, int] = {}
+    title, sections, anchors = guide.title, [], set()
+    for i, tok in enumerate(tokens):
+        if tok.type == "heading_open":
+            text = "".join(c.content for c in tokens[i + 1].children if c.type in ("text", "code_inline"))
+            anchor = heading_slug(text, used)
+            anchors.add(anchor)
+            tok.attrSet("id", anchor)
+            if tok.tag == "h1":
+                title = text
+            elif tok.tag == "h2":
+                sections.append((anchor, text))
+        for child in tok.children or ():
+            if child.type == "link_open":
+                child.attrSet("href", site_url(child.attrGet("href"), source))
+            elif child.type == "image":
+                child.attrSet("src", site_url(child.attrGet("src"), source))
+                child.attrSet("loading", "lazy")
+    body = md.renderer.render(tokens, md.options, {})
+    body = re.sub(r"<blockquote>\s*<p>\[!(%s)\]\s*" % "|".join(ALERTS),
+                  lambda m: f'<blockquote class="alert {m[1].lower()}"><p><b>{ALERTS[m[1]]}</b> ', body)
+    body = body.replace("<table>", '<div class="table-wrap"><table>').replace("</table>", "</table></div>")
+    return Page(guide.slug, title, guide.summary, body, tuple(sections), frozenset(anchors), guide.source)
+
+
+def guide_index() -> Page:
+    """guide.html: the build path, one entry per step with its pages."""
+    steps = "".join(
+        f"<li><h2>{html.escape(step)}</h2><p>{html.escape(blurb)}</p><ul>"
+        + "".join(f'<li><a href="{g.slug}.html"><b>{html.escape(g.title)}</b><span>{html.escape(g.summary)}</span></a></li>'
+                  for g in pages)
+        + "</ul></li>"
+        for step, blurb, pages in GUIDE_STEPS)
+    body = (
+        "<h1>Build your worxboard</h1>"
+        '<p class="lede">worxboard is free and open source, so nobody sells it: you order the parts from the factories '
+        "yourself and put them together. These pages take you through it in five steps, from the first upload to a "
+        "keyboard you type on.</p>"
+        '<blockquote class="alert important"><p><b>Important</b> Revision B passes every check on the design files, '
+        "but no board has been built yet. Order two assembled boards per half, then flash and test them before you "
+        f'pay for the aluminium case. <a href="{REPO}/blob/main/docs/verification.md">What is verified</a></p></blockquote>'
+        f'<ol class="path">{steps}</ol>')
+    return Page(GUIDE_INDEX, "Build guide", "How to order, assemble and flash a worxboard, step by step.", body, ())
+
+
+def guide_menu(current: str) -> str:
+    """The guide's pages grouped by step; the page being read is marked."""
+    def link(slug: str, text: str, cls: str = "") -> str:
+        mark = ' aria-current="page"' if slug == current else ""
+        return f'<a{cls} href="{slug}.html"{mark}>{html.escape(text)}</a>'
+
+    steps = "".join(
+        f"<li><span>{html.escape(step)}</span><ul>"
+        + "".join(f"<li>{link(g.slug, g.title)}</li>" for g in pages) + "</ul></li>"
+        for step, _, pages in GUIDE_STEPS)
+    return link(GUIDE_INDEX, "Build guide", ' class="guide-home"') + f"<ol>{steps}</ol>"
+
+
+def pager(slug: str) -> str:
+    """Links to the pages before and after `slug` on the build path."""
+    def link(guide: Guide, rel: str, label: str) -> str:
+        return f'<a rel="{rel}" href="{guide.slug}.html"><span>{label}</span>{html.escape(guide.title)}</a>'
+
+    i = next(i for i, g in enumerate(GUIDES) if g.slug == slug)
+    before = link(GUIDES[i - 1], "prev", "Before") if i > 0 else "<span></span>"
+    after = link(GUIDES[i + 1], "next", "Next") if i + 1 < len(GUIDES) else "<span></span>"
+    return f'<nav class="pager" aria-label="Previous and next page">{before}{after}</nav>'
+
+
+def check_guide_links(pages: list[Page]) -> None:
+    """Stop the build if a link between two guide pages names an anchor its target does not have."""
+    anchors = {p.slug: p.anchors for p in pages}
+    broken = [f"{p.slug}.html -> {target}.html#{fragment}"
+              for p in pages
+              for target, fragment in re.findall(r'href="([\w-]+)\.html#([^"]+)"', p.body)
+              if target in anchors and fragment not in anchors[target]]
+    if broken:
+        raise SystemExit("guide pages: broken anchors:\n  " + "\n  ".join(broken))
+
+
+def page_html(frame: Template, page: Page, version: str) -> str:
+    toc = "".join(f'<li><a href="#{a}">{html.escape(t)}</a></li>' for a, t in page.sections)
+    source = (f'<p class="source">This page is <a href="{REPO}/blob/main/{page.source}">{page.source}</a> '
+              "in the repository.</p>" + pager(page.slug)) if page.source else ""
+    return frame.substitute(
+        title=html.escape(page.title), description=html.escape(page.description, quote=True),
+        menu=guide_menu(page.slug), body=page.body + source,
+        toc=f"<p>On this page</p><ul>{toc}</ul>" if toc else "", version=html.escape(version))
+
+
+def guide_pages(out: Path, version: str) -> dict[str, str]:
+    """Write guide.html and one page per guide; returns {Markdown source: page slug}."""
+    md = MarkdownIt("commonmark", {"html": True}).enable("table")
+    pages = [render_guide(md, g) for g in GUIDES]
+    check_guide_links(pages)
+    frame = Template(GUIDE_TEMPLATE.read_text())
+    for page in (guide_index(), *pages):
+        (out / f"{page.slug}.html").write_text(page_html(frame, page, version))
+    return {p.source: p.slug for p in pages}
+
+
 def main(out: Path, version: str) -> int:
     if out.exists():
         shutil.rmtree(out)
@@ -198,13 +411,14 @@ def main(out: Path, version: str) -> int:
         cad_origin=[getattr(ec, "OX", CAD_ORIGIN[0]), getattr(ec, "OY", CAD_ORIGIN[1])],
         bodies=bodies(), components={s: components(s) for s in L.SIDES},
         parts=parts, legs=leg_placements(ec) if parts else [], gallery=gallery(out),
+        guides=guide_pages(out, version),
     )
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
     (out / ".nojekyll").touch()
     total = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
     print(f"site: {out} ({total / 1e6:.1f} MB), version {version}")
     print(f"  {len(parts)} case parts, {len(manifest['legs'])} leg mounts, {len(manifest['gallery'])} images, "
-          f"{sum(len(c) for c in manifest['components'].values())} PCB components")
+          f"{len(manifest['guides'])} guide pages, {sum(len(c) for c in manifest['components'].values())} PCB components")
     for name, p in parts.items():
         print(f"  {name:13s} {p['triangles']:6d} tris  {p['size']}  {p['mass_g']} g")
     return 0

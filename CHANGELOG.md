@@ -13,6 +13,14 @@ rev A's.
 
 ### Added
 
+- **Microsite redesign.** The site is now a product page and a build guide. The product page tours
+  the keyboard in 3D as you scroll (case, lights, display, exploded stack, tent legs), states that
+  the project is free and open source, and keeps the free viewer, the specs, the status and the
+  gallery. The viewer draws rounded keycaps, lit LEDs with the four ZMK effects and a keycap set per
+  case finish. The build guide is one page per step, rendered by `site/build_site.py` from the
+  Markdown in `docs/` and `case/production/` (new dependency group `site`: markdown-it-py).
+- **`docs/soldering-at-home.md`**: what it takes to solder the boards yourself instead of ordering
+  them assembled. The path is untested.
 - **Rev B, per-key RGB** ([REVB-1](docs/deviations.md#revb-1-per-key-rgb-an-sk6812mini-e-under-every-switch-vled-switched-data-buffered-3-6-7-8-11)):
   - an SK6812MINI-E (C5149201) under every switch, 37 per half, reverse-mounted on the bottom in a
     3.4 × 3.0 mm cutout, its lens in the switch's south-facing LED window, each with its own 100 nF

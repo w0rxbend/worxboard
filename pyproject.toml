@@ -1,6 +1,6 @@
 [project]
 name = "worxboard"
-version = "0.1.0"
+version = "0.2.0"
 description = "ErgoDox EZ-style split keyboard: RP2040, ZMK wired split, nice!view LCD, KiCad PCB, build123d case"
 readme = "README.md"
 license = "GPL-3.0-or-later"

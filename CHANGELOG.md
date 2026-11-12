@@ -6,9 +6,13 @@ firmware and case files.
 
 ## [Unreleased]
 
+## [0.2.0-revB] - 2026-11-12
+
 Rev B is the order revision after the rev A pre-order review of 2026-11-04
 ([deviations REVB-1 to REVB-9](docs/deviations.md#revb-rev-b-per-key-rgb-display-setback-and-review-fixes-layout-pcb-firmware-case-docs)). It is designed, not built; its gate results are
-recorded in `docs/verification.md` from the final routed boards. Entries not marked rev B are
+recorded in `docs/verification.md` from the final routed boards, which passed locally and in CI.
+The stock of the BOM lines must still be checked on the order day. This section also carries rev
+A's entries, because the pre-release `v0.1.0-revA` did not cut one: entries not marked rev B are
 rev A's.
 
 ### Added
@@ -256,4 +260,3 @@ Order review of the turnkey packages (deviations ORDER-1 to ORDER-9):
 - JLC does not document its bottom-side CPL convention; check the sockets, diodes and LEDs in its
   placement preview. Never upload the JLC CPL to PCBWay. The hot-swap socket C41430893 has no field
   report of JLC assembling it.
-- `release.yml` still packs KiKit's raw fab files instead of `pcb/production/` (PKG-4).

@@ -15,12 +15,13 @@ docs. The gates block **ordering**, not the repository.
 
 ## Rev B results
 
-**Passed locally on 2026-11-12, not yet on a commit.** Rev B is a four-layer board, routed by locked
+**Passed locally on 2026-11-12, and in CI on commit `c942e7b` the same day.** Rev B is a four-layer board, routed by locked
 scripted copper and the repo's own maze router, with no Freerouting and no seed search (deviation
 [REVB-8](deviations.md)), and with the BOM changes of REVB-9. The gates below ran on the working
-tree of that day, in the pinned containers. Two gates are still open: the CI `rebuild` jobs, which
-need a commit, and the stock of the BOM lines on the order day. Order only from a commit on which the
-`pcb` workflow is green.
+tree of that day, in the pinned containers. The `pcb` workflow then repeated them on the commit,
+its from-scratch `rebuild` jobs included ([run 43208334628](https://github.com/w0rxbend/worxboard/actions/runs/43208334628)). One gate stays
+open by its nature: the stock of the BOM lines on the order day. Order only from a commit on which
+the `pcb` workflow is green.
 
 | # | Gate | Left | Right |
 |---|---|---|---|
@@ -33,7 +34,7 @@ need a commit, and the stock of the BOM lines on the order day. Order only from 
 | 4 | `just pcb-production-check <side>`: `jlc_check`, package rebuilt byte for byte | 12 passed, identical | 12 passed, identical |
 | 5 | `just fitcheck`: PCB STEP in the case | 0 mm³ interference | 0 mm³ interference |
 | 6 | From-scratch rebuild equals the board byte for byte (local run) | identical | identical |
-| 6 | CI `rebuild` jobs | open: needs a commit | open: needs a commit |
+| 6 | CI `rebuild` jobs on `c942e7b`: the rebuilt board equals the committed one | identical | identical |
 | 7 | `just fw` with `fw-check` | 6 of 6 targets built | (same run) |
 | 7 | `pytest tests/integration`, `pytest layout`, `site/gen_docs.py --check` | 112 passed, 0 skipped; 38 passed; current | (same run) |
 | 8 | Stock of all BOM lines (`just pcb-stock`) | open: run on the order day | open: run on the order day |
@@ -358,8 +359,8 @@ host (BOARD-2), and `prune.py` leaves no unlocked dangling copper (BOARD-4, BOAR
 
 ## Open items that block ordering
 
-For rev B: the gates listed under [Rev B results](#rev-b-results), which are pending. For rev A:
-none. The five items WS5 listed are done:
+For rev B: one gate of [Rev B results](#rev-b-results), the stock of every BOM line, which can only
+be checked on the order day. For rev A: none. The five items WS5 listed are done:
 
 | # | Gate | Item | Done in |
 |---|---|---|---|

@@ -1,5 +1,6 @@
 # Microsite: builds _site/ (viewer from layout.json and the committed boards, plus the case STLs when
-# the case builds) and deploys GitHub Pages. Manual only: run it from the Actions tab.
+# the case builds and the copper layer drawings when KiCad plots them) and deploys GitHub Pages.
+# Manual only: run it from the Actions tab.
 name: pages
 
 on:
@@ -42,6 +43,11 @@ jobs:
 
       - name: Case model (optional; the site builds without it)
         run: just model || echo "::warning::case model not built; the site shows the boards without the case"
+
+      - name: Copper layer drawings (optional; the layer view says so when they are missing)
+        run: |
+          (bash tools/pull_images.sh kicad/kicad:10.0.7 && just pcb-layers left) \
+            || echo "::warning::copper layer drawings not built; the layer view shows its notes without them"
 
       - name: Build site
         run: just version="${GITHUB_REF_NAME}@${GITHUB_SHA::7}" site

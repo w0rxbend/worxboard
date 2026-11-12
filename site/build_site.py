@@ -7,6 +7,10 @@ part stats, leg placements, the gallery list and the PCB components: every assem
 committed boards (pcb/<side>/*.kicad_pcb) as a box at its footprint position, sized from the
 footprint's Fab outline. The case STLs are optional (`just model`).
 
+The manifest also carries the copper figures of one half (track segments, length and nets per layer,
+vias) for the page's layer view, and the drawing of each layer when `just pcb-layers` has made them:
+those are optional too, and the page says so when they are missing.
+
 Renders the build guide: one page per Markdown file of GUIDE_STEPS, in the page frame of
 site/guide.template.html, plus guide.html as their index. The Markdown stays the single source, so
 the site and the repository cannot drift apart; the build fails if a link between two guide pages
@@ -41,6 +45,9 @@ LAYOUT_JSON = ROOT / "layout/build/layout.json"
 CASE_DIR = ROOT / "case"
 CASE_EXPORTS = CASE_DIR / "exports"
 IMAGE_DIRS = (ROOT / "docs/images", CASE_DIR / "renders")
+COPPER_SIDE = "left"      # the half the layer view shows
+COPPER_DRAWINGS = ROOT / "build" / COPPER_SIDE / "layers"   # <layer>.svg, written by `just pcb-layers`
+COPPER = {"F.Cu": "f", "In1.Cu": "in1", "In2.Cu": "in2", "B.Cu": "b"}   # KiCad layer -> its name on the page
 REPO = "https://github.com/w0rxbend/worxboard"
 GUIDE_TEMPLATE = ROOT / "site/guide.template.html"
 GUIDE_INDEX = "guide"   # guide.html, the index of the guide pages
@@ -227,6 +234,22 @@ def gallery(out: Path) -> list[dict]:
     return sorted(shots, key=lambda s: order.index(Path(s["file"]).stem) if Path(s["file"]).stem in order else len(order))
 
 
+def copper(out: Path) -> dict:
+    """The layer view's data: the track figures of each copper layer of one half and its vias, and the
+    layers' drawings, copied to layers/ when `just pcb-layers` has made all four."""
+    board = PCB.copper(COPPER_SIDE)
+    drawn = all((COPPER_DRAWINGS / f"{name}.svg").exists() for name in COPPER)
+    layers = {}
+    for name, key in COPPER.items():
+        tracks = board.layers.get(name, PCB.Tracks(count=0, length=0.0, nets=0))
+        layers[key] = dict(name=name, tracks=tracks.count, length_mm=round(tracks.length), nets=tracks.nets)
+        if drawn:
+            (out / "layers").mkdir(exist_ok=True)
+            shutil.copyfile(COPPER_DRAWINGS / f"{name}.svg", out / "layers" / f"{key}.svg")
+            layers[key]["file"] = f"layers/{key}.svg"
+    return dict(side=COPPER_SIDE, vias=board.vias, drawn=drawn, layers=layers)
+
+
 def bodies() -> dict:
     """Layout part rectangles per side (KiCad frame) the viewer draws itself."""
     return {s: {ref: list(L.part_rect(s, ref)) for ref in LAYOUT_BODIES} for s in L.SIDES}
@@ -411,7 +434,7 @@ def main(out: Path, version: str) -> int:
         cad_origin=[getattr(ec, "OX", CAD_ORIGIN[0]), getattr(ec, "OY", CAD_ORIGIN[1])],
         bodies=bodies(), components={s: components(s) for s in L.SIDES},
         parts=parts, legs=leg_placements(ec) if parts else [], gallery=gallery(out),
-        guides=guide_pages(out, version),
+        guides=guide_pages(out, version), copper=copper(out),
     )
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
     (out / ".nojekyll").touch()
@@ -419,6 +442,8 @@ def main(out: Path, version: str) -> int:
     print(f"site: {out} ({total / 1e6:.1f} MB), version {version}")
     print(f"  {len(parts)} case parts, {len(manifest['legs'])} leg mounts, {len(manifest['gallery'])} images, "
           f"{len(manifest['guides'])} guide pages, {sum(len(c) for c in manifest['components'].values())} PCB components")
+    if not manifest["copper"]["drawn"]:
+        print(f"  no copper layer drawings: run `just pcb-layers {COPPER_SIDE}` first to show them in the layer view")
     for name, p in parts.items():
         print(f"  {name:13s} {p['triangles']:6d} tris  {p['size']}  {p['mass_g']} g")
     return 0

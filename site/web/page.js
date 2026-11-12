@@ -30,6 +30,21 @@ const downloads = Object.entries(manifest.parts).map(([n, p]) =>
 downloads.push(`<a class="part" href="layout.json" download><b>layout.json</b><span>every key, hole and zone</span><span>schema ${esc(lay.schema)}, JSON</span></a>`);
 $("partlist").innerHTML = downloads.join("");
 
+// ---------- the copper layers ----------
+// The figures are read from the committed board on every build. The drawings are optional in a build
+// (`just pcb-layers`): without them the stage says so, and the notes still read.
+const copper = manifest.copper;
+for (const el of document.querySelectorAll("[data-figure]")) {
+  const [layer, figure] = el.dataset.figure.split(".");
+  el.textContent = copper.layers[layer][figure].toLocaleString("en");
+}
+$("viaStat").textContent = copper.vias.toLocaleString("en");
+if (copper.drawn) {
+  for (const img of document.querySelectorAll("[data-plate]")) img.src = copper.layers[img.dataset.plate].file;
+} else {
+  $("copper").dataset.drawn = "no";
+}
+
 // ---------- gallery: filters and a lightbox ----------
 const GROUPS = { pcb: "PCB", case: "Case", layout: "Layout", proof: "Placement proofs", other: "Other" };
 const shots = manifest.gallery.map((s, i) => ({ ...s, i, group: s.group in GROUPS ? s.group : "other" }));

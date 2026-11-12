@@ -34,6 +34,7 @@
     <a href="#top">Overview</a>
     <a href="#explore">Explore</a>
     <a href="#specs">Specs</a>
+    <a href="#layers">Layers</a>
     <a href="#status">Status</a>
     <a href="#gallery">Gallery</a>
     <a href="#docs">Docs</a>
@@ -244,7 +245,7 @@
       <div><dt>Controller</dt><dd>RP2040 on each board, 16&nbsp;MB of QSPI flash, 12&nbsp;MHz crystal. No daughterboard.</dd></div>
       <div><dt>Connection</dt><dd>USB-C on both halves; the computer plugs into the left. The halves talk over a 3.5&nbsp;mm TRRS cable at 115&nbsp;200 baud, which also powers the right half.</dd></div>
       <div><dt>Firmware</dt><dd>ZMK, with ZMK Studio for live remapping. Three layers out of the box. Flash by dragging a UF2 file onto the board.</dd></div>
-      <div><dt>Board</dt><dd>4 layers, 1.6&nbsp;mm FR4, ENIG, <span id="sizeStat">182.8 × 158.8</span>&nbsp;mm per half. 201 parts per half placed by JLCPCB or PCBWay, on both sides.</dd></div>
+      <div><dt>Board</dt><dd><a href="#layers">4 layers</a>, 1.6&nbsp;mm FR4, ENIG, <span id="sizeStat">182.8 × 158.8</span>&nbsp;mm per half. 201 parts per half placed by JLCPCB or PCBWay, on both sides.</dd></div>
       <div><dt>Case</dt><dd>CNC 6061-T6 top shell and tray, a 3&nbsp;mm printed spacer between them. 192.4 × 165.6 × 17.6&nbsp;mm per half, 19.6&nbsp;mm at the display bezel. Eight M2.5 screws from below.</dd></div>
       <div><dt>Tenting</dt><dd>Three mounts per half at the ErgoDox EZ positions. Custom aluminium legs with TPU foot caps, held by M3 thumbscrews.</dd></div>
       <div><dt>Licence</dt><dd>Free and open source: code under GPL-3.0-or-later, hardware under CERN-OHL-S-2.0.</dd></div>
@@ -253,6 +254,92 @@
       <a href="images/layout.svg" target="_blank" rel="noopener"><img src="images/layout.svg" alt="Plan of both halves: keys, thumb clusters, displays, jacks and mounting holes" loading="lazy"></a>
       <figcaption>The layout of both halves, drawn by the same source that makes the boards, the case and the firmware.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section class="band" id="layers">
+  <h2>Four layers of copper</h2>
+  <div class="band-body">
+    <p class="lede">A circuit board is a sandwich: sheets of copper with glass-epoxy between them. This board has four copper sheets. Pick one to see what is on it.</p>
+
+    <div class="copper" id="copper">
+      <div class="copper-stage">
+        <div class="copper-scene">
+          <div class="copper-stack">
+            <img class="plate plate-b" data-plate="b" style="--level: -1.5" alt="B.Cu, the bottom copper layer" loading="lazy">
+            <img class="plate plate-in2" data-plate="in2" style="--level: -0.5" alt="In2.Cu, the LED power sheet" loading="lazy">
+            <img class="plate plate-in1" data-plate="in1" style="--level: 0.5" alt="In1.Cu, the ground sheet" loading="lazy">
+            <img class="plate plate-f" data-plate="f" style="--level: 1.5" alt="F.Cu, the top copper layer" loading="lazy">
+          </div>
+        </div>
+        <p class="copper-missing">The layer drawings are not in this build. Run <code>just pcb-layers left</code>, then <code>just site</code>.</p>
+      </div>
+
+      <fieldset class="copper-pick">
+        <legend>Layer to show</legend>
+        <label class="copper-row copper-row-all"><input type="radio" name="copper" id="copperAll" value="all" checked><i aria-hidden="true"></i><b>All four</b><span>Pulled apart</span></label>
+        <label class="copper-row copper-row-f"><input type="radio" name="copper" id="copperF" value="f"><i aria-hidden="true"></i><b>F.Cu</b><span>Top signals</span></label>
+        <label class="copper-row copper-row-in1"><input type="radio" name="copper" id="copperIn1" value="in1"><i aria-hidden="true"></i><b>In1.Cu</b><span>Ground sheet</span></label>
+        <label class="copper-row copper-row-in2"><input type="radio" name="copper" id="copperIn2" value="in2"><i aria-hidden="true"></i><b>In2.Cu</b><span>LED power sheet</span></label>
+        <label class="copper-row copper-row-b"><input type="radio" name="copper" id="copperB" value="b"><i aria-hidden="true"></i><b>B.Cu</b><span>Bottom signals</span></label>
+      </fieldset>
+
+      <div class="copper-notes" aria-live="polite">
+        <p class="copper-note copper-note-all">Four copper sheets in one board. The two outer sheets carry the signals. The two inner sheets are almost solid: one is ground, one feeds the LEDs. <span id="viaStat">512</span> plated holes, called vias, join the sheets.</p>
+        <p class="copper-note copper-note-f">The top side. The RP2040, the USB-C socket and the other small parts sit here. It holds <span data-figure="f.tracks">2,033</span> track segments on <span data-figure="f.nets">95</span> nets, <span data-figure="f.length_mm">3,269</span>&nbsp;mm in all. The fill between the tracks is spare copper tied to ground. The data line that runs from LED to LED is on this layer.</p>
+        <p class="copper-note copper-note-in1">One sheet of ground, with no track on it. Every part that needs ground drops a via straight down to this sheet, so the return current always has a short way back. The small rings are places where other nets pass through without touching it.</p>
+        <p class="copper-note copper-note-in2">One sheet that feeds the 37 LEDs of this half. Where the outer layers were full, the router let <span data-figure="in2.tracks">65</span> short track segments cross it: <span data-figure="in2.length_mm">87</span>&nbsp;mm on <span data-figure="in2.nets">13</span> nets.</p>
+        <p class="copper-note copper-note-b">The bottom side, under the keys: 37 hot-swap sockets with their diodes, LEDs and capacitors. It holds <span data-figure="b.tracks">1,316</span> track segments on <span data-figure="b.nets">110</span> nets, <span data-figure="b.length_mm">2,761</span>&nbsp;mm in all. On the two-layer rev B the main ground lived here, and the LED tracks cut it into islands.</p>
+      </div>
+      <p class="copper-fine">The left half, seen from the top side, as KiCad plots it. The gaps in the stack are stretched: the real board is 1.6&nbsp;mm thick.</p>
+    </div>
+
+    <h3 class="sub">Cut through the board</h3>
+    <div class="cut">
+      <figure>
+        <div class="cut-scroll">
+          <svg viewBox="0 28 560 236" role="img" aria-label="Cross-section of the board. From the top: F.Cu in pieces, glass-epoxy, the solid In1.Cu ground sheet, glass-epoxy, the solid In2.Cu LED power sheet, glass-epoxy, B.Cu in pieces. One via joins a top pad to the ground sheet, another joins a top pad to the LED power sheet.">
+            <rect x="50" y="70" width="280" height="180" fill="var(--fr4)"/>
+            <!-- F.Cu: tracks and pads, so it is in pieces -->
+            <g fill="var(--f-cu)">
+              <rect x="50" y="70" width="52" height="10"/><rect x="118" y="70" width="44" height="10"/>
+              <rect x="178" y="70" width="40" height="10"/><rect x="234" y="70" width="44" height="10"/>
+              <rect x="294" y="70" width="36" height="10"/>
+            </g>
+            <!-- In1.Cu: solid, open only around the LED power via -->
+            <g fill="var(--in1-cu)"><rect x="50" y="118" width="190" height="8"/><rect x="272" y="118" width="58" height="8"/></g>
+            <!-- In2.Cu: solid, open only around the ground via -->
+            <g fill="var(--in2-cu)"><rect x="50" y="194" width="74" height="8"/><rect x="156" y="194" width="174" height="8"/></g>
+            <!-- B.Cu: tracks and pads -->
+            <g fill="var(--b-cu)">
+              <rect x="50" y="240" width="40" height="10"/><rect x="106" y="240" width="68" height="10"/>
+              <rect x="190" y="240" width="30" height="10"/><rect x="236" y="240" width="40" height="10"/>
+              <rect x="292" y="240" width="38" height="10"/>
+            </g>
+            <!-- the two vias: a plated barrel with the drilled hole in the middle -->
+            <g fill="var(--via)"><rect x="134" y="70" width="12" height="180"/><rect x="250" y="70" width="12" height="180"/></g>
+            <g fill="var(--paper)"><rect x="138" y="70" width="4" height="180"/><rect x="254" y="70" width="4" height="180"/></g>
+            <g stroke="var(--text-soft)" stroke-width="1" fill="none">
+              <path d="M140 54V66M256 54V66"/>
+              <path d="M30 70H38M30 250H38M34 70V250"/>
+            </g>
+            <text x="140" y="46" text-anchor="middle">ground via</text>
+            <text x="256" y="46" text-anchor="middle">LED power via</text>
+            <text x="22" y="160" text-anchor="middle" transform="rotate(-90 22 160)">1.6 mm</text>
+            <text x="346" y="80"><tspan class="n">F.Cu</tspan><tspan dx="8">signals, 1 oz copper</tspan></text>
+            <text x="346" y="127"><tspan class="n">In1.Cu</tspan><tspan dx="8">ground sheet, 0.5 oz</tspan></text>
+            <text x="346" y="165">FR4 glass-epoxy between the sheets</text>
+            <text x="346" y="203"><tspan class="n">In2.Cu</tspan><tspan dx="8">LED power sheet, 0.5 oz</tspan></text>
+            <text x="346" y="250"><tspan class="n">B.Cu</tspan><tspan dx="8">signals, 1 oz copper</tspan></text>
+          </svg>
+        </div>
+        <figcaption>Not to scale. The copper is drawn much thicker than it is.</figcaption>
+      </figure>
+      <div class="cut-compare">
+        <p><b>With two layers.</b> Ground is whatever copper is left between the tracks. On rev B the LED tracks cut that copper into islands, and the ground checks failed on the left half.</p>
+        <p><b>With four layers.</b> Ground is a whole sheet. Every ground pad has a via beside it that goes straight to the sheet, so no track decides the ground path. Both halves now pass with 0 DRC violations.</p>
+      </div>
+    </div>
   </div>
 </section>
 

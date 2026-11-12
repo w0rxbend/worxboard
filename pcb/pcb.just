@@ -14,6 +14,7 @@
 #   just pcb-mpn [C...]          pcb/scripts/mpn.json: manufacturer part numbers from LCSC (network)
 #   just pcb-mpn-check           every LCSC number in design.py has an mpn.json entry (offline)
 #   just pcb-cpl-images          docs/images/cpl-*.svg: JLC footprints from the CPL over the KiCad pads
+#   just pcb-layers left         build/left/layers/*.svg: one drawing per copper layer, for the microsite
 #   just pcb-stock left [5]      live JLC stock for the committed package (network)
 #   just pcb left | pcb-all  everything for one / both sides
 
@@ -100,6 +101,14 @@ pcb-cpl-images: pcb-deps
     {{_pcb_docker}} bash -c "bash tools/kicad_env.sh && python3 pcb/scripts/cpl_check.py --quiet --svg docs/images \
         pcb/left/worxboard-left.kicad_pcb pcb/production/left/bare-board/bom.csv pcb/production/left/bare-board/cpl.csv \
         pcb/right/worxboard-right.kicad_pcb pcb/production/right/bare-board/bom.csv pcb/production/right/bare-board/cpl.csv"
+
+# Copper layer drawings for the microsite's layer view (site/build_site.py COPPER names the same four
+# layers): KiCad's own plot of each copper layer of the committed board, with the board outline and
+# without drill marks, in KiCad's default colours -> build/<side>/layers/<layer>.svg (not committed)
+pcb-layers side:
+    {{_pcb_docker}} bash -c 'mkdir -p build/{{side}}/layers && for layer in F.Cu In1.Cu In2.Cu B.Cu; do \
+        kicad-cli pcb export svg --mode-single --layers $layer,Edge.Cuts --page-size-mode 2 --exclude-drawing-sheet \
+        --drill-shape-opt 0 -o build/{{side}}/layers/$layer.svg pcb/{{side}}/worxboard-{{side}}.kicad_pcb || exit 1; done'
 
 # Live JLC stock for the committed package (network; run it on the day you order)
 pcb-stock side boards="5":

@@ -6,6 +6,14 @@ firmware and case files.
 
 ## [Unreleased]
 
+### Added
+
+- Microsite: a "Four layers of copper" section on the product page. It shows the left board's copper
+  as a stack pulled apart or one layer at a time, with the track figures of each layer read from the
+  committed board, and a cut through the board that explains the move from two layers to four.
+  `just pcb-layers <side>` plots the layer drawings with KiCad into `build/<side>/layers/`; the
+  `pages` workflow runs it before `just site`, and the section says so when the drawings are missing.
+
 ## [0.2.0-revB] - 2026-11-12
 
 Rev B is the order revision after the rev A pre-order review of 2026-11-04

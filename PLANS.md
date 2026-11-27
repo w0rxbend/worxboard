@@ -121,7 +121,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Leave `docs/design.md` (the frozen rev A spec) and the history in `docs/deviations.md` alone.
   - Files: `README.md`, `layout/pins.py` (then the regenerated `layout/build/layout.json` and `docs/pinout.md`), `docs/{buildguide_en,bom,verification,electrical,ordering-jlcpcb}.md`, `firmware/zmk/scripts/fw_check.py`. Size: M.
   - Note: `pins.py` notes feed `layout.json`. Check that nothing downstream hashes them, for example `fwdt.py` or the site.
-- [ ] **T-02. Confirm the switches' LED window (PR-09).**
+- [x] **T-02. Confirm the switches' LED window (PR-09).**
   - Accept: `docs/shopping-list.md` names switches whose drawing shows a south-facing LED window, and cites the drawing.
   - Verify: `just docs-check`.
   - Size: XS. Depends on: none.

@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 2, applying the owner's decisions.
-- **Next task:** T-11 (explicit RGB on/off), then T-08 (JLC remark), then T-09 (crystal swap).
+- **Next task:** T-08 (JLC remark for the LED joints), then T-09 (crystal swap).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -22,7 +22,8 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | deferred to rev C: D-3 = no batch, because D-1 keeps the copper |
 | PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
 | PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
-| PR-10, -11 | MINOR | open: D-4 = explicit on/off, suspend documented (T-11) |
+| PR-10 | — | withdrawn: the central relays the toggle as an absolute on/off |
+| PR-11 | MINOR | documented: T-11, `firmware.md` Known issues |
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
 | PR-15 | MINOR | fixed: T-03 (`prod/T-03`) |
 | PR-13, PR-17 | MINOR / COSMETIC | accepted: documented hot-plug rule; intended pin-in-paste mismatch |
@@ -55,7 +56,7 @@ hardware design guide's minimal design, and add JLC's footprint record of the pa
 - D-1 = (a). Keep the LED pads. Ask JLC about the joint at file confirmation, and order spares.
 - D-2 = (b). Swap the crystal to C20625731 (ABM8-272-T3) before ordering.
 - D-3 = no batch. The copper fixes wait for rev C, since D-1 keeps the copper.
-- D-4 = explicit `RGB_ON` / `RGB_OFF` keys. Suspend stays as it is, with a doc note.
+- D-4 = keep `RGB_TOG` (revised 2026-11-28, after PR-10 was withdrawn). Suspend stays as it is, with a doc note.
 
 ## Waiting on owner
 
@@ -86,3 +87,6 @@ Nothing.
 - 2026-11-27. T-07 done on `prod/T-07`: 17 crystals checked. Only C20625731 (ABM8-272-T3) meets
   CL ≤ 12 pF and ESR ≤ 50 Ω. Phase 1 is complete; Checkpoint 1 asks D-1 to D-4.
 - 2026-11-27. Checkpoint 1: the owner answered D-1 (a), D-2 (b), D-3 no batch, D-4 explicit on/off.
+- 2026-11-28. PR-10 withdrawn: ZMK's central relays the toggle as an absolute on/off
+  (`behavior_rgb_underglow.c:146`). The owner revised D-4 to keep the toggle. T-11 done on `prod/T-11`:
+  the pre-enumeration and suspend current note in `firmware.md` (PR-11).

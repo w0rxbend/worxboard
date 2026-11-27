@@ -134,6 +134,30 @@ class RgbCheckTest(unittest.TestCase):
                 self.write(GOOD_CONFIG, dts, GOOD_MAP)
                 self.assertEqual(len(self.errors()), 1, self.errors())
 
+    def test_waveform_stays_in_the_sk6812_window(self):
+        # bit-waveform T0/T1/T2 at the strip frequency -> T0H, T1H, T0L, T1L in ns (PLANS.md PR-R1)
+        cases = {
+            "rev B 3/3/4 at 800 kHz (375/750/875/500)": ("< 0x3 >, < 0x3 >, < 0x4 >", "< 0xc3500 >", True),
+            "T1H 625 ns, under 700": ("< 0x3 >, < 0x2 >, < 0x5 >", "< 0xc3500 >", False),
+            "T0H 500 ns, over 400": ("< 0x4 >, < 0x2 >, < 0x4 >", "< 0xc3500 >", False),
+            "3/3/4 at 1 MHz: T1H 600 ns": ("< 0x3 >, < 0x3 >, < 0x4 >", "< 0xf4240 >", False),
+        }
+        for case, (waveform, frequency, ok) in cases.items():
+            with self.subTest(case=case):
+                dts = (GOOD_DTS.replace("< 0x3 >, < 0x3 >, < 0x4 >", waveform)
+                       .replace("< 0xc3500 >", frequency))
+                self.write(GOOD_CONFIG, dts, GOOD_MAP)
+                errors = self.errors()
+                self.assertEqual(errors == [], ok, errors)
+                if not ok:
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn("SK6812", errors[0])
+
+    def test_waveform_must_be_readable(self):
+        self.write(GOOD_CONFIG, GOOD_DTS.replace("\t\t\t\t\tfrequency = < 0xc3500 >;\n", ""), GOOD_MAP)
+        self.assertEqual(self.errors(), ["core: underglow strip needs a 3-cell bit-waveform and a frequency "
+                                         "to check its timing"])
+
     def test_ext_power_is_required(self):
         broken = {
             "missing": GOOD_DTS.replace('"zmk,ext-power-generic"', '"vnd,other"'),

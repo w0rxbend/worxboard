@@ -18,6 +18,9 @@ firmware and case files.
 - `tests/integration/test_datasheet_pins.py`: U3, U4, U5, U6, U7 and every LED on both committed
   boards against the pin tables of their datasheets, plus the LED data direction (PR-15). netcmp
   checks pins by symbol name; this catches a symbol that numbers its pins wrongly.
+- `just fw-check` fails a core build whose LED bit timing leaves the SK6812MINI-E datasheet window
+  (T0H 250–400 ns, T1H 700–1000 ns, T0L ≥ 800 ns, T1L ≥ 200 ns). The current 375/750/875/500 ns
+  passes; the 625 ns T1H a review proposed would not (PLANS.md PR-R1).
 
 ### Fixed
 

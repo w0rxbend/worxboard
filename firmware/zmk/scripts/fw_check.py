@@ -9,8 +9,9 @@ runs this in the two core jobs); at least one must be there:
   flush (src/worx_display_rotation.c) is linked
 - both core rows, per-key RGB (docs/firmware.md#rgb): the zmk,underglow strip is a 37-LED GRB
   ws2812 PIO strip on PIO0 at the RGB_DATA GPIO, a zmk,ext-power-generic node switches the RGB_EN
-  GPIO (layout/pins.py), underglow drives ext-power and does not turn off when idle, BRT_MAX is at most
-  BRT_CAP, and the strip, ext-power and rgb_ug behaviour (which the central relays) are linked
+  GPIO (layout/pins.py), underglow drives ext-power and does not turn off when idle, BRT_MAX is
+  at most BRT_CAP, the bit timing is inside the SK6812MINI-E datasheet window, and the strip,
+  ext-power and rgb_ug behaviour (which the central relays) are linked
 - right peripheral: its link map has no zmk_ble_ (or battery) symbols, the custom screen is in,
   its LVGL heap is at least CUSTOM_HEAP, and its FLASH use grew less than FLASH_BUDGET over the
   seed build (zmk @ 4dd95d78)
@@ -42,6 +43,9 @@ GRB = [2, 1, 3]            # LED_COLOR_ID_GREEN, _RED, _BLUE
 RGB_KCONFIG = ("CONFIG_ZMK_RGB_UNDERGLOW", "CONFIG_WS2812_STRIP_RPI_PICO_PIO", "CONFIG_ZMK_EXT_POWER",
                "CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER")
 IDLE_OFF = "CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_IDLE"   # saves "off": the board would boot dark
+# SK6812MINI-E data timing, ns (min, max; None = no limit): OPSCO SK6812MINI-E-012 rev B/1, LCSC
+# C5149201, p. 7. A 625 ns T1H was once proposed from memory and is out of spec (PLANS.md PR-R1)
+SK6812_NS = {"T0H": (250, 400), "T1H": (700, 1000), "T0L": (800, None), "T1L": (200, None)}
 RGB_SYMBOLS = ("ws2812_led_strip_update_rgb", "ext_power_generic_init", "zmk_rgb_underglow_init",
                "behavior_rgb_underglow_driver_api")
 
@@ -94,6 +98,25 @@ def okay(node: dict | None, compatible: str) -> bool:
             and node["props"].get("status", '"okay"') == '"okay"')
 
 
+def bit_times_ns(pio: dict, strip: dict) -> dict[str, float]:
+    """T0H/T1H/T0L/T1L of the ws2812-rpi_pico-pio driver: bit-waveform T0, T1, T2 share one bit period
+    of 1 / frequency; a 0 is high for T0, a 1 for T0 + T1 (the binding's own definition)."""
+    t0, t1, t2 = cells(pio, "bit-waveform")
+    unit = 1e9 / cells(strip, "frequency")[0] / (t0 + t1 + t2)
+    return {"T0H": t0 * unit, "T1H": (t0 + t1) * unit, "T0L": (t1 + t2) * unit, "T1L": t2 * unit}
+
+
+def waveform_errors(name: str, pio: dict, strip: dict) -> list[str]:
+    if len(cells(pio, "bit-waveform")) != 3 or len(cells(strip, "frequency")) != 1:
+        return [f"{name}: underglow strip needs a 3-cell bit-waveform and a frequency to check its timing"]
+    times = bit_times_ns(pio, strip)
+    out = [f"{key} {times[key]:.0f} ns" for key, (lo, hi) in SK6812_NS.items()
+           if times[key] < lo or (hi is not None and times[key] > hi)]
+    if not out:
+        return []
+    return [f"{name}: underglow waveform outside the SK6812 datasheet window: {', '.join(out)}"]
+
+
 def check_rgb(name: str, bdir: Path) -> list[str]:
     errors = []
     cfg = kconfig(bdir)
@@ -121,6 +144,7 @@ def check_rgb(name: str, bdir: Path) -> list[str]:
         want = {"chain-length": [LED_COUNT], "gpios": ["&gpio0", pins.RGB_DATA, 0], "color-mapping": GRB}
         errors += [f"{name}: underglow strip {prop} is {cells(strip, prop)}, want {value}"
                    for prop, value in want.items() if cells(strip, prop) != value]
+        errors += waveform_errors(name, pio, strip)
     ext = [n for n in nodes if okay(n, "zmk,ext-power-generic")]
     if [cells(n, "control-gpios") for n in ext] != [["&gpio0", pins.RGB_EN, 0]]:
         errors.append(f"{name}: want one zmk,ext-power-generic node on GP{pins.RGB_EN}, active high")
@@ -169,7 +193,7 @@ def main(argv: list[str]) -> int:
         if name == RIGHT:
             found += check_right(out, bdir)
         if not found:
-            what = f"portrait display, {LED_COUNT}-LED RGB strip with ext-power, BRT_MAX <= {BRT_CAP}"
+            what = f"portrait display, {LED_COUNT}-LED RGB strip with ext-power, SK6812 timing, BRT_MAX <= {BRT_CAP}"
             what += ", no zmk_ble_/zmk_battery_ symbols" if name == RIGHT else ""
             print(f"{name}: {what}")
         errors += found

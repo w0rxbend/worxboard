@@ -102,7 +102,9 @@
         status = "okay";
         pinctrl-0 = <&pio0_ws2812_default>;
         pinctrl-names = "default";
-        /* 10 PIO cycles per bit at 800 kHz: T0H 375 ns, T1H 750 ns (as Zephyr's RP2040 boards) */
+        /* 10 PIO cycles per bit at 800 kHz: T0H 375, T1H 750, T0L 875, T1L 500 ns. SK6812MINI-E
+         * datasheet (C5149201, p. 7): T0H 250-400, T1H 700-1000, T0L >= 800, T1L >= 200 ns.
+         * T1H 625 ns (<3 2 5>) is out of spec; fw_check.py rejects any waveform outside the window. */
         bit-waveform = <3>, <3>, <4>;
 
         led_strip: ws2812 {

@@ -6,8 +6,8 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 ## Current state
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
-- **Phase:** 1, desk fixes with no copper change.
-- **Next task:** Checkpoint 1. Phase 1 is done once PRs #3–#8 are merged. The owner answers D-1 to D-4 (T-06).
+- **Phase:** 2, applying the owner's decisions.
+- **Next task:** T-11 (explicit RGB on/off), then T-08 (JLC remark), then T-09 (crystal swap).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -16,13 +16,13 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | ID | Sev | Outcome |
 |---|---|---|
 | PR-01 | BLOCKER | open: order-day stock check (T-12) |
-| PR-02 | MAJOR | open: waiting on D-1 |
+| PR-02 | MAJOR | open: D-1 = (a), keep the pads and ask JLC (T-08) |
 | PR-03 | MAJOR | fixed: T-01 (`prod/T-01`) |
-| PR-04 | VERIFY | open: candidates below (T-07); waiting on D-2 |
-| PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | open: waiting on D-3 |
+| PR-04 | VERIFY | open: D-2 = (b), swap to C20625731 (T-09) |
+| PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | deferred to rev C: D-3 = no batch, because D-1 keeps the copper |
 | PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
 | PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
-| PR-10, -11 | MINOR | open: waiting on D-4 |
+| PR-10, -11 | MINOR | open: D-4 = explicit on/off, suspend documented (T-11) |
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
 | PR-15 | MINOR | fixed: T-03 (`prod/T-03`) |
 | PR-13, PR-17 | MINOR / COSMETIC | accepted: documented hot-plug rule; intended pin-in-paste mismatch |
@@ -50,14 +50,16 @@ C1986039, C2650486, C5835798, C6525564 (0 in stock), C518157 (no ESR listed, 707
 If D-2 is (b), T-09 uses C20625731 with C6/C7 at 15 pF. Check the cap value against the RP2040
 hardware design guide's minimal design, and add JLC's footprint record of the part to `jlc_footprints.json`.
 
+## Owner decisions (2026-11-27, T-06)
+
+- D-1 = (a). Keep the LED pads. Ask JLC about the joint at file confirmation, and order spares.
+- D-2 = (b). Swap the crystal to C20625731 (ABM8-272-T3) before ordering.
+- D-3 = no batch. The copper fixes wait for rev C, since D-1 keeps the copper.
+- D-4 = explicit `RGB_ON` / `RGB_OFF` keys. Suspend stays as it is, with a doc note.
+
 ## Waiting on owner
 
-Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner decisions".
-
-- D-1. LED pads: keep and ask JLC (recommended), or go back to stock pads (copper change)?
-- D-2. Crystal: keep and test, or switch to a CL 10–12 pF, ESR ≤ 50 Ω part before ordering (recommended)?
-- D-3. Batch the MINOR copper fixes into a rev B.1 re-route before ordering?
-- D-4. RGB: explicit on/off instead of toggle (recommended)? LEDs during USB suspend?
+Nothing.
 
 ## Log
 
@@ -83,3 +85,4 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
   "Not verified" list, PR-04 and PR-19 to its steps. Linked from verification.md.
 - 2026-11-27. T-07 done on `prod/T-07`: 17 crystals checked. Only C20625731 (ABM8-272-T3) meets
   CL ≤ 12 pF and ESR ≤ 50 Ω. Phase 1 is complete; Checkpoint 1 asks D-1 to D-4.
+- 2026-11-27. Checkpoint 1: the owner answered D-1 (a), D-2 (b), D-3 no batch, D-4 explicit on/off.

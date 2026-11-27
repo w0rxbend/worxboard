@@ -115,9 +115,9 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
 
 ### Phase 1: desk fixes, no copper change (agent)
 
-- [ ] **T-01. Correct the rev A values in the docs (PR-03, PR-12).**
+- [x] **T-01. Correct the rev A values in the docs (PR-03, PR-12).**
   - Accept: every location listed in PR-03 states the rev B value. PR-12 is in `docs/electrical.md`. `verification.md`'s rev A summary carries a "rev A" label.
-  - Verify: `just layout`, `just docs-gen`, then `just layout-check` and `just docs-check`. `git grep -n -E "C70069|250 mA" -- README.md docs/buildguide_en.md docs/bom.md docs/verification.md` prints nothing. The GPIO0/GPIO1 notes in `pins.py` say 470. The XOUT "1k series" note is correct (R7) and stays.
+  - Verify: `just layout`, `just docs-gen`, then `just layout-check` and `just docs-check`. `git grep -n -E "C70069|250 mA" -- README.md docs/buildguide_en.md docs/bom.md docs/verification.md` prints only lines labelled as rev A's record (the G3 stock table, the F1 history note). The GPIO0/GPIO1 notes in `pins.py` say 470. The XOUT "1k series" note is correct (R7) and stays.
   - Leave `docs/design.md` (the frozen rev A spec) and the history in `docs/deviations.md` alone.
   - Files: `README.md`, `layout/pins.py` (then the regenerated `layout/build/layout.json` and `docs/pinout.md`), `docs/{buildguide_en,bom,verification,electrical,ordering-jlcpcb}.md`, `firmware/zmk/scripts/fw_check.py`. Size: M.
   - Note: `pins.py` notes feed `layout.json`. Check that nothing downstream hashes them, for example `fwdt.py` or the site.

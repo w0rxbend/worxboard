@@ -81,6 +81,10 @@ VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100
 - **JP1** (bridged by default) joins VSYS to the cable. It sits on the top side in the back strip,
   next to F1 and the USB-C, under the case top. Cut it on **both** halves for split-powered mode,
   where each half needs its own USB-C ([build guide](buildguide_en.md#3-choose-the-power-mode-jp1)).
+  In split-power mode, plug in both halves. If only one half has power, its TX high pushes about
+  3 mA through R11 and R12 (2 × 470 Ω) into the unpowered RP2040's RX clamp diode, and that half's
+  3V3 rises partway. This is an estimate, not a measurement. The pin's clamp takes it, but the
+  unpowered half can start in an undefined state until its own USB-C is plugged in.
 - **F1** (C70076, nSMD050-24V: 500 mA hold, 24 V; deviations WS2a-4, REVB-9) limits the current into
   VLINK. It protects against shorts while a plug is inserted, and its hold current equals the 500 mA
   contact rating in LCSC's listing of the PJ-320D-4A. Rev A and the first rev B drafts used the 250 mA

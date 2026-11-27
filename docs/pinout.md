@@ -8,8 +8,8 @@ The RP2040 GPIO map is identical on both PCBs (spec §3, `layout/pins.py`). Symb
 
 | Pin | QFN | Net | Notes |
 |---|---|---|---|
-| `GPIO0` | 2 | `UART_TX` | UART0 TX -> 1k -> jack |
-| `GPIO1` | 3 | `UART_RX` | UART0 RX <- 1k <- jack; 10k pull-up to 3V3 |
+| `GPIO0` | 2 | `UART_TX` | UART0 TX -> 470R -> jack |
+| `GPIO1` | 3 | `UART_RX` | UART0 RX <- 470R <- jack; 10k pull-up to 3V3 |
 | `GPIO2` | 4 | `DISP_SCK` | PIO1 SPI clock |
 | `GPIO3` | 5 | `DISP_MOSI` | PIO1 SPI data |
 | `GPIO4` | 6 | `DISP_DC` | TP1 (future TFT) |

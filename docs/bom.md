@@ -59,18 +59,21 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 <!-- END GENERATED: bom_assembled -->
 
 - **Stock.** Check it on the day you order: `just pcb-stock left 5` (both halves draw on the same
-  stock). On 2026-11-04 at 05:17 UTC every line passed for 5 assembled boards per half. The thinnest
-  were C95562 (5 513), C27985230 (6 294), C51118 (12 075) and C49304726 (13 833). Alternates are in
+  stock). On 2026-11-04 at 05:17 UTC every rev A line passed for 5 assembled boards per half. The
+  thinnest were C95562 (5 513), C27985230 (6 294), C51118 (12 075) and C49304726 (13 833). The lines
+  rev B adds or changes (C5149201, C55136, C100024, C19702, C70076, C25117) have not been
+  stock-checked yet. Alternates are in
   [ordering-jlcpcb.md](ordering-jlcpcb.md#if-a-part-is-out-of-stock).
 - **Replaced parts.** The discontinued Kailh socket C2803348, the flash C113767 and the low-stock
   crystal C91749 were replaced by C41430893, C97521 and C49304726 (deviation ELEC-1). `stock.py` and
   `netcmp.py` fail if one of the retired numbers comes back.
 - **J3** is the only through-hole part, a 5.0 mm socket that JLC hand-solders (ELEC-3). A stock
   nice!view plugs into it on its own header.
-- **F1** is WS2's choice for the spec's "PTC 1206, 250 mA hold" (deviation WS2a-4).
-- **Placement.** `cpl.csv` carries a JLC correction for U1, U2, U3–U5, J1, J2, J3 and the
-  sockets (`pcb/scripts/jlc_rotations.csv`). `cpl_check.py` proved every placement against JLC's own
-  footprint of the part: 119 of 119 per half (PKG-2). The table is in
+- **F1** is the nSMD050-24V, 500 mA hold (C70076, deviation REVB-9). Rev A used WS2's choice for the
+  spec's "PTC 1206, 250 mA hold", C70069 (deviation WS2a-4).
+- **Placement.** `cpl.csv` carries a JLC correction for U1, U2, U3–U5, U7, J1, J2, J3 and the
+  sockets (`pcb/scripts/jlc_rotations.csv`, U7 per part, REVB-1). `cpl_check.py` proved every placement
+  against JLC's own footprint of the part: 201 of 201 per half (PKG-2). The table is in
   [ordering-jlcpcb.md](ordering-jlcpcb.md#how-the-package-is-made-and-checked). JLC's preview draws its
   own footprint of each part. Check it as
   [ordering-jlcpcb.md](ordering-jlcpcb.md#placement-preview-checklist) describes, because JLC does not
@@ -101,14 +104,15 @@ and loading fees. The full estimate is in [ordering-jlcpcb.md](ordering-jlcpcb.m
 
 ## Gates
 
-The gates of spec §7 blocked **ordering**. All three pass now. The evidence is in
-[verification.md](verification.md); this table is its summary.
+The gates of spec §7 blocked **ordering**. G1 and G2 pass. G3 passed for rev A; for rev B its stock
+check stays open until the order day. The evidence is in [verification.md](verification.md); this
+table is its summary.
 
 | Gate | What is checked | Result |
 |---|---|---|
 | **G1** | nice!view size and pin order, which end pin 1 is, the module and viewing area against the pocket and window, and the stack height | **PASS**: J3 pin 1 (MOSI) at the module's pin 1 on both halves, a gate in stages C and D; the header row at y 39.925; the glass ≤ 9.75 mm above the PCB under a pocket ceiling at 10.0 mm; fit check 0 mm³ |
 | **G2** | PJ-320D height, the pad map against the drawing, and the body against the case | **PASS**: 5.0 mm tall, pad map as drawn, the 14.1 × 6.1 mm body relieved in the case with ≥ 0.38 mm at its corners, a gate in `just model`; fit check 0 mm³ |
-| **G3** | Every LCSC number and its stock, the PTC choice, JLC's 2-layer rules, and the placement file | **PASS**: 21 of 21 lines in stock on 2026-11-04 with none retired; 0.127 mm track rule against JLC's 0.10; 119 of 119 placements proven against JLC's footprints |
+| **G3** | Every LCSC number and its stock, the PTC choice, JLC's layer rules, and the placement file | **Rev B: stock open** until the order day; 201 of 201 placements proven against JLC's footprints ([rev B results](verification.md#rev-b-results)). Rev A: **PASS**, 21 of 21 lines in stock on 2026-11-04, 0.127 mm track rule against JLC's 2-layer 0.10, 119 of 119 placements |
 
 What only a built board can confirm is listed under
 [not verified on hardware](verification.md#not-verified-until-a-board-is-built). On the order day,

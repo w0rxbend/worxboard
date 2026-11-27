@@ -89,7 +89,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 
 </td><td valign="top">
 
-**🔗 A careful wired split**<br>ZMK `zmk,wired-split` runs on UART0 at 115 200 baud over a straight TRRS cable. The tip carries only 1 kΩ-limited data. Power sits on Ring2 behind a 250 mA polyfuse, and solder jumper JP1 turns cable power off.
+**🔗 A careful wired split**<br>ZMK `zmk,wired-split` runs on UART0 at 115 200 baud over a straight TRRS cable. The tip carries only 470 Ω-limited data. Power sits on Ring2 behind a 500 mA polyfuse, and solder jumper JP1 turns cable power off.
 
 </td><td valign="top">
 
@@ -142,7 +142,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 | U1 | RP2040, QFN-56 | [C2040](https://jlcpcb.com/partdetail/C2040) | U2 | W25Q128JVSIQ, 16 MB QSPI flash | [C97521](https://jlcpcb.com/partdetail/C97521) |
 | Y1 | 12 MHz 3225 crystal, YXC XL2EL89CRI-111YLC-12M | [C49304726](https://jlcpcb.com/partdetail/C49304726) | U3 | AP2112K-3.3, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) |
 | U4, U5 | USBLC6-2SC6 ESD arrays (USB, TRRS) | [C7519](https://jlcpcb.com/partdetail/C7519) | D1 | B5819W, 1 A Schottky | [C8598](https://jlcpcb.com/partdetail/C8598) |
-| F1 | nSMD025-24V PTC, 250 mA hold | [C70069](https://jlcpcb.com/partdetail/C70069) | J1 | HRO TYPE-C-31-M-12 USB-C receptacle | [C165948](https://jlcpcb.com/partdetail/C165948) |
+| F1 | nSMD050-24V PTC, 500 mA hold | [C70076](https://jlcpcb.com/partdetail/C70076) | J1 | HRO TYPE-C-31-M-12 USB-C receptacle | [C165948](https://jlcpcb.com/partdetail/C165948) |
 | J2 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | J3 | 1×5 2.54 mm female socket, 5.0 mm tall (the only through-hole part) | [C27985230](https://jlcpcb.com/partdetail/C27985230) |
 | SW1, SW2 | TS-1088R tact switches (BOOT, RESET) | [C455280](https://jlcpcb.com/partdetail/C455280) | SK101–SK137 | MX hot-swap socket, HanElectricity CPG151101S11-16 | [C41430893](https://jlcpcb.com/partdetail/C41430893) |
 | D101–D137 | 1N4148W matrix diodes | [C81598](https://jlcpcb.com/partdetail/C81598) | LED101–LED137 | SK6812MINI-E RGB LED, reverse mount (rev B) | [C5149201](https://jlcpcb.com/partdetail/C5149201) |
@@ -156,17 +156,17 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 ```mermaid
 flowchart LR
     USB["USB-C VBUS"] --> D1["D1 B5819W<br/>Schottky"] --> VSYS["VSYS ≈ 4.6 V"] --> U3["U3 AP2112K-3.3"] --> V33["3V3<br/>RP2040 · flash · display"]
-    VSYS --> JP1["JP1<br/>bridged by default"] --> F1["F1 PTC<br/>250 mA hold"] --> VLINK["VLINK<br/>TRRS Ring2"]
+    VSYS --> JP1["JP1<br/>bridged by default"] --> F1["F1 PTC<br/>500 mA hold"] --> VLINK["VLINK<br/>TRRS Ring2"]
     VSYS --> U6["U6 SY6280AAC<br/>EN = GP23 · 0.45 A limit"] --> VLED["VLED<br/>37 LEDs · U7 buffer"]
 ```
 
-One cable is enough: the far half runs from VLINK at about 4.4 V from a 5 V host (a weak bus-powered hub leaves less; see [electrical.md](docs/electrical.md#per-key-rgb-rev-b)). Each VBUS reaches VSYS only through its own D1, so two hosts at once never back-feed each other. VBUS also reaches GP26 through a 10k/10k divider; the firmware does not use it yet. VLED stays off until the firmware drives GP23 (R15 pulls it low), and the 8 % brightness cap holds full white to about 107 mA per half (129 mA worst case) plus 22 mA for the dark LEDs and ~30 mA of logic: at most ~181 mA, about 72 % of the cable-fed right half's 250 mA (F1), and within the left port's 500 mA ([electrical.md](docs/electrical.md#per-key-rgb-rev-b)).
+One cable is enough: the far half runs from VLINK at about 4.4 V from a 5 V host (a weak bus-powered hub leaves less; see [electrical.md](docs/electrical.md#per-key-rgb-rev-b)). Each VBUS reaches VSYS only through its own D1, so two hosts at once never back-feed each other. VBUS also reaches GP26 through a 10k/10k divider; the firmware does not use it yet. VLED stays off until the firmware drives GP23 (R15 pulls it low), and the 8 % brightness cap holds full white to about 107 mA per half (129 mA worst case) plus 22 mA for the dark LEDs and ~30 mA of logic: at most ~181 mA, under 40 % of the cable-fed right half's 500 mA F1, and within the left port's 500 mA ([electrical.md](docs/electrical.md#per-key-rgb-rev-b)).
 
 **🔗 TRRS contacts** ([electrical.md](docs/electrical.md#trrs-link)):
 
 | Contact | Left PCB | Right PCB |
 |---|---|---|
-| Tip | `TRRS_A` = UART TX (GP0, via 1 kΩ) | `TRRS_A` = UART RX (GP1, via 1 kΩ) |
+| Tip | `TRRS_A` = UART TX (GP0, via 470 Ω) | `TRRS_A` = UART RX (GP1, via 470 Ω) |
 | Ring1 | `TRRS_B` = UART RX | `TRRS_B` = UART TX |
 | Ring2 | VLINK | VLINK |
 | Sleeve | GND | GND |
@@ -331,7 +331,7 @@ Do it once for the left side and once for the right, so the cart holds two desig
 <details>
 <summary>🎯 JLC placement proofs: one drawing per part type over the KiCad pads</summary>
 
-`cpl_check.py` places JLC's own EasyEDA footprint for each CPL row and compares it with the KiCad pads, and the pipeline stops if one placement fails; the pass count per half is in each side's [order README](pcb/production/left/README.md) and in [verification.md](docs/verification.md). The reverse-mount LEDs are gated at 55 % of each terminal on its pad, because JLC's leads start over the cutout (REVB-1). Legend: grey is KiCad copper, white the holes, red JLC's pads, blue the part's terminals, green its body and gold the board edge. A red ring marks JLC pin 1, and a cross marks KiCad pad 1. JLC does not document its bottom-side convention. The tell is the bottom parts at angles other than 0° and 180°, which are the thumb parts; the side README lists them with their angles ([checklist](docs/ordering-jlcpcb.md#placement-preview-checklist)). **The drawings below are rev A's**: the rev B part types (the LEDs, the 0603 capacitors, U6 and U7) get theirs when the boards are regenerated. Redraw the proofs with `just pcb-cpl-images`.
+`cpl_check.py` places JLC's own EasyEDA footprint for each CPL row and compares it with the KiCad pads, and the pipeline stops if one placement fails; the pass count per half is in each side's [order README](pcb/production/left/README.md) and in [verification.md](docs/verification.md). The reverse-mount LEDs are gated at 55 % of each terminal on its pad, because JLC's leads start over the cutout (REVB-1). Legend: grey is KiCad copper, white the holes, red JLC's pads, blue the part's terminals, green its body and gold the board edge. A red ring marks JLC pin 1, and a cross marks KiCad pad 1. JLC does not document its bottom-side convention. The tell is the bottom parts at angles other than 0° and 180°, which are the thumb parts; the side README lists them with their angles ([checklist](docs/ordering-jlcpcb.md#placement-preview-checklist)). The drawings below are rev B's. Redraw the proofs with `just pcb-cpl-images`.
 
 <table>
 <tr><td align="center" width="50%"><a href="docs/images/cpl-sk-hotswap-socket.svg"><img src="docs/images/cpl-sk-hotswap-socket.svg" alt="CPL proof: hot-swap sockets" width="100%"></a><br><sub>Hot-swap sockets, bottom: 74 placed, 74 pass</sub></td><td align="center" width="50%"><a href="docs/images/cpl-d101-diode-sod123f.svg"><img src="docs/images/cpl-d101-diode-sod123f.svg" alt="CPL proof: matrix diodes" width="100%"></a><br><sub>Matrix diodes, bottom: 74 placed, 74 pass</sub></td></tr>
@@ -341,6 +341,8 @@ Do it once for the left side and once for the right, so the cart holds two desig
 <tr><td align="center"><a href="docs/images/cpl-c-0402.svg"><img src="docs/images/cpl-c-0402.svg" alt="CPL proof: 0402 capacitors" width="100%"></a><br><sub>0402 capacitors, every placement passes (rev B)</sub></td><td align="center"><a href="docs/images/cpl-r-0402.svg"><img src="docs/images/cpl-r-0402.svg" alt="CPL proof: 0402 resistors" width="100%"></a><br><sub>0402 resistors, every placement passes (rev B)</sub></td></tr>
 <tr><td align="center"><a href="docs/images/cpl-f1-ptc-1206.svg"><img src="docs/images/cpl-f1-ptc-1206.svg" alt="CPL proof: F1 PTC" width="100%"></a><br><sub>F1 polyfuse on the TRRS power line: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-j1-usb-c.svg"><img src="docs/images/cpl-j1-usb-c.svg" alt="CPL proof: J1 USB-C" width="100%"></a><br><sub>J1 USB-C, mouth over the back edge: both halves pass</sub></td></tr>
 <tr><td align="center"><a href="docs/images/cpl-j2-trrs-pj320d.svg"><img src="docs/images/cpl-j2-trrs-pj320d.svg" alt="CPL proof: J2 TRRS jack" width="100%"></a><br><sub>J2 TRRS jack on the inner bump: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-j3-display-socket.svg"><img src="docs/images/cpl-j3-display-socket.svg" alt="CPL proof: J3 display socket" width="100%"></a><br><sub>J3 display socket: five contacts in five holes</sub></td></tr>
+<tr><td align="center"><a href="docs/images/cpl-led-smd-4p-l3-2-w2-8-ls5-9-sk6812mini-e.svg"><img src="docs/images/cpl-led-smd-4p-l3-2-w2-8-ls5-9-sk6812mini-e.svg" alt="CPL proof: SK6812MINI-E LEDs" width="100%"></a><br><sub>SK6812MINI-E LEDs, bottom, reverse mount: 74 placed, 74 pass at the 55 % gate</sub></td><td align="center"><a href="docs/images/cpl-c0603.svg"><img src="docs/images/cpl-c0603.svg" alt="CPL proof: 0603 capacitors" width="100%"></a><br><sub>0603 10 µF capacitors: 10 placed, 10 pass</sub></td></tr>
+<tr><td align="center"><a href="docs/images/cpl-sot-23-5-l3-0-w1-7-p0-95-ls2-8-bl.svg"><img src="docs/images/cpl-sot-23-5-l3-0-w1-7-p0-95-ls2-8-bl.svg" alt="CPL proof: U6 VLED switch" width="100%"></a><br><sub>U6 SY6280AAC VLED switch: both halves pass</sub></td><td align="center"><a href="docs/images/cpl-sot-23-5-l2-9-w1-6-p0-95-ls2-8-br.svg"><img src="docs/images/cpl-sot-23-5-l2-9-w1-6-p0-95-ls2-8-br.svg" alt="CPL proof: U7 data buffer" width="100%"></a><br><sub>U7 SN74LV1T34 LED data buffer: both halves pass</sub></td></tr>
 <tr><td align="center" colspan="2"><a href="docs/images/cpl-sw-tact-ts1088.svg"><img src="docs/images/cpl-sw-tact-ts1088.svg" alt="CPL proof: BOOT and RESET tact switches" width="50%"></a><br><sub>SW1, SW2 BOOT and RESET tact switches: 4 placed, 4 pass</sub></td></tr>
 </table>
 
@@ -613,7 +615,7 @@ The layout, firmware, pcb and case workflows run on every push to `main`, on pul
 | [pcb](https://github.com/w0rxbend/worxboard/actions/workflows/pcb.yml) | `worxboard-pcb-erc`, `worxboard-pcb-rebuild-*` | ERC reports and netlists; the from-scratch rebuilds and their DRC reports |
 | [case](https://github.com/w0rxbend/worxboard/actions/workflows/case.yml) | `worxboard-case` | case STEP/STL/DXF, plates, renders, the build report and the order package, also committed in [`case/production/`](case/production/README.md) ([case.md](docs/case.md)) |
 
-[`release.yml`](.github/workflows/release.yml) publishes a GitHub pre-release when a `v*` tag is pushed. It attaches each half's order package (`pcb/production/<side>/` with its `pcbway/` folder), the case order package, the bare-board and case zips, one `.uf2` per `build.yaml` row and `SHA256SUMS.txt`. Hardware releases are tagged with the board revision, such as `v*-revB`. The only tag so far is `v0.1.0-revA`, a rev A pre-release.
+[`release.yml`](.github/workflows/release.yml) publishes a GitHub pre-release when a `v*` tag is pushed. It attaches each half's order package (`pcb/production/<side>/` with its `pcbway/` folder), the case order package, the bare-board and case zips, one `.uf2` per `build.yaml` row and `SHA256SUMS.txt`. Hardware releases are tagged with the board revision, such as `v*-revB`. The tags so far are `v0.1.0-revA` and `v0.2.0-revB`, both pre-releases.
 
 <details>
 <summary>⚙️ The six workflows: triggers, jobs and artifacts</summary>
@@ -633,7 +635,7 @@ The layout, firmware, pcb and case workflows run on every push to `main`, on pul
 
 - 🧪 **Not built yet.** No board of either revision has been made. The displays, the wired split, the forwarding of the lock indicators, the role-swap firmware and the XOSC start-up with the new crystal are untested on hardware ([verification.md](docs/verification.md#not-verified-until-a-board-is-built)). The J2 contact naming and the case fit (USB-C and TRRS plug seating, the BOOT/RESET pin holes, C6R1 keycap clearance with the display set back) also wait for a real board; check the fit on a 3D-printed test top.
 - 🌈 **The LEDs are untested on hardware.** The chain's timing through the U7 buffer, VLED switching by U6 and its current limit, the real current at the brightness cap, the order of the chain and the RGB commands the left half relays to the right have only been checked in the design files and the ZMK source ([firmware.md](docs/firmware.md#known-issues)). ZMK drives each half's chain as underglow, so the effects cover the whole board: there are no per-key or per-layer colours.
-- 🔆 **Brightness cap.** The firmware caps the LEDs at 8 % so that one USB-C cable can feed both halves: the right half's LEDs run over the TRRS cable through the 250 mA F1. Raise the cap (to 20 % at most) only in split-power mode, with each half on its own USB-C and JP1 cut on both; CI and `just fw-check` reject a raised cap, so that is a local build ([firmware.md](docs/firmware.md#raising-the-cap-split-power-mode-only)).
+- 🔆 **Brightness cap.** The firmware caps the LEDs at 8 % so that one USB-C cable can feed both halves: the right half's LEDs run over the TRRS cable through two 500 mA F1, and the left port's 500 mA feeds both halves. Raise the cap (to 20 % at most) only in split-power mode, with each half on its own USB-C and JP1 cut on both; CI and `just fw-check` reject a raised cap, so that is a local build ([firmware.md](docs/firmware.md#raising-the-cap-split-power-mode-only)).
 - 💾 **Right-half settings writes.** The right half now keeps its own RGB state in flash, and each half writes its settings about a minute after an RGB change or an idle transition. The RP2040 flash driver locks interrupts while it writes; whether that can drop a frame on the 115 200 baud split UART is unmeasured. A keyboard left idle for more than about 90 s before it is unplugged boots dark: press the RGB toggle.
 - 🔄 **Display orientation.** Both screens are laid out portrait and turned by the firmware. Which panel end is pixel 0 comes from ZMK's code and the vendor's images, not from a datasheet. If the screens read upside down, set `CONFIG_WORXBOARD_DISPLAY_ROTATION_270=y` ([firmware.md](docs/firmware.md#known-issues)).
 - 🎯 **Fab placement.** Every JLC CPL placement is proven against JLC's own footprints, but JLC does not document its bottom-side convention. Check the sockets, diodes and LEDs in the placement preview ([ordering-jlcpcb.md](docs/ordering-jlcpcb.md#placement-preview-checklist)). The hot-swap socket C41430893 is a second-source part, and nobody has reported JLC assembling it yet. At PCBWay, use only the `pcbway/` files, never the JLC CPL.

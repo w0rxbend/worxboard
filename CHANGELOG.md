@@ -15,6 +15,9 @@ firmware and case files.
   `pages` workflow runs it before `just site`, and the section says so when the drawings are missing.
 - `GOALS.md`, `PLANS.md` and `STATUS.md`: the production-readiness goals, the rev B review findings
   (PR-01 to PR-19) and the task plan.
+- `tests/integration/test_datasheet_pins.py`: U3, U4, U5, U6, U7 and every LED on both committed
+  boards against the pin tables of their datasheets, plus the LED data direction (PR-15). netcmp
+  checks pins by symbol name; this catches a symbol that numbers its pins wrongly.
 
 ### Fixed
 

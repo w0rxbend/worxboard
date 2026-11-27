@@ -93,6 +93,13 @@ def cpl(kikit: Path) -> bytes:
     return csv_bytes([CPL_HEADER] + [[d, x, y, LAYER[layer], r] for d, x, y, layer, r in rows[1:]])
 
 
+# The reverse-mount LED pads hold about 57 % of each JLC lead (cpl_check LEAD_AREA_MIN_BY), and the cutout's
+# R0.5 dog-bones clear the LED body only with a small cutter (PLANS.md PR-02, PR-18; owner decision D-1)
+LED_JOINT_REMARK = ("LED101-LED137 (SK6812MINI-E C5149201, reverse mount): the inner lead ends lie over the "
+                    "3.4 x 3.0 mm cutouts, so about 57 % of each lead is on its pad. Please confirm the joint "
+                    "at DFM, and route the cutouts with a 1.0 mm or smaller cutter.")
+
+
 def hole_remark(facts: dict) -> list[str]:
     """Remark lines for the hole pairs closer than JLC's pad hole-to-hole spacing (jlc_check.py facts
     allows them only between stabiliser footprints; deviations ORDER-3)."""
@@ -159,6 +166,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
             "> only, no holes inside the board outline. Deliver with rails attached.",
             "> J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens "
             "them for pin-in-paste.",
+            f"> {LED_JOINT_REMARK}",
         ] + [f"> {line}" for line in hole_remark(facts)] + [
             "",
             "Everything else (settings, preview checks, after delivery) is as in `../README.md`.",
@@ -249,6 +257,7 @@ def readme(side: str, facts: dict, bare: bool) -> bytes:
         "> Bottom side: 37 hot-swap sockets SK101-SK137, 37 diodes D101-D137, 37 reverse-mount SK6812MINI-E LEDs "
         "LED101-LED137 (body in a PCB cutout, lens through to the top side) and their 100 nF caps C101-C137.",
         "> J3 is a THT socket (hand solder).",
+        f"> {LED_JOINT_REMARK}",
     ] + [f"> {line}" for line in hole_remark(facts)] + [
         "> Ship with the frame attached.",
         "",

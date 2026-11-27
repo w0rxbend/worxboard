@@ -141,8 +141,10 @@ into the order's remark field. It is generated with the package, so it always ma
 files. It answers what JLC's engineers would otherwise ask about, and each question puts the order
 on hold: the customer panel (rails, fiducials, tooling holes), J1 and J2 overhanging the board edge
 on purpose, J1's four shell legs (pin-in-paste, please solder), the bottom-side parts, J3 as the only
-THT part (hand solder), the two pairs of stabiliser holes under JLC's hole spacing, and shipping with
-the frame attached.
+THT part (hand solder), the reverse-mount LEDs (confirm the joint, about 57 % of each lead on its
+pad, and a cutter of 1.0 mm or less for their cutouts), the two pairs of stabiliser holes under
+JLC's hole spacing, and shipping with the frame attached. If the engineer says the LED joint is not
+reliable, stop the order and record it in `PLANS.md` (PR-02): the fix is rev C copper.
 
 The stabiliser holes: where the two 2u thumb keys meet, the Ø3.05 mm hole of one stabiliser and the
 Ø4.0 mm hole of the next leave 0.28 mm of board between them, twice per half. JLC's

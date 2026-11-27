@@ -160,7 +160,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
 ### Phase 2: owner decisions, then the changes they pick
 
 - [x] **T-06 [owner].** Answer D-1 to D-4 in `STATUS.md`.
-- [ ] **T-08. Apply D-1 (PR-02).** (a): put the ask in both order READMEs' JLC remark (`package.py`) and in `docs/ordering-jlcpcb.md`. (b): `gen_footprints.py` `LED_PAD_SHIFT = 0`, the DRU and `LED_EDGE_CLEARANCE` at 0.24, `cpl_check.py` 0.6, then the T-10 rebuild.
+- [x] **T-08. Apply D-1 (PR-02).** (a): put the ask in both order READMEs' JLC remark (`package.py`) and in `docs/ordering-jlcpcb.md`. (b): `gen_footprints.py` `LED_PAD_SHIFT = 0`, the DRU and `LED_EDGE_CLEARANCE` at 0.24, `cpl_check.py` 0.6, then the T-10 rebuild.
   - Verify: the Definition of Done, including the board steps for (b). Depends on: T-06.
 - [ ] **T-09. Apply D-2 (PR-04).** Depends on: T-06, T-07.
   - If (a) is chosen: nothing to change. Bring-up's 20 cold starts close it.

@@ -28,6 +28,12 @@ firmware and case files.
 - `docs/firmware.md` Known issues: the LEDs draw an estimated 105–135 mA before USB enumeration and
   stay lit in USB suspend (PLANS.md PR-11).
 
+### Changed
+
+- JLC order remark (`package.py`, both packages regenerated): asks the engineer to confirm the
+  reverse-mount LED joint (about 57 % of each lead on its pad) and to route the LED cutouts with a
+  cutter of 1.0 mm or less (PLANS.md PR-02, PR-18; owner decision D-1).
+
 ### Fixed
 
 - Docs: rev A values left after rev B (PLANS.md PR-03). F1 is the 500 mA C70076 and R11/R12 are

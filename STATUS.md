@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 2, applying the owner's decisions.
-- **Next task:** T-08 (JLC remark for the LED joints), then T-09 (crystal swap).
+- **Next task:** T-09 (crystal swap to C20625731).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -16,12 +16,13 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | ID | Sev | Outcome |
 |---|---|---|
 | PR-01 | BLOCKER | open: order-day stock check (T-12) |
-| PR-02 | MAJOR | open: D-1 = (a), keep the pads and ask JLC (T-08) |
+| PR-02 | MAJOR | open until file confirmation: T-08 put the question in the JLC remark; JLC's answer closes it (T-12) |
 | PR-03 | MAJOR | fixed: T-01 (`prod/T-01`) |
 | PR-04 | VERIFY | open: D-2 = (b), swap to C20625731 (T-09) |
 | PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | deferred to rev C: D-3 = no batch, because D-1 keeps the copper |
 | PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
-| PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
+| PR-18 | VERIFY | open: the JLC remark asks for the cutter (T-08); JLCCNC's switch-hole corners stay for T-12 |
+| PR-08, -19 | VERIFY | open: T-13, T-14 |
 | PR-10 | — | withdrawn: the central relays the toggle as an absolute on/off |
 | PR-11 | MINOR | documented: T-11, `firmware.md` Known issues |
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
@@ -90,3 +91,7 @@ Nothing.
 - 2026-11-28. PR-10 withdrawn: ZMK's central relays the toggle as an absolute on/off
   (`behavior_rgb_underglow.c:146`). The owner revised D-4 to keep the toggle. T-11 done on `prod/T-11`:
   the pre-enumeration and suspend current note in `firmware.md` (PR-11).
+- 2026-11-28. T-08 done on `prod/T-08`: the JLC remark (panel and bare board) asks to confirm the
+  reverse-mount LED joint and to route the cutouts with a cutter of 1.0 mm or less. Both packages were
+  regenerated; only the READMEs and order zips changed, and the left rebuild is byte-identical.
+  The PCBWay remark (200 characters) is unchanged.

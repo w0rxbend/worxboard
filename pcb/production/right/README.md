@@ -74,6 +74,7 @@ and each question puts the order on hold:
 > J1 (USB-C, C165948): please solder its 4 through-hole shell legs (GND) too. The paste layer opens them for pin-in-paste.
 > Bottom side: 37 hot-swap sockets SK101-SK137, 37 diodes D101-D137, 37 reverse-mount SK6812MINI-E LEDs LED101-LED137 (body in a PCB cutout, lens through to the top side) and their 100 nF caps C101-C137.
 > J3 is a THT socket (hand solder).
+> LED101-LED137 (SK6812MINI-E C5149201, reverse mount): the inner lead ends lie over the 3.4 x 3.0 mm cutouts, so about 57 % of each lead is on its pad. Please confirm the joint at DFM, and route the cutouts with a 1.0 mm or smaller cutter.
 > NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
 > Intended: no plating, no copper; they may break into each other.
 > Ship with the frame attached.

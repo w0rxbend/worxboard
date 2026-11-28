@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 1, desk fixes with no copper change.
-- **Next task:** T-02 (the switches' LED window).
+- **Next task:** T-03 (datasheet pin gate).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -20,7 +20,8 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-03 | MAJOR | fixed: T-01 (`prod/T-01`) |
 | PR-04 | VERIFY | open: T-07, then D-2 |
 | PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | open: waiting on D-3 |
-| PR-08, -09, -18, -19 | VERIFY | open: T-13, T-02, T-12, T-14 |
+| PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
+| PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
 | PR-10, -11 | MINOR | open: waiting on D-4 |
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
 | PR-15 | MINOR | open: T-03 |
@@ -45,3 +46,5 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
 - 2026-11-27. T-01 done on `prod/T-01`: rev B values for F1 and R11/R12 across the README and docs,
   rev A records labelled, rev B placement proofs in the README, PR-12 note in `electrical.md`.
   `layout.json` changed only in two GPIO notes, which the PCB seed (`place.layout_seed`) does not read.
+- 2026-11-27. T-02 done on `prod/T-02`: the HanElectricity drawings of all four LCSC switches show
+  a transparent top cover and a south slot (9.40 × 2.70 mm) over the LED. Cited in `shopping-list.md`.

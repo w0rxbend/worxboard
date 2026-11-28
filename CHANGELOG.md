@@ -13,6 +13,16 @@ firmware and case files.
   committed board, and a cut through the board that explains the move from two layers to four.
   `just pcb-layers <side>` plots the layer drawings with KiCad into `build/<side>/layers/`; the
   `pages` workflow runs it before `just site`, and the section says so when the drawings are missing.
+- `GOALS.md`, `PLANS.md` and `STATUS.md`: the production-readiness goals, the rev B review findings
+  (PR-01 to PR-19) and the task plan.
+
+### Fixed
+
+- Docs: rev A values left after rev B (PLANS.md PR-03). F1 is the 500 mA C70076 and R11/R12 are
+  470 Ω in the README, build guide, BOM notes and pin notes. The BOM's G3 row and the verification
+  summary and stock table are labelled as rev A's, and rev B's stock check is marked open. The README
+  shows the rev B placement proofs (LEDs, 0603 capacitors, U6, U7). `electrical.md` notes the
+  phantom power through the UART in split-power mode with one half unpowered (PR-12).
 
 ## [0.2.0-revB] - 2026-11-12
 

@@ -31,8 +31,8 @@ RGB_DATA, RGB_EN = 22, 23
 _COL_QFN = (17, 18, 27, 28, 29, 30, 31)
 
 PINS: list[Pin] = [
-    Pin("GPIO0", 2, "UART_TX", "UART0 TX -> 1k -> jack"),
-    Pin("GPIO1", 3, "UART_RX", "UART0 RX <- 1k <- jack; 10k pull-up to 3V3"),
+    Pin("GPIO0", 2, "UART_TX", "UART0 TX -> 470R -> jack"),
+    Pin("GPIO1", 3, "UART_RX", "UART0 RX <- 470R <- jack; 10k pull-up to 3V3"),
     Pin("GPIO2", 4, "DISP_SCK", "PIO1 SPI clock"),
     Pin("GPIO3", 5, "DISP_MOSI", "PIO1 SPI data"),
     Pin("GPIO4", 6, "DISP_DC", "TP1 (future TFT)"),

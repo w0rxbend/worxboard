@@ -50,6 +50,8 @@ page are unchanged.
 
 ## Summary
 
+Rev A's results of 2026-11-04. Rev B's are in [Rev B results](#rev-b-results).
+
 | Check | Result |
 |---|---|
 | [Integration tests](#integration-tests) (`tests/integration/`) | **PASS**: 111 passed, 0 expected failures, 0 skipped |
@@ -286,6 +288,9 @@ Check one jack with a plug and a meter before relying on that argument.
 - JLC's [PCB capabilities](https://jlcpcb.com/capabilities/pcb-capabilities) and
   [PCBA price page](https://jlcpcb.com/help/article/pcb-assembly-price) (updated 2026-10-22).
 
+This is rev A's stock record. Rev B's stock check has not run yet: it runs on the order day, and
+its lines replace this table.
+
 Stock on **2026-11-04 at 05:17 UTC**, for 5 assembled boards per half. Both halves draw on the
 same stock. "Need" is the quantity for both designs, plus JLC's attrition, and never less than 50:
 
@@ -397,13 +402,13 @@ Rev B adds these ([deviations REVB-1 and REVB-2](deviations.md#revb-rev-b-per-ke
   C6R2, row 3 outward, row 4 inward, then the thumbs T5, T4, T3, T2, T0, T1), in the right colour
   order (GRB).
 - **VLED switch and limit.** That U6 keeps VLED off until the firmware drives GP23, switches it with
-  the underglow (toggle-off and idle-off), and limits a short or the inrush into the 37 × 100 nF and
+  the underglow toggle, and limits a short or the inrush into the 37 × 100 nF and
   C20 to about 0.45 A (±25 %), as R14 15k sets it.
 - **U7 waveform.** That GP22's 800 kHz signal (T0H 375 ns, T1H 750 ns) reaches LED101 with clean
   edges through U7 at the VLED level and R16's 470 Ω, on USB (VSYS about 4.6 V) and over the cable
   (about 4.4 V).
 - **Brightness and current.** The real current per half at the 8 % cap, at full white and with the
-  LEDs dark (estimated at about 107–129 mA plus 22 mA and ~30 mA of logic), against the right half's 250 mA through F1 and
+  LEDs dark (estimated at about 107–129 mA plus 22 mA and ~30 mA of logic), against the two 500 mA F1 in series to the right half and
   the left port's 500 mA for both halves; and that the cap holds in every effect.
 - **RGB over the split.** That a press on the left half sets the right half, and that one or two
   presses of the toggle bring the halves back in step if they ever disagree.

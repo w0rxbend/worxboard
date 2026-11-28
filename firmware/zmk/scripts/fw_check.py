@@ -9,7 +9,7 @@ runs this in the two core jobs); at least one must be there:
   flush (src/worx_display_rotation.c) is linked
 - both core rows, per-key RGB (docs/firmware.md#rgb): the zmk,underglow strip is a 37-LED GRB
   ws2812 PIO strip on PIO0 at the RGB_DATA GPIO, a zmk,ext-power-generic node switches the RGB_EN
-  GPIO (layout/pins.py), underglow drives ext-power and turns off when idle, BRT_MAX is at most
+  GPIO (layout/pins.py), underglow drives ext-power and does not turn off when idle, BRT_MAX is at most
   BRT_CAP, and the strip, ext-power and rgb_ug behaviour (which the central relays) are linked
 - right peripheral: its link map has no zmk_ble_ (or battery) symbols, the custom screen is in,
   its LVGL heap is at least CUSTOM_HEAP, and its FLASH use grew less than FLASH_BUDGET over the

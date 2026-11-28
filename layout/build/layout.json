@@ -643,13 +643,13 @@
     "name": "GPIO0",
     "qfn": 2,
     "net": "UART_TX",
-    "note": "UART0 TX -> 1k -> jack"
+    "note": "UART0 TX -> 470R -> jack"
    },
    {
     "name": "GPIO1",
     "qfn": 3,
     "net": "UART_RX",
-    "note": "UART0 RX <- 1k <- jack; 10k pull-up to 3V3"
+    "note": "UART0 RX <- 470R <- jack; 10k pull-up to 3V3"
    },
    {
     "name": "GPIO2",

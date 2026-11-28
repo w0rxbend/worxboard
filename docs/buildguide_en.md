@@ -137,7 +137,7 @@ Test each board on its own, before anything is fitted, so any fault is easy to r
 
 JP1 is a solder jumper on the top side, in the back strip next to F1 and the USB-C receptacle
 (silkscreen `JP1: cut = split power`). It joins the half's own supply (VSYS) to the cable's power
-wire (VLINK, on Ring2) through a 250 mA polyfuse (F1). It is **bridged by default**. The case top
+wire (VLINK, on Ring2) through a 500 mA polyfuse (F1). It is **bridged by default**. The case top
 covers it, so choose the mode **before** you assemble the case.
 
 | Mode | JP1 on both halves | Cables | Behaviour |

@@ -7,8 +7,8 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 2, applying the owner's decisions.
-- **Next task:** T-09 (crystal swap to C20625731).
-- **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
+- **Next task:** Checkpoint 2 (L1 desk-verified): the owner merges PRs #3–#11, and CI's `rebuild` and `production` jobs pass on `main`. Then T-12 on the order day.
+- **Board revision:** rev B, re-routed on `prod/T-09` for the crystal swap (REVB-10). Not built. The tag `v0.2.0-revB` is the routing before the swap.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
 ## Open findings
@@ -18,7 +18,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-01 | BLOCKER | open: order-day stock check (T-12) |
 | PR-02 | MAJOR | open until file confirmation: T-08 put the question in the JLC remark; JLC's answer closes it (T-12) |
 | PR-03 | MAJOR | fixed: T-01 (`prod/T-01`) |
-| PR-04 | VERIFY | open: D-2 = (b), swap to C20625731 (T-09) |
+| PR-04 | VERIFY | fixed in design: T-09 (`prod/T-09`) swapped Y1 to C20625731 with 15 pF caps. Bring-up step 2.7 confirms it |
 | PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | deferred to rev C: D-3 = no batch, because D-1 keeps the copper |
 | PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
 | PR-18 | VERIFY | open: the JLC remark asks for the cutter (T-08); JLCCNC's switch-hole corners stay for T-12 |
@@ -95,3 +95,10 @@ Nothing.
   reverse-mount LED joint and to route the cutouts with a cutter of 1.0 mm or less. Both packages were
   regenerated; only the READMEs and order zips changed, and the left rebuild is byte-identical.
   The PCBWay remark (200 characters) is unchanged.
+- 2026-11-28. T-09 done on `prod/T-09`: Y1 is C20625731 (ABM8-272-T3), C6/C7 are 15 pF C1548, as in
+  the RP2040 hardware design guide §2.3 (REVB-10). The new schematic reseeds placement, so both
+  boards were rebuilt from scratch and **re-routed**: DRC 0/0/0, `checks.py` 15/15, netcmp, CPL
+  201/201, `jlc_check` 12/12, fit check 0 mm³. The first rebuild crashed in `checks.py` `GndRaster`:
+  the router laid a GND track on In2, a layer the raster did not model. The raster now leaves In2
+  out, which can only undercount GND copper. The deferred copper findings still hold on the new
+  copper: left VBUS has 37 segments at 0.25 mm (PR-05), and there are 36/47 dangling locked vias (PR-06).

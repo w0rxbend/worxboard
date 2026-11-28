@@ -38,7 +38,7 @@ LCSC_R = {"5.1k": "C25905", "27": "C2909343", "1k": "C11702", "10k": "C25744",
           "15k": "C25756", "470": "C25117"}
 # Rev B: the 10 uF caps are 0603 10 V X5R (CL10A106KP8NNNC, JLC basic). The 0402 6.3 V part (C15525)
 # kept only ~2-3 uF at the ~5 V of VSYS (DC bias); 0603 10 V keeps more (docs/deviations.md REVB-3)
-LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C19702", "27p": "C1557"}
+LCSC_C = {"100n": "C1525", "1u": "C52923", "10u": "C19702", "15p": "C1548"}
 C_FP = {"10u": C0603}           # every other value is 0402
 LCSC_F1 = "C70076"        # nSMD050-24V: 1206 PTC, 500 mA hold, 24 V. Rev B feeds the far half's LEDs through
                           # two of them in series: the 250 mA C70069 ran at 78 % of hold (deviations REVB-9)
@@ -46,8 +46,9 @@ LCSC_F1 = "C70076"        # nSMD050-24V: 1206 PTC, 500 mA hold, 24 V. Rev B feed
 LCSC_SOCKET = "C41430893"   # HanElectricity CPG151101S11-16 MX hot-swap socket (Kailh C2803348 discontinued);
                             # second source C49352235 (CPG151101S11-2), same land pattern
 LCSC_FLASH = "C97521"       # W25Q128JVSIQ SOIC-8 208 mil, JLC basic (C113767 no longer manufactured)
-LCSC_XTAL = "C49304726"     # YXC XL2EL89CRI-111YLC-12M: 12 MHz 3225, CL 18 pF (27 pF caps), ESR 80 ohm
-                            # (C91749 down to 19 at JLC); basic fallback C9002, CL 20 pF
+LCSC_XTAL = "C20625731"     # Abracon ABM8-272-T3: 12 MHz 3225, CL 10 pF (15 pF caps), ESR 50 ohm, the crystal
+                            # of the RP2040 hardware design guide (2.3) and Pico (deviations REVB-10). Fallbacks,
+                            # each with its own caps: C49304726 (CL 18 pF, 27 pF caps), basic C9002 (CL 20 pF)
 # J3: JLC-assembled THT 1x5 2.54 mm female socket, 5.0 mm tall: with the nice!view's own 5-pin male
 # header the module sits 7.0 mm above the PCB, as on its stock 5 mm socket (docs/deviations.md ELEC-3)
 LCSC_J3 = "C27985230"       # Hong Cheng HC-PM254-5.0H-1x5PZ; 5.7 mm fallback C46061764 (stack 7.7 mm)
@@ -153,8 +154,8 @@ def _mcu() -> list[Part]:
         Part("Y1", "Device:Crystal_GND24", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm", LCSC_XTAL,
              {"1": "XIN", "3": "XTAL_OUT", "G": "GND"}, g),
         R("R7", "1k", "XTAL_OUT", "XOUT", g),
-        C("C6", "27p", "XIN", g),
-        C("C7", "27p", "XTAL_OUT", g),
+        C("C6", "15p", "XIN", g),
+        C("C7", "15p", "XTAL_OUT", g),
         R("R8", "10k", "QSPI_SS", "3V3", g),
         R("R9", "1k", "QSPI_SS", "BOOT", g),
         Part("SW1", "Switch:SW_Push", "BOOT", "Button_Switch_SMD:SW_SPST_TS-1088-xR020", "C455280",

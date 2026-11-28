@@ -287,7 +287,7 @@ Run `just pcb-stock left 5` again on the day: it names the line that fails. Then
 | Ref | Part | Alternate | Stock 2026-11-04 | Placement checked | Notes |
 |---|---|---|---|---|---|
 | SK101–SK137 | C41430893 | **C49352235** (HanElectricity CPG151101S11-2) | 26 943 | yes, same row | its body clears the switch post by 0.50 mm at 180° |
-| Y1 | C49304726 | **C9002** (YXC X322512MSB4SI, basic) | 286 104 | yes, no row | CL 20 pF against the 18 pF the 27 pF caps give: a few tens of ppm, far inside USB's ±2500 ppm (ELEC-1) |
+| Y1 | C20625731 | **C49304726** (YXC, CL 18 pF) or **C9002** (YXC X322512MSB4SI, CL 20 pF, basic) | 1 753 / 494 953 on 2026-11-27 | yes, no row | both need larger load caps than C6/C7's 15 pF and more oscillator gain (ESR 80 Ω): with 15 pF they run fast (an estimate: on the order of 100 ppm, still far inside USB's ±2500 ppm), but they start less surely (REVB-10). Prefer waiting for stock |
 | J3 | C27985230 | **none that fits the case** | | | the 5.7 mm sockets (C46061764, C55218875) take the same row but lift the glass 0.7 mm, to 10.45 mm above the PCB at full tolerance, over the pocket ceiling at 10.0 mm (CASE-1). If J3 is out, wait for stock, or untick J3 and solder the 5 mm socket that ships with the nice!view yourself |
 | U3 | C51118 | C82942 (ME6211C33M5G-N) | 370 432 | no | same SOT-23-5 pinout (1 VIN, 2 GND, 3 EN, 4 NC, 5 VOUT; both datasheets), 500 mA |
 | U4, U5 | C7519 | C2687116 (UMW USBLC6-2SC6) | 109 130 | no | a second-source copy of the same part |

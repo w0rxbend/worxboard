@@ -77,7 +77,7 @@ Paste this into the assembly order's notes (or send it to the PCBWay engineer wh
 > J1 (TYPE-C-31-M-12): its 4 plated through-hole legs are opened in the paste layer (pin-in-paste); please solder them too.
 > Centroid: KiCad's own position file (footprint origins, KiCad rotations, no offsets added), X/Y in the Gerber frame seen from the top. Bottom-side rotations are KiCad's: seen from the bottom, a part is turned by 180 deg minus the value.
 > Please send the placement of both sides (orientation and polarity) for confirmation before production.
-> Substitutes: J3: only a 1x5, 2.54 mm pitch, single-row through-hole female header with a 5.0 mm body: the display height in the case depends on it; otherwise ask. Y1: 12MHz, 3225 four-pad, CL 18 pF, ±20 ppm or better; otherwise ask. SK101-SK137: only the second source HanElectricity CPG151101S11-2 (LCSC C49352235), same land pattern; otherwise ask. LED101-LED137: only an SK6812MINI-E (3.2 x 2.8 mm reverse-mount, the same pinout): the PCB cutout and pads are made for it; otherwise ask. C1-C22, C101-C137, F1, R1-R16: any equivalent of the same value, size and rating. D1, D101-D137: the same diode type from another maker, same package, same or better ratings. SW1, SW2: a tact switch on the same TS-1088 land pattern; otherwise ask. No substitute for J1, J2, U1-U7: ask first.
+> Substitutes: J3: only a 1x5, 2.54 mm pitch, single-row through-hole female header with a 5.0 mm body: the display height in the case depends on it; otherwise ask. Y1: 12MHz, 3225 four-pad, CL 10 pF, ±20 ppm or better; otherwise ask. SK101-SK137: only the second source HanElectricity CPG151101S11-2 (LCSC C49352235), same land pattern; otherwise ask. LED101-LED137: only an SK6812MINI-E (3.2 x 2.8 mm reverse-mount, the same pinout): the PCB cutout and pads are made for it; otherwise ask. C1-C22, C101-C137, F1, R1-R16: any equivalent of the same value, size and rating. D1, D101-D137: the same diode type from another maker, same package, same or better ratings. SW1, SW2: a tact switch on the same TS-1088 land pattern; otherwise ask. No substitute for J1, J2, U1-U7: ask first.
 > NPTH: 2 pairs of stabiliser clearance holes (STAB_T4/STAB_T5) leave 0.28 mm between them, under the 0.45 mm hole-to-hole spacing.
 > Intended: no plating, no copper; they may break into each other.
 
@@ -88,7 +88,7 @@ Paste this into the assembly order's notes (or send it to the PCBWay engineer wh
 | C1-C3, C20, C21 | Samsung Electro-Mechanics CL10A106KP8NNNC | any MLCC of the same value, size, dielectric and tolerance, same or higher voltage |
 | C4, C18, C19 | Samsung Electro-Mechanics CL05A105KA5NQNC | any MLCC of the same value, size, dielectric and tolerance, same or higher voltage |
 | C5, C8-C17, C22, C101-C137 | Samsung Electro-Mechanics CL05B104KO5NNNC | any MLCC of the same value, size, dielectric and tolerance, same or higher voltage |
-| C6, C7 | FH 0402CG270J500NT | any MLCC of the same value, size, dielectric and tolerance, same or higher voltage |
+| C6, C7 | FH 0402CG150J500NT | any MLCC of the same value, size, dielectric and tolerance, same or higher voltage |
 | D1 | JSCJ B5819W SL | the same diode type from another maker, same package, same or better ratings |
 | D101-D137 | ST(Semtech) 1N4148W | the same diode type from another maker, same package, same or better ratings |
 | F1 | TECHFUSE nSMD050-24V | any PTC fuse of the same size and hold current, same or higher voltage |
@@ -110,7 +110,7 @@ Paste this into the assembly order's notes (or send it to the PCBWay engineer wh
 | U4, U5 | ST USBLC6-2SC6 | no substitute: ask first |
 | U6 | Silergy SY6280AAC | no substitute: ask first |
 | U7 | TI SN74LV1T34DBVR | no substitute: ask first |
-| Y1 | YXC Crystal Oscillators XL2EL89CRI-111YLC-12M | 12MHz, 3225 four-pad, CL 18 pF, ±20 ppm or better; otherwise ask |
+| Y1 | ABRACON ABM8-272-T3 | 12MHz, 3225 four-pad, CL 10 pF, ±20 ppm or better; otherwise ask |
 
 ## Placement confirmation: what to check
 

@@ -322,9 +322,11 @@ class GndRaster:
                 for layer in RASTER_LAYERS:
                     geo[layer].append(disc)
                 hops.append(disc)
-            else:
+            elif t.GetLayer() in geo:
                 line = LineString([mm_xy(t.GetStart()), mm_xy(t.GetEnd())])
                 geo[t.GetLayer()].append(line.buffer(pcbnew.ToMM(t.GetWidth()) / 2))
+            # else: a GND track the maze router laid across the In2 VLED plane (REVB-8). The raster
+            # leaves it out, so it can only undercount GND copper: the gates stay conservative
         for fp in board.GetFootprints():
             for pad in fp.Pads():
                 if pad.GetNetCode() != gnd:

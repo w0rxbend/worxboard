@@ -6183,7 +6183,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C49304726"
+		(property "LCSC" "C20625731"
 			(at 180.34 40.6399 0)
 			(effects
 				(font
@@ -6293,7 +6293,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "27p"
+		(property "Value" "15p"
 			(at 224.155 43.18 0.0000)
 			(effects
 				(font
@@ -6311,7 +6311,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C1557"
+		(property "LCSC" "C1548"
 			(at 226.06 50.7999 0)
 			(effects
 				(font
@@ -6354,7 +6354,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "27p"
+		(property "Value" "15p"
 			(at 239.395 48.26 0.0000)
 			(effects
 				(font
@@ -6372,7 +6372,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C1557"
+		(property "LCSC" "C1548"
 			(at 241.3 55.8799 0)
 			(effects
 				(font

@@ -40,7 +40,7 @@ BLOCK = re.compile(r"(<!-- BEGIN GENERATED: (\w+) .*?-->\n).*?(<!-- END GENERATE
 LCSC = {
     "C2040": ("RP2040 microcontroller", "[C]", True),
     "C97521": ("W25Q128JVSIQ, 16 MB QSPI flash", "[J]", False),
-    "C49304726": ("12 MHz crystal, CL 18 pF, 3225 (YXC XL2EL89CRI-111YLC-12M)", "[J]", True),
+    "C20625731": ("12 MHz crystal, CL 10 pF, ESR 50 Ω, 3225 (Abracon ABM8-272-T3; REVB-10: was YXC C49304726)", "[J]", True),
     "C51118": ("AP2112K-3.3TRG1, 600 mA LDO", "[J]", True),
     "C7519": ("USBLC6-2SC6 ESD array (USB, TRRS)", "[J]", True),
     "C8598": ("B5819W, 1 A Schottky", "[J]", False),
@@ -55,7 +55,7 @@ LCSC = {
     "C1525": ("100 nF 0402", "[C]", False),
     "C52923": ("1 µF 0402", "[C]", False),
     "C19702": ("10 µF 0603, 10 V X5R (rev B: was 0402 6.3 V)", "[J]", False),
-    "C1557": ("27 pF 0402", "[C]", True),
+    "C1548": ("15 pF 0402 C0G (crystal load; REVB-10: was 27 pF)", "[J]", False),
     "C81598": ("1N4148W switching diode", "[J]", False),
     "C41430893": ("MX hot-swap socket CPG151101S11-16 (HanElectricity)", "[J]", True),
     "C5149201": ("SK6812MINI-E RGB LED, reverse mount through a PCB cutout (rev B)", "[J]", True),

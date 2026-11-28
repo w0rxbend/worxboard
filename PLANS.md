@@ -162,12 +162,12 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
 - [x] **T-06 [owner].** Answer D-1 to D-4 in `STATUS.md`.
 - [x] **T-08. Apply D-1 (PR-02).** (a): put the ask in both order READMEs' JLC remark (`package.py`) and in `docs/ordering-jlcpcb.md`. (b): `gen_footprints.py` `LED_PAD_SHIFT = 0`, the DRU and `LED_EDGE_CLEARANCE` at 0.24, `cpl_check.py` 0.6, then the T-10 rebuild.
   - Verify: the Definition of Done, including the board steps for (b). Depends on: T-06.
-- [ ] **T-09. Apply D-2 (PR-04).** Depends on: T-06, T-07.
+- [x] **T-09. Apply D-2 (PR-04).** Depends on: T-06, T-07.
   - If (a) is chosen: nothing to change. Bring-up's 20 cold starts close it.
   - If (b) is chosen: change `LCSC_XTAL` and the C6/C7 values in `design.py`, add the part to `jlc_footprints.json` and `mpn.json`, and add a deviation entry. Regenerate with `just pcb <side>` and `just pcb-production <side>`.
   - Verify: the Definition of Done with the board steps; `cpl_check` 201 of 201.
   - Network: yes, for LCSC lookups.
-- [ ] **T-10. Rev B.1 copper batch (D-3 = yes): PR-05, PR-06, PR-07, PR-14, PR-16.**
+- [-] **T-10. Rev B.1 copper batch (D-3 = yes): PR-05, PR-06, PR-07, PR-14, PR-16.** Skipped: D-3 = no batch. These findings move to rev C (T-16).
   - Do one finding per commit on one branch, then one regeneration of both halves.
   - Accept: left VBUS is ≥ 0.5 mm everywhere. No one-sided locked via is left on the RGB nets. Pin 22 has a cap within 3 mm. The EP's paste windows avoid its vias. Silk is ≥ 0.15 mm. The BOARD-14 counts are updated.
   - Verify: the Definition of Done with the board steps. The `pcb` workflow `rebuild` job reproduces both boards.

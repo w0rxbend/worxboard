@@ -30,9 +30,9 @@ and diode `D<n>`, n = 101…137 in [matrix.md](matrix.md#sockets-and-diodes) ord
 | U1 | 1 | RP2040 microcontroller | [C2040](https://jlcpcb.com/partdetail/C2040) | `QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm` | top | [C] | yes |
 | U2 | 1 | W25Q128JVSIQ, 16 MB QSPI flash | [C97521](https://jlcpcb.com/partdetail/C97521) | `SOIC-8_5.3x5.3mm_P1.27mm` | top | [J] |  |
 | C5, C8–C17, C22, C101–C137 | 49 | 100 nF 0402 | [C1525](https://jlcpcb.com/partdetail/C1525) | `C_0402_1005Metric` | top 12, **bottom** 37 | [C] |  |
-| Y1 | 1 | 12 MHz crystal, CL 18 pF, 3225 (YXC XL2EL89CRI-111YLC-12M) | [C49304726](https://jlcpcb.com/partdetail/C49304726) | `Crystal_SMD_3225-4Pin_3.2x2.5mm` | top | [J] | yes |
+| Y1 | 1 | 12 MHz crystal, CL 10 pF, ESR 50 Ω, 3225 (Abracon ABM8-272-T3; REVB-10: was YXC C49304726) | [C20625731](https://jlcpcb.com/partdetail/C20625731) | `Crystal_SMD_3225-4Pin_3.2x2.5mm` | top | [J] | yes |
 | R7, R9 | 2 | 1 kΩ 0402 | [C11702](https://jlcpcb.com/partdetail/C11702) | `R_0402_1005Metric` | top | [C] |  |
-| C6, C7 | 2 | 27 pF 0402 | [C1557](https://jlcpcb.com/partdetail/C1557) | `C_0402_1005Metric` | top | [C] | yes |
+| C6, C7 | 2 | 15 pF 0402 C0G (crystal load; REVB-10: was 27 pF) | [C1548](https://jlcpcb.com/partdetail/C1548) | `C_0402_1005Metric` | top | [J] |  |
 | R5, R6, R8, R10, R13, R15 | 6 | 10 kΩ 0402 | [C25744](https://jlcpcb.com/partdetail/C25744) | `R_0402_1005Metric` | top | [C] |  |
 | SW1 | 1 | TS-1088R-02026 tact switch (BOOT) | [C455280](https://jlcpcb.com/partdetail/C455280) | `SW_SPST_TS-1088-xR020` | top | [C] | yes |
 | SW2 | 1 | TS-1088R-02026 tact switch (RESET) | [C455280](https://jlcpcb.com/partdetail/C455280) | `SW_SPST_TS-1088-xR020` | top | [C] | yes |

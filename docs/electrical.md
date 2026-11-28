@@ -173,9 +173,10 @@ VLED ── U7 SN74LV1T34 VCC (C22 100 nF), every LED VDD (each with its own 100
 Cloned from the Corne v4.1 production BOM, with these values:
 
 - **Flash** U2 W25Q128JVSIQ, C5 100 nF decoupling, R8 10k pull-up on QSPI_SS.
-- **Crystal** Y1 12 MHz 3225, YXC XL2EL89CRI-111YLC-12M (C49304726): CL 18 pF, ±10 ppm, ESR 80 Ω
-  maximum (ELEC-1). It has 2 × 27 pF load capacitors (C6, C7) and R7, 1 kΩ in series on XOUT. The
-  firmware waits 64× longer than the Pico SDK default for it to start (WS1-9). Its
+- **Crystal** Y1 12 MHz 3225, Abracon ABM8-272-T3 (C20625731): CL 10 pF, ±30 ppm, ESR 50 Ω maximum,
+  the RP2040 hardware design guide's and the Pico's crystal (REVB-10). It has 2 × 15 pF load
+  capacitors (C6, C7) and R7, 1 kΩ in series on XOUT, as in the guide. The firmware still waits 64×
+  longer than the Pico SDK default for it to start, which covers the fallback crystals (WS1-9). Its
   courtyard is within 3 mm of the XIN/XOUT pads (measured by `checks.py`, 2.93 mm on both halves).
   R7 sits beside the crystal, so XOUT runs about 5 mm without a via, and a B.Cu keepout over Y1
   keeps tracks and vias out from under it: both GND pours are solid there (deviation REVIEW-FIX-8).

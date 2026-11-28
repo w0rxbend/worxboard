@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1020" height="346" viewBox="0 0 1020 346" font-family="DejaVu Sans, Arial, sans-serif" fill="#1a1a1a">
 <rect width="1020" height="346" fill="#ffffff"/>
-<text x="8" y="18" font-size="14" font-weight="bold">Y1 12 MHz crystal, 3225 · JLC footprint CRYSTAL-SMD_4P-L3.2-W2.5-BL (C49304726) · 2 placed, 2 pass</text>
+<text x="8" y="18" font-size="14" font-weight="bold">Y1 12 MHz crystal, 3225 · JLC footprint CRYSTAL-SMD_4P-L3.2-W2.5-BL (C20625731) · 2 placed, 2 pass</text>
 <text x="8" y="36" font-size="11"><tspan fill="#4d4d4d">grey: KiCad copper</tspan>, white: KiCad holes, <tspan fill="#d62728">red: JLC pads</tspan>, <tspan fill="#1f77b4">blue: part terminals / pegs</tspan>, <tspan fill="#2ca02c">green: part body</tspan>, <tspan fill="#b8860b">gold: board edge</tspan>; red ring = JLC pin 1, cross = KiCad pad 1</text>
 <rect x="2" y="48" width="336" height="296" fill="none" stroke="#dddddd"/>
 <path d="M196.044 272.75 L191.061 271.759 L186.837 268.936 L184.015 264.712 L183.023 259.729 L183.023 212.854 L184.015 207.871 L186.837 203.647 L191.061 200.824 L196.044 199.833 L232.503 199.833 L237.485 200.824 L241.71 203.647 L244.532 207.871 L245.523 212.854 L245.523 259.729 L244.532 264.712 L241.71 268.936 L237.485 271.759 L232.503 272.75 L196.044 272.75 Z" fill="#c8c8c8" stroke="#4d4d4d" stroke-width="1.5"/>

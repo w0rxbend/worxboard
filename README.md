@@ -140,7 +140,7 @@ worxboard keeps the exact ErgoDox key positions and the 25° six-key thumb clust
 | Ref | Part | LCSC | Ref | Part | LCSC |
 |---|---|---|---|---|---|
 | U1 | RP2040, QFN-56 | [C2040](https://jlcpcb.com/partdetail/C2040) | U2 | W25Q128JVSIQ, 16 MB QSPI flash | [C97521](https://jlcpcb.com/partdetail/C97521) |
-| Y1 | 12 MHz 3225 crystal, YXC XL2EL89CRI-111YLC-12M | [C49304726](https://jlcpcb.com/partdetail/C49304726) | U3 | AP2112K-3.3, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) |
+| Y1 | 12 MHz 3225 crystal, Abracon ABM8-272-T3 | [C20625731](https://jlcpcb.com/partdetail/C20625731) | U3 | AP2112K-3.3, 600 mA LDO | [C51118](https://jlcpcb.com/partdetail/C51118) |
 | U4, U5 | USBLC6-2SC6 ESD arrays (USB, TRRS) | [C7519](https://jlcpcb.com/partdetail/C7519) | D1 | B5819W, 1 A Schottky | [C8598](https://jlcpcb.com/partdetail/C8598) |
 | F1 | nSMD050-24V PTC, 500 mA hold | [C70076](https://jlcpcb.com/partdetail/C70076) | J1 | HRO TYPE-C-31-M-12 USB-C receptacle | [C165948](https://jlcpcb.com/partdetail/C165948) |
 | J2 | PJ-320D-4A TRRS jack, SMD | [C95562](https://jlcpcb.com/partdetail/C95562) | J3 | 1×5 2.54 mm female socket, 5.0 mm tall (the only through-hole part) | [C27985230](https://jlcpcb.com/partdetail/C27985230) |

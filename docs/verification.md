@@ -28,8 +28,8 @@ the `pcb` workflow is green.
 | 1 | `just pcb-sch <side>`: ERC, `netcmp.py` against `design.py` | 0 errors, 11 passed | 0 errors, 11 passed |
 | 2 | `just pcb-finish <side>`: DRC violations / unconnected / parity | 0 / 0 / 0 | 0 / 0 / 0 |
 | 2 | `checks.py`, `netcmp.py --board` | 15 passed; 2 passed | 15 passed; 2 passed |
-| 2 | Track segments (locked) / vias | 3414 (807) / 512 | 3528 (792) / 533 |
-| 2 | Track length F.Cu / B.Cu / In2.Cu, mm | 3269 / 2761 / 87 | 3153 / 2919 / 45 |
+| 2 | Track segments (locked) / vias | 3615 (812) / 546 | 3450 (792) / 526 |
+| 2 | Track length F.Cu / B.Cu / In2.Cu, mm | 3213 / 2815 / 130 | 3195 / 2857 / 46 |
 | 3 | `just pcb-fab <side>`: `cpl_check.py`, renders, STEP | 201 of 201 placed | 201 of 201 placed |
 | 4 | `just pcb-production-check <side>`: `jlc_check`, package rebuilt byte for byte | 12 passed, identical | 12 passed, identical |
 | 5 | `just fitcheck`: PCB STEP in the case | 0 mm³ interference | 0 mm³ interference |
@@ -38,6 +38,13 @@ the `pcb` workflow is green.
 | 7 | `just fw` with `fw-check` | 6 of 6 targets built | (same run) |
 | 7 | `pytest tests/integration`, `pytest layout`, `site/gen_docs.py --check` | 112 passed, 0 skipped; 38 passed; current | (same run) |
 | 8 | Stock of all BOM lines (`just pcb-stock`) | open: run on the order day | open: run on the order day |
+
+**Regenerated on 2026-11-28 for the crystal swap ([REVB-10](deviations.md)).** The new schematic reseeds
+placement, so both boards were rebuilt from scratch with `just pcb <side>` and re-routed. The DRC,
+`checks.py`, `netcmp.py --board`, `cpl_check.py` (201 of 201), `jlc_check` and the package gates passed
+again on both halves; rows 1 to 4 above hold the new figures. `just fitcheck` against the new STEPs
+reports 0 mm³ again (row 5). Rows 6 and 7 are the results of 2026-11-12, until CI repeats them on the
+commit.
 
 `just pcb-cpl-images`, `just model`, `just corners`, `just order` and the case `production-check`
 (15 generated files match) ran in the same session. The In2 lengths are the signal tracks the maze

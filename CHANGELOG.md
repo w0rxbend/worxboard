@@ -30,12 +30,18 @@ firmware and case files.
 
 ### Changed
 
+- **Crystal** (REVB-10): Y1 is the Abracon ABM8-272-T3 (C20625731; CL 10 pF, ESR 50 Ω), the crystal of
+  the RP2040 hardware design guide and the Pico, with 15 pF load caps C6/C7 (C1548). It was the YXC
+  C49304726 (CL 18 pF, ESR 80 Ω) with 27 pF caps, which gave the boot ROM's fixed start-up wait little
+  margin. Both boards are regenerated from scratch and re-routed; every gate passes.
 - JLC order remark (`package.py`, both packages regenerated): asks the engineer to confirm the
   reverse-mount LED joint (about 57 % of each lead on its pad) and to route the LED cutouts with a
   cutter of 1.0 mm or less (PLANS.md PR-02, PR-18; owner decision D-1).
 
 ### Fixed
 
+- `checks.py` `GndRaster` crashed on a GND track on In2 (`KeyError: 6`), which the maze router may
+  lay across the VLED plane. The raster now leaves In2 out.
 - Docs: rev A values left after rev B (PLANS.md PR-03). F1 is the 500 mA C70076 and R11/R12 are
   470 Ω in the README, build guide, BOM notes and pin notes. The BOM's G3 row and the verification
   summary and stock table are labelled as rev A's, and rev B's stock check is marked open. The README

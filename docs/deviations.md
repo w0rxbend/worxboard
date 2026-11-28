@@ -2424,3 +2424,29 @@ what was done:
   change; the far half's 30 µF charge through both polyfuses.
 - **Consumers:** the BOM (`docs/bom.md`, generated), `docs/electrical.md` (power path, TRRS link),
   `docs/firmware.md` and the `*_defconfig` comments (the brightness cap's margin), both order packages.
+
+### REVB-10. The crystal is the Abracon ABM8-272-T3 with 15 pF load caps (§6.4; supersedes ELEC-1's crystal and WS1-9's reason)
+
+- **Problem:** ELEC-1 replaced the low-stock Epson part with the YXC XL2EL89CRI-111YLC-12M (C49304726):
+  CL 18 pF and ESR up to 80 Ω, with 27 pF load caps. The RP2040 hardware design guide's crystal is
+  CL 10 pF and ESR 50 Ω (RP-008279-DS-2, §2.3). A higher ESR and a larger load need more gain from the
+  RP2040's oscillator, roughly five times the margin of the reference part. The firmware's 64× wait
+  covers the application (WS1-9), but the boot ROM uses its own fixed XOSC wait. A crystal that starts
+  late there never enumerates as `RPI-RP2`, and the half cannot be flashed over USB (PLANS.md PR-04).
+  The part's JLC stock also fell from 13 833 on 2026-11-04 to 1 753 on 2026-11-27.
+- **Change** (`design.py` `LCSC_XTAL`, `LCSC_C`; owner decision D-2): **Y1 is the Abracon ABM8-272-T3,
+  LCSC C20625731** (CL 10 pF, ESR 50 Ω maximum, ±30 ppm, extended, 6 264 at JLC on 2026-11-27). This
+  is the crystal of the guide's minimal design and of the Pico. **C6 and C7 are 15 pF 0402 C0G,
+  LCSC C1548** (JLC basic), as in the guide: 15 pF / 2 + about 3 pF stray = 10.5 pF. R7 stays 1 kΩ, as in
+  the guide. The footprint, the pads and the routing rules are unchanged. JLC's footprint of C20625731
+  is the same `CRYSTAL-SMD_4P-L3.2-W2.5-BL` as C49304726's, so the CPL needs no new correction.
+- **Kept:** the firmware's 64× XOSC wait (about 64 ms of boot time). It covers the fallback crystals.
+- **Fallbacks**, each with its own load caps: C49304726 (CL 18 pF, 27 pF caps) and the basic C9002
+  (CL 20 pF). Both need more gain than the ABM8-272-T3. `jlc_footprints.py` `FALLBACKS` keeps
+  C49304726's footprint record.
+- **Rejected candidates**, 12 MHz SMD3225 parts read from LCSC and JLC on 2026-11-27 (`STATUS.md`):
+  none other met CL ≤ 12 pF and ESR ≤ 50 Ω in stock. The nearest was C5182759 (CL 12 pF, ESR 60 Ω).
+- **Consumers:** both boards and order packages (regenerated with `just pcb <side>` and
+  `just pcb-production <side>`), `jlc_footprints.json`, `mpn.json`, the BOM (`docs/bom.md`, generated),
+  `docs/electrical.md`, `docs/ordering-jlcpcb.md`, the README parts table, and the XOSC comment in
+  `worxboard.dtsi`.

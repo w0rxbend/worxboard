@@ -25,6 +25,8 @@ firmware and case files.
   power with 20 cold boot-ROM starts, the matrix and split, the LED chain, VLED and the current at
   the cap, the displays and long runs, and the fit. Each step has a pass value and a results table,
   and every open item of verification.md maps to a step.
+- `docs/firmware.md` Known issues: the LEDs draw an estimated 105–135 mA before USB enumeration and
+  stay lit in USB suspend (PLANS.md PR-11).
 
 ### Fixed
 

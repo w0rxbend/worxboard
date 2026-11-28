@@ -74,7 +74,7 @@ or on a built board. **COSMETIC** has no effect on function.
 | PR-07 | MINOR | PCB | IOVDD pin 22's nearest cap (C18) is 8.23 mm away, with 11.64 mm of copper against the 12 mm gate in `checks.py:65` | Put a 100 nF next to pin 22 in `place.py` | T-10 (D-3) |
 | PR-08 | VERIFY | case | The stabiliser cut-out faces the PCB's Ø4.0 holes. Nobody has checked this against Cherry's drawing | Clip a 2u stabiliser into the printed test top | T-13 |
 | PR-09 | VERIFY | order | Nobody has confirmed that the shopping-list switches (C49234236–C49234238) have a south-facing LED window | Check the switch drawing, or name a known windowed switch | T-02 |
-| PR-10 | MINOR | firmware | `&rgb_ug RGB_TOG` (`config/worxboard.keymap:63`) toggles each half's own saved state. One missed press leaves the halves inverted | Decision D-4 | T-11 |
+| PR-10 | — | firmware | **Withdrawn 2026-11-28.** The finding said `&rgb_ug RGB_TOG` toggles each half's own state, so one missed press leaves the halves inverted. That is wrong: the central turns the toggle into an absolute `RGB_ON` or `RGB_OFF` from its own state before relaying it (`behavior_rgb_underglow.c:146`, `firmware.md` Split behaviour), so the next press re-syncs both halves | None | — |
 | PR-11 | MINOR | firmware | VLED is on at boot and during USB suspend. That is about 105–135 mA before enumeration, against 100 mA, plus about 60 µF on the bus. No host is known to enforce either | Decision D-4 | T-11 |
 | PR-12 | MINOR | electrical | Split-power mode (JP1 cut) with one half unpowered: about 3 mA flows through the TX high and 940 Ω into the dead RP2040's RX clamp and phantom-powers its 3V3 | Document it in `electrical.md` | T-01 |
 | PR-13 | MINOR | electrical | TRRS hot-plug with both halves powered: Ring2 crosses the far sleeve, and a PTC does not limit microsecond surges. This is already documented, with silkscreen | Accept. A second SY6280 on VLINK is the rev C option | — |
@@ -159,7 +159,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
 
 ### Phase 2: owner decisions, then the changes they pick
 
-- [ ] **T-06 [owner].** Answer D-1 to D-4 in `STATUS.md`.
+- [x] **T-06 [owner].** Answer D-1 to D-4 in `STATUS.md`.
 - [ ] **T-08. Apply D-1 (PR-02).** (a): put the ask in both order READMEs' JLC remark (`package.py`) and in `docs/ordering-jlcpcb.md`. (b): `gen_footprints.py` `LED_PAD_SHIFT = 0`, the DRU and `LED_EDGE_CLEARANCE` at 0.24, `cpl_check.py` 0.6, then the T-10 rebuild.
   - Verify: the Definition of Done, including the board steps for (b). Depends on: T-06.
 - [ ] **T-09. Apply D-2 (PR-04).** Depends on: T-06, T-07.
@@ -172,8 +172,8 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Accept: left VBUS is ≥ 0.5 mm everywhere. No one-sided locked via is left on the RGB nets. Pin 22 has a cap within 3 mm. The EP's paste windows avoid its vias. Silk is ≥ 0.15 mm. The BOARD-14 counts are updated.
   - Verify: the Definition of Done with the board steps. The `pcb` workflow `rebuild` job reproduces both boards.
   - Size: L. Split it by finding if the routing does not converge. The maze router is sensitive, so check `checks.py` after each change.
-- [ ] **T-11. Apply D-4 (PR-10, PR-11).** Keymap bindings, and the suspend note in `docs/firmware.md`.
-  - Verify: `just fw-keymap-check`, `just fw`, `just fw-check`.
+- [x] **T-11. Apply D-4 (PR-10, PR-11).** D-4 became "keep the toggle" once PR-10 was withdrawn. Only the suspend and pre-enumeration note in `docs/firmware.md`.
+  - Verify: `just docs-check`.
 
 #### Checkpoint 2 (L1 desk-verified)
 

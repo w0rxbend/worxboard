@@ -273,6 +273,13 @@ Verified in the pinned ZMK source (`zmk/app/` in `build/fw-ws/`), not yet on har
 - **Nothing has run on hardware yet**: the displays, the wired split, the forwarded lock indicators,
   the RGB chain (its timing through U7, VLED switching, the real current at the cap, the relayed
   commands) and the `*_EXPERIMENTAL` role-swap pair are untested.
+- **The LEDs draw current before enumeration and in USB suspend.** The firmware turns VLED on at
+  boot, before the host configures the device. The 74 dark LEDs (about 0.6–1 mA each) and both
+  RP2040s draw an estimated 105–135 mA, against USB 2.0's 100 mA before configuration. The LEDs also
+  stay lit while the host sleeps, far above USB's suspend current. No host is known to enforce
+  either limit. [Bring-up step 5.6](bringup.md#stage-5-displays-contacts-and-long-runs) checks each
+  host you use. Press `RGB_TOG` before you leave the host asleep if this matters to you (PLANS.md
+  PR-11).
 - **Settings writes lock interrupts.** The RP2040 flash driver locks interrupts while it programs or
   erases (`zephyr/drivers/flash/flash_rpi_pico.c:227,277`). With RGB, each half writes settings about
   a minute after an RGB change. Whether a write can drop a frame on the

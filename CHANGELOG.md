@@ -6,6 +6,14 @@ firmware and case files.
 
 ## [Unreleased]
 
+## [0.3.0-revB] - 2026-11-28
+
+The production-readiness review of rev B ([PLANS.md](PLANS.md), findings PR-01 to PR-19) and the
+fixes it led to. The crystal swap (REVB-10) re-routes both boards, so this release's gerbers differ
+from `v0.2.0-revB`'s. No rev B board was ever ordered, so the revision letter stays B. It is designed,
+not built: [docs/bringup.md](docs/bringup.md) is the procedure for the first boards. The stock of
+the BOM lines must still be checked on the order day.
+
 ### Added
 
 - Microsite: a "Four layers of copper" section on the product page. It shows the left board's copper

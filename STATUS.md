@@ -5,11 +5,11 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 ## Current state
 
-- **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
-- **Phase:** 2, applying the owner's decisions.
-- **Next task:** Checkpoint 2 (L1 desk-verified): the owner merges PRs #3–#11, and CI's `rebuild` and `production` jobs pass on `main`. Then T-12 on the order day.
-- **Board revision:** rev B, re-routed on `prod/T-09` for the crystal swap (REVB-10). Not built. The tag `v0.2.0-revB` is the routing before the swap.
-- **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
+- **Phase:** 3, order (owner gates). Phases 1 and 2 are done.
+- **Level:** L1 desk-verified once CI is green on the release commit. Next: L2, order-ready.
+- **Next task:** T-12 on the order day (owner): `just pcb-stock left 5` / `right 5`, the quote, and the placement preview. The agent can prepare T-12's one-page checklist in `docs/ordering-jlcpcb.md` first.
+- **Board revision:** rev B, re-routed for the crystal swap (REVB-10), released as the pre-release `v0.3.0-revB`. Not built. `v0.2.0-revB` is the routing before the swap.
+- **Last verified commit:** `b2a87ee` (the merged stack): CI green, both boards rebuilt from scratch byte for byte, 192 tests passed.
 
 ## Open findings
 
@@ -102,3 +102,6 @@ Nothing.
   the router laid a GND track on In2, a layer the raster did not model. The raster now leaves In2
   out, which can only undercount GND copper. The deferred copper findings still hold on the new
   copper: left VBUS has 37 segments at 0.25 mm (PR-05), and there are 36/47 dangling locked vias (PR-06).
+- 2026-11-28. PRs #3–#11 merged into `main`, all CI green, the from-scratch `rebuild` included
+  (run 46086387269). Released as `v0.3.0-revB` (owner's choice: the revision letter stays B,
+  since no rev B board was ever ordered).

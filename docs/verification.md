@@ -34,7 +34,7 @@ the `pcb` workflow is green.
 | 4 | `just pcb-production-check <side>`: `jlc_check`, package rebuilt byte for byte | 12 passed, identical | 12 passed, identical |
 | 5 | `just fitcheck`: PCB STEP in the case | 0 mm³ interference | 0 mm³ interference |
 | 6 | From-scratch rebuild equals the board byte for byte (local run) | identical | identical |
-| 6 | CI `rebuild` jobs on `c942e7b`: the rebuilt board equals the committed one | identical | identical |
+| 6 | CI `rebuild` jobs: the rebuilt board equals the committed one (`c942e7b`; after REVB-10, [run 46086387269](https://github.com/w0rxbend/worxboard/actions/runs/46086387269) on `b2a87ee`) | identical | identical |
 | 7 | `just fw` with `fw-check` | 6 of 6 targets built | (same run) |
 | 7 | `pytest tests/integration`, `pytest layout`, `site/gen_docs.py --check` | 112 passed, 0 skipped; 38 passed; current | (same run) |
 | 8 | Stock of all BOM lines (`just pcb-stock`) | open: run on the order day | open: run on the order day |
@@ -43,8 +43,8 @@ the `pcb` workflow is green.
 placement, so both boards were rebuilt from scratch with `just pcb <side>` and re-routed. The DRC,
 `checks.py`, `netcmp.py --board`, `cpl_check.py` (201 of 201), `jlc_check` and the package gates passed
 again on both halves; rows 1 to 4 above hold the new figures. `just fitcheck` against the new STEPs
-reports 0 mm³ again (row 5). Rows 6 and 7 are the results of 2026-11-12, until CI repeats them on the
-commit.
+reports 0 mm³ again (row 5). CI rebuilt both new boards from scratch and matched them byte for byte
+(row 6), and the firmware workflow built all six targets on the same commit (row 7).
 
 `just pcb-cpl-images`, `just model`, `just corners`, `just order` and the case `production-check`
 (15 generated files match) ran in the same session. The In2 lengths are the signal tracks the maze

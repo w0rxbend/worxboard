@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 1, desk fixes with no copper change.
-- **Next task:** T-04 (SK6812 timing in the DTS comment and in `fw-check`).
+- **Next task:** T-05 (`docs/bringup.md`).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -26,7 +26,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
 | PR-15 | MINOR | fixed: T-03 (`prod/T-03`) |
 | PR-13, PR-17 | MINOR / COSMETIC | accepted: documented hot-plug rule; intended pin-in-paste mismatch |
-| PR-R1 | — | rejected: the datasheet keeps the current WS2812 waveform; T-04 records it |
+| PR-R1 | — | rejected: the datasheet keeps the current WS2812 waveform; T-04 put the window in the DTS comment and in `fw-check` |
 
 ## Waiting on owner
 
@@ -52,3 +52,6 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
   37 LEDs per half to their datasheet pin tables (pages cited), checks the LED data direction and
   the chain head at R16, and proves itself on two mutated copies. The table lives in the test, not
   a JSON file: it has one reader. 14 tests, all pass.
+- 2026-11-27. T-04 done on `prod/T-04`: `fw_check.py` computes T0H/T1H/T0L/T1L from `bit-waveform` and
+  `frequency` and fails outside the SK6812MINI-E window; both board DTS comments cite it. Passes on
+  the Phase 0 left and right builds; 5 new test cases.

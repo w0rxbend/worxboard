@@ -131,7 +131,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Accept: a test reads both committed `.kicad_pcb` files and fails unless every pad of U6, U7, every LED, U3 and U4 carries the net its datasheet pin function implies. The datasheet table lives in one data file, with the PDF page cited.
   - Verify: `uv run pytest tests/integration -q`. The test fails if one LED's pads 1 and 3 are swapped in a scratch copy of the board.
   - Files: `tests/integration/test_datasheet_pins.py` and a pin table, for example `pcb/scripts/datasheet_pins.json`. Size: S.
-- [ ] **T-04. Put the SK6812 timing in the DTS comment (PR-R1).**
+- [x] **T-04. Put the SK6812 timing in the DTS comment (PR-R1).**
   - Accept: the comment in `worxboard.dtsi:104` cites the datasheet's T0H/T1H/T0L/T1L limits and the margins. `fw-check` fails if the waveform leaves the datasheet window.
   - Verify: `just fw-check-tests`, `just fw`, `just fw-check`.
   - Files: `worxboard.dtsi`, `fw_check.py`, `firmware/zmk/tests/test_fw_check.py`. Size: S.

@@ -167,7 +167,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - If (b) is chosen: change `LCSC_XTAL` and the C6/C7 values in `design.py`, add the part to `jlc_footprints.json` and `mpn.json`, and add a deviation entry. Regenerate with `just pcb <side>` and `just pcb-production <side>`.
   - Verify: the Definition of Done with the board steps; `cpl_check` 201 of 201.
   - Network: yes, for LCSC lookups.
-- [ ] **T-10. Rev B.1 copper batch (D-3 = yes): PR-05, PR-06, PR-07, PR-14, PR-16.**
+- [-] **T-10. Rev B.1 copper batch (D-3 = yes): PR-05, PR-06, PR-07, PR-14, PR-16.** Skipped: D-3 = no batch. These findings move to rev C (T-16).
   - Do one finding per commit on one branch, then one regeneration of both halves.
   - Accept: left VBUS is ≥ 0.5 mm everywhere. No one-sided locked via is left on the RGB nets. Pin 22 has a cap within 3 mm. The EP's paste windows avoid its vias. Silk is ≥ 0.15 mm. The BOARD-14 counts are updated.
   - Verify: the Definition of Done with the board steps. The `pcb` workflow `rebuild` job reproduces both boards.

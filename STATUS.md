@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 1, desk fixes with no copper change.
-- **Next task:** T-07 (crystal candidates for D-2; needs network).
+- **Next task:** Checkpoint 1. Phase 1 is done once PRs #3–#8 are merged. The owner answers D-1 to D-4 (T-06).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -18,7 +18,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-01 | BLOCKER | open: order-day stock check (T-12) |
 | PR-02 | MAJOR | open: waiting on D-1 |
 | PR-03 | MAJOR | fixed: T-01 (`prod/T-01`) |
-| PR-04 | VERIFY | open: T-07, then D-2 |
+| PR-04 | VERIFY | open: candidates below (T-07); waiting on D-2 |
 | PR-05, -06, -07, -14, -16 | MINOR / COSMETIC | open: waiting on D-3 |
 | PR-09 | VERIFY | fixed: T-02 (`prod/T-02`). How much light reaches the cap through the slot is a T-14 bring-up check |
 | PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
@@ -27,6 +27,28 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-15 | MINOR | fixed: T-03 (`prod/T-03`) |
 | PR-13, PR-17 | MINOR / COSMETIC | accepted: documented hot-plug rule; intended pin-in-paste mismatch |
 | PR-R1 | — | rejected: the datasheet keeps the current WS2812 waveform; T-04 put the window in the DTS comment and in `fw-check` |
+
+## Crystal candidates (T-07, for D-2)
+
+Read on 2026-11-27 from LCSC's product API (parameters) and JLC's component API (library, stock),
+the same endpoints `tests/integration/stock.py` uses. The filter is 12 MHz, SMD3225-4P, CL ≤ 12 pF
+and ESR ≤ 50 Ω. Load caps ≈ 2 × (CL − about 3 pF stray).
+
+| LCSC | Part | CL | ESR | JLC | JLC stock | Caps | Verdict |
+|---|---|---|---|---|---|---|---|
+| [C20625731](https://jlcpcb.com/partdetail/AbraconLlc-ABM8_272T3/C20625731) | Abracon ABM8-272-T3 | 10 pF | 50 Ω | extended | 6 264 | ~15 pF | **meets both limits.** The crystal of Raspberry Pi's RP2040 reference design |
+| [C5182759](https://jlcpcb.com/partdetail/C5182759) | Yajingxin TX322512M4FBCE2T | 12 pF | 60 Ω | extended | 2 458 | ~18 pF | ESR 10 Ω over: second choice |
+| [C845582](https://jlcpcb.com/partdetail/C845582) | NDK NX3225GA-12.000MHz-EXS00A | 12 pF | not listed | extended | 4 810 | ~18 pF | read the datasheet's ESR first |
+| [C2875246](https://jlcpcb.com/partdetail/C2875246) | JSCJ CJ13-120001210B20 | 12 pF | not listed | extended | 7 045 | ~18 pF | read the datasheet's ESR first |
+| [C50430](https://jlcpcb.com/partdetail/C50430) | YXC X322512MMB4SI | 10 pF | 80 Ω | extended | 8 353 | ~15 pF | ESR as high as the current part |
+| C49304726 (current) | YXC XL2EL89CRI-111YLC-12M | 18 pF | 80 Ω | extended | **1 753** | 27 pF | stock down from 13 833 on 2026-11-04 |
+| C9002 (documented fallback) | YXC X322512MSB4SI | 20 pF | 80 Ω | basic | 494 953 | ~33 pF | the worst margin of the list |
+
+Rejected for stock under 50 or high ESR: C596905, C276421, C1986854 (ESR 120 Ω), C5765982 (13 in stock),
+C1986039, C2650486, C5835798, C6525564 (0 in stock), C518157 (no ESR listed, 707 in stock).
+
+If D-2 is (b), T-09 uses C20625731 with C6/C7 at 15 pF. Check the cap value against the RP2040
+hardware design guide's minimal design, and add JLC's footprint record of the part to `jlc_footprints.json`.
 
 ## Waiting on owner
 
@@ -59,3 +81,5 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
   cold starts, firmware and split, LEDs and VLED with the current at the cap, displays and long runs,
   fit), a results table per half, and a coverage table that maps every item of verification.md's
   "Not verified" list, PR-04 and PR-19 to its steps. Linked from verification.md.
+- 2026-11-27. T-07 done on `prod/T-07`: 17 crystals checked. Only C20625731 (ABM8-272-T3) meets
+  CL ≤ 12 pF and ESR ≤ 50 Ω. Phase 1 is complete; Checkpoint 1 asks D-1 to D-4.

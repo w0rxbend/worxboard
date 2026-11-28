@@ -148,7 +148,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Verify: `just docs-check`. Each item of that `verification.md` section maps to at least one step.
   - Size: M. Depends on: none.
 
-- [ ] **T-07. Crystal candidates for D-2 (PR-04).**
+- [x] **T-07. Crystal candidates for D-2 (PR-04).**
   - Accept: `STATUS.md` lists 12 MHz 3225 crystals in JLC's catalogue with CL ≤ 12 pF and ESR ≤ 50 Ω. For each: LCSC number, basic or extended, stock, CL, ESR, and the load cap value it needs (2 × (CL − about 3 pF stray)).
   - Verify: each row links its LCSC page. Network: yes. Size: XS.
 

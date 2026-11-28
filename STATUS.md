@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 1, desk fixes with no copper change.
-- **Next task:** T-05 (`docs/bringup.md`).
+- **Next task:** T-07 (crystal candidates for D-2; needs network).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -55,3 +55,7 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
 - 2026-11-27. T-04 done on `prod/T-04`: `fw_check.py` computes T0H/T1H/T0L/T1L from `bit-waveform` and
   `frequency` and fails outside the SK6812MINI-E window; both board DTS comments cite it. Passes on
   the Phase 0 left and right builds; 5 new test cases.
+- 2026-11-27. T-05 done on `prod/T-05`: `docs/bringup.md`, six stages (inspection, first power with 20
+  cold starts, firmware and split, LEDs and VLED with the current at the cap, displays and long runs,
+  fit), a results table per half, and a coverage table that maps every item of verification.md's
+  "Not verified" list, PR-04 and PR-19 to its steps. Linked from verification.md.

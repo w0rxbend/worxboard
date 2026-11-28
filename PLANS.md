@@ -135,7 +135,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Accept: the comment in `worxboard.dtsi:104` cites the datasheet's T0H/T1H/T0L/T1L limits and the margins. `fw-check` fails if the waveform leaves the datasheet window.
   - Verify: `just fw-check-tests`, `just fw`, `just fw-check`.
   - Files: `worxboard.dtsi`, `fw_check.py`, `firmware/zmk/tests/test_fw_check.py`. Size: S.
-- [ ] **T-05. Write the bring-up procedure.**
+- [x] **T-05. Write the bring-up procedure.**
   - Accept: `docs/bringup.md` has numbered steps with a pass value for each:
     - visual and AOI check of the LEDs and sockets;
     - power-up from a current-limited 5 V supply (expected idle current), then the rails VBUS, VSYS, 3V3 and 1V1;

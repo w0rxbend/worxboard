@@ -377,7 +377,8 @@ be checked on the order day. For rev A: none. The five items WS5 listed are done
 
 ## Not verified until a board is built
 
-Nothing below blocks the order. Each item can only be confirmed on the first assembled boards:
+Nothing below blocks the order. Each item can only be confirmed on the first assembled boards.
+[bringup.md](bringup.md) is the step-by-step procedure that checks them, with a pass value for each:
 
 - **JLC assembly.** Whether JLC solders the C41430893 sockets cleanly: there is no field report of
   this second-source part. Whether JLC's viewer applies the bottom-side CPL as KiKit writes it:

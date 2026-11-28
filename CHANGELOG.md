@@ -21,6 +21,10 @@ firmware and case files.
 - `just fw-check` fails a core build whose LED bit timing leaves the SK6812MINI-E datasheet window
   (T0H 250–400 ns, T1H 700–1000 ns, T0L ≥ 800 ns, T1L ≥ 200 ns). The current 375/750/875/500 ns
   passes; the 625 ns T1H a review proposed would not (PLANS.md PR-R1).
+- `docs/bringup.md`: the first-article procedure for the rev B boards. It covers inspection, first
+  power with 20 cold boot-ROM starts, the matrix and split, the LED chain, VLED and the current at
+  the cap, the displays and long runs, and the fit. Each step has a pass value and a results table,
+  and every open item of verification.md maps to a step.
 
 ### Fixed
 

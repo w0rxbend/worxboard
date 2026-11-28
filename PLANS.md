@@ -8,7 +8,9 @@ and the tasks (`T-*`), in the order they run.
 
 1. Read `STATUS.md`. It names the current phase and the next task.
 2. Take the first task that is unchecked, has all its dependencies done, and is not tagged **[owner]**.
-3. Work on a branch `prod/<task-id>`. Open a PR to `main`. Each task is one PR.
+3. Work on a branch `prod/<task-id>`. Each task is one PR. Branch from the previous task's branch
+   while its PR is unmerged, and open the PR against that branch (a stack), so `PLANS.md` and
+   `STATUS.md` do not conflict. Once the owner merges, base new branches on `main` again.
 4. Run the task's **Verify** commands. Then run the Definition of Done below. Both must pass.
 5. Tick the task here, add a line to the `STATUS.md` log, and set the next task.
 6. When the next task is **[owner]**, or a decision `D-*` is open, write the question under
@@ -125,7 +127,7 @@ Each decision blocks the tasks listed with it. Record the answer in `STATUS.md`.
   - Accept: `docs/shopping-list.md` names switches whose drawing shows a south-facing LED window, and cites the drawing.
   - Verify: `just docs-check`.
   - Size: XS. Depends on: none.
-- [ ] **T-03. Datasheet pin gate (PR-15).**
+- [x] **T-03. Datasheet pin gate (PR-15).**
   - Accept: a test reads both committed `.kicad_pcb` files and fails unless every pad of U6, U7, every LED, U3 and U4 carries the net its datasheet pin function implies. The datasheet table lives in one data file, with the PDF page cited.
   - Verify: `uv run pytest tests/integration -q`. The test fails if one LED's pads 1 and 3 are swapped in a scratch copy of the board.
   - Files: `tests/integration/test_datasheet_pins.py` and a pin table, for example `pcb/scripts/datasheet_pins.json`. Size: S.

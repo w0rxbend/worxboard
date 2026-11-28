@@ -7,7 +7,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 
 - **Level:** L0. The design passed its own gates; Phase 0 review is done. Target: L1, desk-verified.
 - **Phase:** 1, desk fixes with no copper change.
-- **Next task:** T-03 (datasheet pin gate).
+- **Next task:** T-04 (SK6812 timing in the DTS comment and in `fw-check`).
 - **Board revision:** rev B, as committed at `b3728c9` (tag `v0.2.0-revB`, a pre-release). Not built.
 - **Last verified commit:** `b3728c9`. CI green, DRC/ERC 0 errors, 176 tests passed (see PLANS.md Phase 0).
 
@@ -24,7 +24,7 @@ The resume point for the production-readiness workflow ([`GOALS.md`](GOALS.md),
 | PR-08, -18, -19 | VERIFY | open: T-13, T-12, T-14 |
 | PR-10, -11 | MINOR | open: waiting on D-4 |
 | PR-12 | MINOR | fixed: T-01 (`prod/T-01`) |
-| PR-15 | MINOR | open: T-03 |
+| PR-15 | MINOR | fixed: T-03 (`prod/T-03`) |
 | PR-13, PR-17 | MINOR / COSMETIC | accepted: documented hot-plug rule; intended pin-in-paste mismatch |
 | PR-R1 | — | rejected: the datasheet keeps the current WS2812 waveform; T-04 records it |
 
@@ -48,3 +48,7 @@ Ask these at Checkpoint 1. Recommendations and trade-offs are in PLANS.md "Owner
   `layout.json` changed only in two GPIO notes, which the PCB seed (`place.layout_seed`) does not read.
 - 2026-11-27. T-02 done on `prod/T-02`: the HanElectricity drawings of all four LCSC switches show
   a transparent top cover and a south slot (9.40 × 2.70 mm) over the LED. Cited in `shopping-list.md`.
+- 2026-11-27. T-03 done on `prod/T-03`: `tests/integration/test_datasheet_pins.py` holds U3–U7 and the
+  37 LEDs per half to their datasheet pin tables (pages cited), checks the LED data direction and
+  the chain head at R16, and proves itself on two mutated copies. The table lives in the test, not
+  a JSON file: it has one reader. 14 tests, all pass.
